@@ -2,15 +2,16 @@ services:
   - type: web
     name: meal-planner-backend
     env: node
+    plan: free
     buildCommand: cd server && npm install
     startCommand: cd server && node index.js
     envVars:
       - key: NODE_ENV
         value: production
 
-  - type: web
+  - type: static
     name: meal-planner-frontend
-    env: static
+    plan: free
     buildCommand: cd client && npm install && npm run build
     staticPublishPath: ./client/build
     envVars:
