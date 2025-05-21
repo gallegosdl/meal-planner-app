@@ -24,10 +24,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// Near the top after imports
+const uploadDir = path.join(__dirname, 'uploads');
+
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/');
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + path.extname(file.originalname));
@@ -36,37 +45,47 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Create uploads directory if it doesn't exist
-const fs = require('fs');
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
-
 // Receipt parsing endpoint
 app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
   try {
     if (!req.file) {
+      console.log('No file received');
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    console.log('Processing file:', req.file.path);
+    console.log('File received:', {
+      path: req.file.path,
+      size: req.file.size,
+      type: req.file.mimetype
+    });
+
     const parser = new ReceiptParser();
     
     try {
       const result = await parser.parseReceipt(req.file.path);
-      console.log('Parsed result:', result);
-      
-      // Clean up uploaded file
-      fs.unlinkSync(req.file.path);
-
+      console.log('Parse success:', result);
       res.json(result);
     } catch (parseError) {
-      console.error('Receipt parsing error:', parseError);
-      res.status(500).json({ error: 'Failed to parse receipt', details: parseError.message });
+      console.error('Parse error details:', parseError);
+      res.status(500).json({ 
+        error: 'Failed to parse receipt',
+        details: parseError.message,
+        stack: parseError.stack
+      });
     }
+
+    // Clean up file after response is sent
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.error('File cleanup error:', err);
+    });
+
   } catch (error) {
-    console.error('Server error:', error);
-    res.status(500).json({ error: 'Server error', details: error.message });
+    console.error('Request handling error:', error);
+    res.status(500).json({ 
+      error: 'Server error',
+      details: error.message,
+      stack: error.stack
+    });
   }
 });
 
