@@ -10,7 +10,7 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? 'https://meal-planner-app-frontend-s4ga.onrender.com'
+    ? 'https://meal-planner-frontend-uzh6.onrender.com'
     : 'http://localhost:3000'
 }));
 app.use(express.json());

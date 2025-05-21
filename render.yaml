@@ -20,7 +20,7 @@ services:
     staticPublishPath: client/build
     envVars:
       - key: REACT_APP_API_URL
-        value: https://meal-planner-app-backend-3m20.onrender.com
+        value: https://meal-planner-app-3m20.onrender.com
       - key: NODE_ENV
         value: production
       - key: CI
