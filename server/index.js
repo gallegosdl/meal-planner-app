@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const ReceiptParser = require('./services/receiptParser');
 const MealPlanGenerator = require('./services/mealPlanGenerator');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -12,8 +13,14 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://meal-planner-frontend-woan.onrender.com'  // Frontend URL that will make requests
     : 'http://localhost:3000',
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],  // Add OPTIONS
   credentials: true,
+  allowedHeaders: [
+    'Content-Type', 
+    'x-openai-key',
+    'x-session-token'
+  ],
+  exposedHeaders: ['Content-Type'],
   optionsSuccessStatus: 200
 }));
 app.use(express.json());
@@ -45,14 +52,22 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+const sessions = new Map();
+
+const getApiKey = (req) => {
+  const sessionToken = req.headers['x-session-token'];
+  const session = sessions.get(sessionToken);
+  return session?.apiKey;
+};
+
 // Receipt parsing endpoint
 app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
-  try {
-    const apiKey = req.headers['x-openai-key'];
-    if (!apiKey) {
-      return res.status(400).json({ error: 'OpenAI API key required' });
-    }
+  const apiKey = getApiKey(req);
+  if (!apiKey) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
 
+  try {
     if (!req.file) {
       console.log('No file received');
       return res.status(400).json({ error: 'No file uploaded' });
@@ -138,10 +153,24 @@ app.post('/api/generate-meal-plan', async (req, res) => {
   }
 });
 
+app.post('/api/auth', (req, res) => {
+  const { apiKey } = req.body;
+  const sessionToken = crypto.randomUUID();
+  sessions.set(sessionToken, {
+    apiKey,
+    createdAt: Date.now()
+  });
+  
+  res.json({ sessionToken });
+});
+
 // Add near the top of your routes
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Add preflight handler for multipart/form-data
+app.options('/api/parse-receipt', cors());
 
 // Add a port configuration
 const PORT = process.env.PORT || 3001;

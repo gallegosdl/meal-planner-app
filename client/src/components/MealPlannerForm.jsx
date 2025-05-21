@@ -263,7 +263,8 @@ const MealPlannerForm = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
           'x-openai-key': storedKey
-        }
+        },
+        withCredentials: true
       });
       
       console.log('Receipt parsing response:', response.data);
@@ -279,7 +280,8 @@ const MealPlannerForm = () => {
       console.error('Error details:', {
         message: error.message,
         response: error.response?.data,
-        headers: error.response?.headers
+        headers: error.response?.headers,
+        status: error.response?.status
       });
       alert('Failed to parse receipt. Please try again.');
     } finally {

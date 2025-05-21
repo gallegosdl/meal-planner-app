@@ -12,14 +12,25 @@ const api = axios.create({
 // Consistent header name
 const API_KEY_HEADER = 'x-openai-key';
 
-// Add interceptor to include API key
+// Store session token instead of API key
+const setSession = (token) => {
+  sessionStorage.setItem('session_token', token);
+};
+
+// Update interceptor
 api.interceptors.request.use((config) => {
-  const apiKey = localStorage.getItem('openai_api_key');
-  if (apiKey) {
-    config.headers[API_KEY_HEADER] = apiKey;
+  const sessionToken = sessionStorage.getItem('session_token');
+  if (sessionToken) {
+    config.headers['x-session-token'] = sessionToken;
   }
   return config;
 });
+
+// Auth function
+export const authenticate = async (apiKey) => {
+  const response = await api.post('/api/auth', { apiKey });
+  setSession(response.data.sessionToken);
+};
 
 export default api; 
 
