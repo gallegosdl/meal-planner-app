@@ -94,6 +94,11 @@ app.post('/api/generate-meal-plan', async (req, res) => {
   }
 });
 
+// Add near the top of your routes
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 // Add a port configuration
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
