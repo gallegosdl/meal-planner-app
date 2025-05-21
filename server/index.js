@@ -11,9 +11,18 @@ const app = express();
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://meal-planner-frontend-woan.onrender.com'  // Frontend URL that will make requests
-    : 'http://localhost:3000'
+    : 'http://localhost:3000',
+  methods: ['GET', 'POST'],
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 app.use(express.json());
+
+// Add after the CORS middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
