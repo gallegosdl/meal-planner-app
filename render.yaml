@@ -6,8 +6,6 @@ services:
     buildCommand: cd server && npm install
     startCommand: cd server && node index.js
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: NODE_VERSION
         value: 20.x
 
@@ -16,12 +14,10 @@ services:
     env: node
     rootDir: client
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: REACT_APP_API_URL
         value: https://meal-planner-app-3m20.onrender.com
-      - key: NODE_ENV
-        value: production
       - key: NODE_VERSION
         value: 20.x 
