@@ -9,7 +9,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 16.x
+        value: 20.x
 
   - type: web
     name: meal-planner-frontend
@@ -24,4 +24,4 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 16.x 
+        value: 20.x 
