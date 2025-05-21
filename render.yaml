@@ -9,8 +9,9 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: web
     name: meal-planner-frontend
+    env: static
     plan: free
     buildCommand: cd client && npm install && npm run build
     staticPublishPath: ./client/build
