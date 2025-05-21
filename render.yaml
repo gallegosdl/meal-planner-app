@@ -13,19 +13,14 @@ services:
 
   - type: web
     name: meal-planner-frontend
-    env: static
+    env: node
     plan: free
-    buildCommand: |
-      cd client
-      npm install
-      NODE_ENV=production CI=false npm run build
-    staticPublishPath: client/build
+    buildCommand: cd client && npm install
+    startCommand: cd client && npm start
     envVars:
       - key: REACT_APP_API_URL
         value: https://meal-planner-app-3m20.onrender.com
       - key: NODE_ENV
         value: production
-      - key: CI
-        value: false
       - key: NODE_VERSION
         value: 18.x 
