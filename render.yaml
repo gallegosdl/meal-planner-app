@@ -8,6 +8,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 18.x
 
   - type: web
     name: meal-planner-frontend
@@ -24,4 +26,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: CI
-        value: false 
+        value: false
+      - key: NODE_VERSION
+        value: 18.x 
