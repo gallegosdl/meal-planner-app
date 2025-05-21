@@ -13,7 +13,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const apiKey = localStorage.getItem('openai_api_key');
   if (apiKey) {
-    config.headers['X-OpenAI-Key'] = apiKey;
+    config.headers['x-openai-key'] = apiKey;
   }
   return config;
 });

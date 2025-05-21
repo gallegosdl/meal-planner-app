@@ -4,12 +4,12 @@ const fs = require('fs');
 require('dotenv').config();
 
 class ReceiptParser {
-  constructor() {
-    if (!process.env.OPENAI_API_KEY) {
+  constructor(apiKey) {
+    if (!apiKey) {
       throw new Error('OpenAI API key not found');
     }
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: apiKey
     });
   }
 

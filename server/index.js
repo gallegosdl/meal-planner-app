@@ -48,6 +48,11 @@ const upload = multer({ storage: storage });
 // Receipt parsing endpoint
 app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
   try {
+    const apiKey = req.headers['x-openai-key'];
+    if (!apiKey) {
+      return res.status(400).json({ error: 'OpenAI API key required' });
+    }
+
     if (!req.file) {
       console.log('No file received');
       return res.status(400).json({ error: 'No file uploaded' });
@@ -56,31 +61,51 @@ app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
     console.log('File received:', {
       path: req.file.path,
       size: req.file.size,
-      type: req.file.mimetype
+      type: req.file.mimetype,
+      originalName: req.file.originalname
     });
 
-    const parser = new ReceiptParser();
+    // Verify file exists before parsing
+    if (!fs.existsSync(req.file.path)) {
+      console.error('File not found after upload:', req.file.path);
+      return res.status(500).json({ error: 'File not found after upload' });
+    }
+
+    const parser = new ReceiptParser(apiKey);
     
     try {
+      // Read file contents before parsing
+      const fileContents = await fs.promises.readFile(req.file.path);
+      console.log('File size before parsing:', fileContents.length);
+
       const result = await parser.parseReceipt(req.file.path);
       console.log('Parse success:', result);
       res.json(result);
     } catch (parseError) {
-      console.error('Parse error details:', parseError);
+      console.error('Parse error details:', {
+        error: parseError.message,
+        stack: parseError.stack,
+        file: req.file
+      });
       res.status(500).json({ 
         error: 'Failed to parse receipt',
         details: parseError.message,
         stack: parseError.stack
       });
+    } finally {
+      // Clean up file in finally block
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error('File cleanup error:', unlinkError);
+      }
     }
-
-    // Clean up file after response is sent
-    fs.unlink(req.file.path, (err) => {
-      if (err) console.error('File cleanup error:', err);
-    });
-
   } catch (error) {
-    console.error('Request handling error:', error);
+    console.error('Request handling error:', {
+      error: error.message,
+      stack: error.stack,
+      file: req?.file
+    });
     res.status(500).json({ 
       error: 'Server error',
       details: error.message,
