@@ -251,6 +251,9 @@ const MealPlannerForm = () => {
     const file = event.target.files[0];
     if (!file) return;
 
+    const storedKey = localStorage.getItem('openai_api_key');
+    console.log('Using API key:', storedKey ? 'Key exists' : 'No key found');
+
     setIsParsingReceipt(true);
     const formData = new FormData();
     formData.append('receipt', file);
@@ -258,7 +261,8 @@ const MealPlannerForm = () => {
     try {
       const response = await api.post('/api/parse-receipt', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
+          'x-openai-key': storedKey
         }
       });
       
@@ -272,7 +276,11 @@ const MealPlannerForm = () => {
         })));
       }
     } catch (error) {
-      console.error('Error parsing receipt:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        headers: error.response?.headers
+      });
       alert('Failed to parse receipt. Please try again.');
     } finally {
       setIsParsingReceipt(false);
@@ -319,8 +327,13 @@ const MealPlannerForm = () => {
   };
 
   const handleApiKeyChange = (value) => {
+    console.log('Setting API key:', value ? 'Key provided' : 'No key');
     setApiKey(value);
-    localStorage.setItem('openai_api_key', value);
+    if (value) {
+      localStorage.setItem('openai_api_key', value);
+    } else {
+      localStorage.removeItem('openai_api_key');
+    }
   };
 
   return (

@@ -9,11 +9,14 @@ const api = axios.create({
   }
 });
 
+// Consistent header name
+const API_KEY_HEADER = 'x-openai-key';
+
 // Add interceptor to include API key
 api.interceptors.request.use((config) => {
   const apiKey = localStorage.getItem('openai_api_key');
   if (apiKey) {
-    config.headers['x-openai-key'] = apiKey;
+    config.headers[API_KEY_HEADER] = apiKey;
   }
   return config;
 });
@@ -26,7 +29,7 @@ export const generateMealPlan = async (data) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-OpenAI-Key': apiKey
+      [API_KEY_HEADER]: apiKey
     },
     body: JSON.stringify(data),
   });
