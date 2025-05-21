@@ -15,9 +15,13 @@ services:
     plan: free
     buildCommand: |
       cd client
-      npm ci
-      npm run build
+      npm install
+      NODE_ENV=production CI=false npm run build
     staticPublishPath: client/build
     envVars:
       - key: REACT_APP_API_URL
-        value: https://meal-planner-app-backend-3m20.onrender.com 
+        value: https://meal-planner-app-backend-3m20.onrender.com
+      - key: NODE_ENV
+        value: production
+      - key: CI
+        value: false 
