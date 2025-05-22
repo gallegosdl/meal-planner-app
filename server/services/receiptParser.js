@@ -44,56 +44,71 @@ class ReceiptParser {
   }
 
   async parseReceipt(imagePath) {
+    let processedImagePath = null;
     try {
-      // Log API configuration
-      console.log('OpenAI Configuration:', {
-        hasClient: !!this.openai,
-        model: "gpt-4.1",
-        imageExists: fs.existsSync(imagePath),
-        imageSize: fs.statSync(imagePath).size
+      processedImagePath = await this.preprocessImage(imagePath);
+      
+      const base64Image = fs.readFileSync(processedImagePath, 'base64');
+      
+      const prompt = `Extract items from this grocery receipt.
+Format your response as a JSON array ONLY, with no additional text.
+Each item should have:
+{
+  "name": "item name",
+  "quantity": number,
+  "price": number
+}
+Example: [{"name":"Apples","quantity":2,"price":3.99}]`;
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${base64Image}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 1500,
+        temperature: 0.1
       });
 
-      const processedPath = await this.preprocessImage(imagePath);
-      const imageBuffer = await fs.promises.readFile(processedPath);
-      
-      try {
-        const response = await this.openai.chat.completions.create({
-          model: "gpt-4.1",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Extract items and quantities from this receipt." },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:image/png;base64,${imageBuffer.toString('base64')}`
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 500
-        }).catch(error => {
-          // Detailed error logging
-          console.error('OpenAI API Error:', {
-            status: error.status,
-            message: error.message,
-            type: error.type,
-            code: error.code,
-            details: error.response?.data
-          });
-          throw error;
-        });
-
-        await fs.promises.unlink(processedPath);
-        return JSON.parse(response.choices[0].message.content);
-      } catch (error) {
-        throw new Error(`OpenAI API error: ${error.message}`);
+      if (!response.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response from OpenAI');
       }
+
+      console.log('OpenAI raw response:', response.choices[0].message.content);
+
+      // Try to extract JSON from the response
+      const jsonMatch = response.choices[0].message.content.match(/\[.*\]/s);
+      if (!jsonMatch) {
+        throw new Error('No JSON array found in response');
+      }
+
+      const items = JSON.parse(jsonMatch[0]);
+      
+      return {
+        items: items.map(item => ({
+          ...item,
+          category: this.categorizeItem(item.name)
+        })),
+        total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      };
+
     } catch (error) {
-      console.error('Full error details:', error);
+      console.error('Receipt parsing error:', error);
       throw error;
+    } finally {
+      if (processedImagePath && fs.existsSync(processedImagePath)) {
+        fs.unlinkSync(processedImagePath);
+      }
     }
   }
 
