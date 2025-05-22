@@ -48,7 +48,7 @@ class ReceiptParser {
       // Log API configuration
       console.log('OpenAI Configuration:', {
         hasClient: !!this.openai,
-        model: "gpt-4-vision-preview",
+        model: "gpt-4",
         imageExists: fs.existsSync(imagePath),
         imageSize: fs.statSync(imagePath).size
       });
@@ -58,7 +58,7 @@ class ReceiptParser {
       
       try {
         const response = await this.openai.chat.completions.create({
-          model: "gpt-4-vision-preview",
+          model: "gpt-4",
           messages: [
             {
               role: "user",
