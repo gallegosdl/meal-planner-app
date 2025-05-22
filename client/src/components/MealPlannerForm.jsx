@@ -11,7 +11,7 @@ import {
   PieController
 } from 'chart.js';
 import { Doughnut, Bar, Pie } from 'react-chartjs-2';
-import api from '../services/api';
+import api, { authenticate, generateMealPlan } from '../services/api';
 
 // Register ChartJS components
 ChartJS.register(
