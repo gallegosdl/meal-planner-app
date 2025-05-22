@@ -251,8 +251,11 @@ const MealPlannerForm = () => {
     const file = event.target.files[0];
     if (!file) return;
 
-    const storedKey = localStorage.getItem('openai_api_key');
-    console.log('Using API key:', storedKey ? 'Key exists' : 'No key found');
+    const sessionToken = sessionStorage.getItem('session_token');
+    if (!sessionToken) {
+      alert('Please enter your OpenAI API key first');
+      return;
+    }
 
     setIsParsingReceipt(true);
     const formData = new FormData();
@@ -261,8 +264,7 @@ const MealPlannerForm = () => {
     try {
       const response = await api.post('/api/parse-receipt', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-          'x-openai-key': storedKey
+          'Content-Type': 'multipart/form-data'
         },
         withCredentials: true
       });
@@ -328,13 +330,22 @@ const MealPlannerForm = () => {
     }
   };
 
-  const handleApiKeyChange = (value) => {
+  const handleApiKeyChange = async (value) => {
     console.log('Setting API key:', value ? 'Key provided' : 'No key');
     setApiKey(value);
+    
     if (value) {
-      localStorage.setItem('openai_api_key', value);
+      try {
+        // Authenticate and get session token
+        await authenticate(value);
+        console.log('Authentication successful');
+      } catch (error) {
+        console.error('Authentication failed:', error);
+        alert('Failed to authenticate API key');
+      }
     } else {
-      localStorage.removeItem('openai_api_key');
+      // Clear session when API key is removed
+      sessionStorage.removeItem('session_token');
     }
   };
 

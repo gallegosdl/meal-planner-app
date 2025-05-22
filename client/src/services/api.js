@@ -9,17 +9,24 @@ const api = axios.create({
   }
 });
 
-// Consistent header name
-const API_KEY_HEADER = 'x-openai-key';
-
-// Store session token instead of API key
+// Store session token
 const setSession = (token) => {
   sessionStorage.setItem('session_token', token);
 };
 
-// Update interceptor
+// Get session token
+const getSession = () => {
+  return sessionStorage.getItem('session_token');
+};
+
+// Clear session
+const clearSession = () => {
+  sessionStorage.removeItem('session_token');
+};
+
+// Update interceptor to use session token
 api.interceptors.request.use((config) => {
-  const sessionToken = sessionStorage.getItem('session_token');
+  const sessionToken = getSession();
   if (sessionToken) {
     config.headers['x-session-token'] = sessionToken;
   }
@@ -28,21 +35,19 @@ api.interceptors.request.use((config) => {
 
 // Auth function
 export const authenticate = async (apiKey) => {
-  const response = await api.post('/api/auth', { apiKey });
-  setSession(response.data.sessionToken);
+  try {
+    const response = await api.post('/api/auth', { apiKey });
+    setSession(response.data.sessionToken);
+    return response.data;
+  } catch (error) {
+    clearSession();
+    throw error;
+  }
 };
 
 export default api; 
 
 export const generateMealPlan = async (data) => {
-  const apiKey = localStorage.getItem('openai_api_key');
-  const response = await fetch(`${API_URL}/api/generate-meal-plan`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      [API_KEY_HEADER]: apiKey
-    },
-    body: JSON.stringify(data),
-  });
-  return response.json();
+  const response = await api.post('/api/generate-meal-plan', data);
+  return response.data;
 }; 

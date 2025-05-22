@@ -131,16 +131,12 @@ app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
 
 // Meal plan generation endpoint
 app.post('/api/generate-meal-plan', async (req, res) => {
-  try {
-    const apiKey = req.headers['x-openai-key'];
-    
-    if (!apiKey) {
-      return res.status(400).json({ 
-        error: 'API key required',
-        details: 'Please provide your OpenAI API key' 
-      });
-    }
+  const apiKey = getApiKey(req);
+  if (!apiKey) {
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
 
+  try {
     const mealPlanGenerator = new MealPlanGenerator(apiKey);
     const mealPlan = await mealPlanGenerator.generateMealPlan(req.body);
     res.json(mealPlan);
