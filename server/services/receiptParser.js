@@ -8,8 +8,19 @@ class ReceiptParser {
     if (!apiKey) {
       throw new Error('OpenAI API key not found');
     }
+    
+    // Log key format validation
+    console.log('API Key format check:', {
+      length: apiKey.length,
+      prefix: apiKey.startsWith('sk-'),
+      isString: typeof apiKey === 'string'
+    });
+
     this.openai = new OpenAI({
-      apiKey: apiKey
+      apiKey: apiKey,
+      timeout: 60000,        // Increase timeout to 60s
+      maxRetries: 3,
+      baseURL: 'https://api.openai.com/v1', // Explicitly set base URL
     });
   }
 
@@ -33,69 +44,56 @@ class ReceiptParser {
   }
 
   async parseReceipt(imagePath) {
-    let processedImagePath = null;
     try {
-      processedImagePath = await this.preprocessImage(imagePath);
+      // Log API configuration
+      console.log('OpenAI Configuration:', {
+        hasClient: !!this.openai,
+        model: "gpt-4-vision-preview",
+        imageExists: fs.existsSync(imagePath),
+        imageSize: fs.statSync(imagePath).size
+      });
+
+      const processedPath = await this.preprocessImage(imagePath);
+      const imageBuffer = await fs.promises.readFile(processedPath);
       
-      const base64Image = fs.readFileSync(processedImagePath, 'base64');
-      
-      const prompt = `Analyze this grocery receipt and extract all items.
-Return only a JSON array where each item has:
-- name: cleaned up item name
-- quantity: numeric quantity (only include if explicitly shown on receipt)
-- price: numeric price without currency symbol (this should be the TOTAL price for this line item)
-
-Important: 
-- If quantity is not explicitly shown, assume quantity of 1
-- Price should be the final price for that line item (if 2 items at $1 each, price should be $2)
-- Do not multiply price by quantity in your response
-
-Example: [{"name": "Jalapeno Peppers", "quantity": 2, "price": 0.47}]`;
-
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`
+      try {
+        const response = await this.openai.chat.completions.create({
+          model: "gpt-4-vision-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Extract items and quantities from this receipt." },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:image/png;base64,${imageBuffer.toString('base64')}`
+                  }
                 }
-              }
-            ]
-          }
-        ],
-        max_tokens: 1500,
-        temperature: 0.1
-      });
+              ]
+            }
+          ],
+          max_tokens: 500
+        }).catch(error => {
+          // Detailed error logging
+          console.error('OpenAI API Error:', {
+            status: error.status,
+            message: error.message,
+            type: error.type,
+            code: error.code,
+            details: error.response?.data
+          });
+          throw error;
+        });
 
-      if (!response.choices?.[0]?.message?.content) {
-        throw new Error('Invalid response from OpenAI');
+        await fs.promises.unlink(processedPath);
+        return JSON.parse(response.choices[0].message.content);
+      } catch (error) {
+        throw new Error(`OpenAI API error: ${error.message}`);
       }
-
-      console.log('OpenAI raw response:', response.choices[0].message.content);
-
-      const items = this.processOpenAIResponse(response.choices[0].message.content);
-      
-      return {
-        items,
-        total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-      };
     } catch (error) {
-      console.error('Receipt parsing error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
+      console.error('Full error details:', error);
       throw error;
-    } finally {
-      // Clean up processed image
-      if (processedImagePath && fs.existsSync(processedImagePath)) {
-        fs.unlinkSync(processedImagePath);
-      }
     }
   }
 
