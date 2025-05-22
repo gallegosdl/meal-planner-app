@@ -50,27 +50,22 @@ class ReceiptParser {
       
       const base64Image = fs.readFileSync(processedImagePath, 'base64');
       
-      const prompt = `Analyze this receipt and return ONLY a JSON array of items.
-DO NOT include any other text or explanations.
-ONLY return an array in this exact format:
-[
-  {
-    "name": "item name",
-    "quantity": number,
-    "price": number
-  }
-]
-For example: [{"name":"Apples","quantity":2,"price":3.99}]
+      const prompt = `Analyze this grocery receipt and extract all items.
+Return only a JSON array where each item has:
+- name: cleaned up item name
+- quantity: numeric quantity (only include if explicitly shown on receipt)
+- price: numeric price without currency symbol (this should be the TOTAL price for this line item)
 
-Remember: Return ONLY the JSON array, no other text.`;
+Important: 
+- If quantity is not explicitly shown, assume quantity of 1
+- Price should be the final price for that line item (if 2 items at $1 each, price should be $2)
+- Do not multiply price by quantity in your response
+
+Example: [{"name": "Jalapeno Peppers", "quantity": 2, "price": 0.47}]`;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
-          {
-            role: "system",
-            content: "You are a receipt parser that ONLY returns JSON arrays. Never include explanatory text."
-          },
           {
             role: "user",
             content: [
@@ -78,48 +73,34 @@ Remember: Return ONLY the JSON array, no other text.`;
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/png;base64,${base64Image}`
+                  url: `data:image/jpeg;base64,${base64Image}`
                 }
               }
             ]
           }
         ],
         max_tokens: 1500,
-        temperature: 0
+        temperature: 0.1
       });
 
-      const content = response.choices?.[0]?.message?.content;
-      if (!content) {
-        throw new Error('Empty response from OpenAI');
+      if (!response.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response from OpenAI');
       }
 
-      console.log('Raw response:', content);
+      console.log('OpenAI raw response:', response.choices[0].message.content);
 
-      // Clean the response
-      const cleanedContent = content
-        .replace(/```json\n?|\n?```/g, '')  // Remove code blocks
-        .replace(/^[\s\n]*Here.*?\[/m, '[') // Remove any leading text
-        .replace(/\][\s\n]*:.*/s, ']');     // Remove any trailing text
-
-      console.log('Cleaned response:', cleanedContent);
-
-      try {
-        const items = JSON.parse(cleanedContent);
-        return {
-          items: items.map(item => ({
-            ...item,
-            category: this.categorizeItem(item.name)
-          })),
-          total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-        };
-      } catch (parseError) {
-        console.error('Parse error:', parseError);
-        console.error('Content that failed to parse:', cleanedContent);
-        throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
-      }
-
+      const items = this.processOpenAIResponse(response.choices[0].message.content);
+      
+      return {
+        items,
+        total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      };
     } catch (error) {
-      console.error('Receipt parsing error:', error);
+      console.error('Receipt parsing error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw error;
     } finally {
       if (processedImagePath && fs.existsSync(processedImagePath)) {
