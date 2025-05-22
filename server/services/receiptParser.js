@@ -50,19 +50,27 @@ class ReceiptParser {
       
       const base64Image = fs.readFileSync(processedImagePath, 'base64');
       
-      const prompt = `Extract items from this grocery receipt.
-Format your response as a JSON array ONLY, with no additional text.
-Each item should have:
-{
-  "name": "item name",
-  "quantity": number,
-  "price": number
-}
-Example: [{"name":"Apples","quantity":2,"price":3.99}]`;
+      const prompt = `Analyze this receipt and return ONLY a JSON array of items.
+DO NOT include any other text or explanations.
+ONLY return an array in this exact format:
+[
+  {
+    "name": "item name",
+    "quantity": number,
+    "price": number
+  }
+]
+For example: [{"name":"Apples","quantity":2,"price":3.99}]
+
+Remember: Return ONLY the JSON array, no other text.`;
 
       const response = await this.openai.chat.completions.create({
         model: "gpt-4",
         messages: [
+          {
+            role: "system",
+            content: "You are a receipt parser that ONLY returns JSON arrays. Never include explanatory text."
+          },
           {
             role: "user",
             content: [
@@ -77,30 +85,38 @@ Example: [{"name":"Apples","quantity":2,"price":3.99}]`;
           }
         ],
         max_tokens: 1500,
-        temperature: 0.1
+        temperature: 0
       });
 
-      if (!response.choices?.[0]?.message?.content) {
-        throw new Error('Invalid response from OpenAI');
+      const content = response.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error('Empty response from OpenAI');
       }
 
-      console.log('OpenAI raw response:', response.choices[0].message.content);
+      console.log('Raw response:', content);
 
-      // Try to extract JSON from the response
-      const jsonMatch = response.choices[0].message.content.match(/\[.*\]/s);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
+      // Clean the response
+      const cleanedContent = content
+        .replace(/```json\n?|\n?```/g, '')  // Remove code blocks
+        .replace(/^[\s\n]*Here.*?\[/m, '[') // Remove any leading text
+        .replace(/\][\s\n]*:.*/s, ']');     // Remove any trailing text
+
+      console.log('Cleaned response:', cleanedContent);
+
+      try {
+        const items = JSON.parse(cleanedContent);
+        return {
+          items: items.map(item => ({
+            ...item,
+            category: this.categorizeItem(item.name)
+          })),
+          total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+        };
+      } catch (parseError) {
+        console.error('Parse error:', parseError);
+        console.error('Content that failed to parse:', cleanedContent);
+        throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
       }
-
-      const items = JSON.parse(jsonMatch[0]);
-      
-      return {
-        items: items.map(item => ({
-          ...item,
-          category: this.categorizeItem(item.name)
-        })),
-        total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-      };
 
     } catch (error) {
       console.error('Receipt parsing error:', error);
