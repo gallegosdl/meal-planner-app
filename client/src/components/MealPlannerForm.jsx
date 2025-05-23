@@ -891,7 +891,34 @@ const MealPlannerForm = () => {
                     key={day.day}
                     className={`${activeTab === day.day ? 'block' : 'hidden'} mb-8`}
                   >
-                    {/* ... existing detailed view content ... */}
+                    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+                      <h3 className="text-xl font-semibold mb-4">Day {day.day}</h3>
+                      {Object.entries(day.meals).map(([mealType, meal]) => (
+                        <div key={mealType} className="mb-6">
+                          <h4 className="text-lg font-medium capitalize mb-3">
+                            {mealType}: {meal.name}
+                          </h4>
+                          <div className="ml-4 space-y-4">
+                            <div>
+                              <h5 className="font-medium mb-2">Ingredients:</h5>
+                              <ul className="list-disc ml-4 space-y-1">
+                                {meal.ingredients.map((ing, i) => (
+                                  <li key={i}>
+                                    {ing.name} - {ing.amount}
+                                    {ing.cost && ` ($${ing.cost})`}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div>
+                              <h5 className="font-medium mb-2">Instructions:</h5>
+                              <p className="ml-4 text-gray-300">{meal.instructions}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
 
