@@ -2,6 +2,7 @@ import React from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import { useGoogleLogin } from '@react-oauth/google';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const localizer = momentLocalizer(moment);
 
@@ -83,4 +84,6 @@ async function syncWithGoogleCalendar(accessToken, mealPlan) {
       });
     }
   }
-} 
+}
+
+export default CalendarMealPlan; 
