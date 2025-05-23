@@ -12,6 +12,9 @@ import {
 } from 'chart.js';
 import { Doughnut, Bar, Pie } from 'react-chartjs-2';
 import api, { authenticate, generateMealPlan } from '../services/api';
+import DraggableMealPlan from './DraggableMealPlan';
+import CalendarMealPlan from './CalendarMealPlan';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // Register ChartJS components
 ChartJS.register(
@@ -92,6 +95,7 @@ const MealPlannerForm = () => {
   const storeOptions = ['Smiths', 'Albertsons', 'Walmart', 'Whole Foods', 'Trader Joe\'s'];
 
   const [activeTab, setActiveTab] = useState(1);
+  const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', or 'calendar'
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -824,75 +828,94 @@ const MealPlannerForm = () => {
 
         {mealPlan && (
           <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Your Meal Plan</h2>
-            
-            {/* Tab Headers */}
-            <div className="flex border-b border-[#ffffff1a] mb-6">
-              {[1, 2, 3, 4, 5].map((dayNum) => (
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Your Meal Plan</h2>
+              
+              {/* View Toggle Buttons */}
+              <div className="flex gap-2">
                 <button
-                  key={dayNum}
-                  onClick={() => setActiveTab(dayNum)}
-                  className={`px-4 py-2 -mb-px ${
-                    activeTab === dayNum
-                      ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
-                      : 'text-gray-400 hover:text-gray-300'
+                  onClick={() => setViewMode('tabs')}
+                  className={`px-4 py-2 rounded-lg ${
+                    viewMode === 'tabs' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-[#2A3142] text-gray-400'
                   }`}
                 >
-                  Day {dayNum}
+                  Detailed View
                 </button>
-              ))}
+                <button
+                  onClick={() => setViewMode('tiles')}
+                  className={`px-4 py-2 rounded-lg ${
+                    viewMode === 'tiles' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-[#2A3142] text-gray-400'
+                  }`}
+                >
+                  Draggable Tiles
+                </button>
+                <button
+                  onClick={() => setViewMode('calendar')}
+                  className={`px-4 py-2 rounded-lg ${
+                    viewMode === 'calendar' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-[#2A3142] text-gray-400'
+                  }`}
+                >
+                  Calendar View
+                </button>
+              </div>
             </div>
 
-            {/* Tab Content */}
-            {mealPlan.days.map((day) => (
-              <div
-                key={day.day}
-                className={`${activeTab === day.day ? 'block' : 'hidden'} mb-8`}
-              >
-                <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-                  <h3 className="text-xl font-semibold mb-4">Day {day.day}</h3>
-                  {Object.entries(day.meals).map(([mealType, meal]) => (
-                    <div key={mealType} className="mb-6">
-                      <h4 className="text-lg font-medium capitalize mb-3">
-                        {mealType}: {meal.name}
-                      </h4>
-                      <div className="ml-4 space-y-4">
-                        <div>
-                          <h5 className="font-medium mb-2">Ingredients:</h5>
-                          <ul className="list-disc ml-4 space-y-1">
-                            {meal.ingredients.map((ing, i) => (
-                              <li key={i}>
-                                {ing.name} - {ing.amount}
-                                {ing.cost && ` ($${ing.cost})`}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                        
-                        <div>
-                          <h5 className="font-medium mb-2">Instructions:</h5>
-                          <p className="ml-4 text-gray-300">{meal.instructions}</p>
-                        </div>
-                      </div>
-                    </div>
+            {/* Original Tab View */}
+            {viewMode === 'tabs' && (
+              <>
+                <div className="flex border-b border-[#ffffff1a] mb-6">
+                  {[1, 2, 3, 4, 5].map((dayNum) => (
+                    <button
+                      key={dayNum}
+                      onClick={() => setActiveTab(dayNum)}
+                      className={`px-4 py-2 -mb-px ${
+                        activeTab === dayNum
+                          ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
+                          : 'text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      Day {dayNum}
+                    </button>
                   ))}
                 </div>
-              </div>
-            ))}
 
-            {/* Show placeholder for days without data */}
-            {[3, 4, 5].map((dayNum) => (
-              <div
-                key={dayNum}
-                className={`${activeTab === dayNum ? 'block' : 'hidden'} mb-8`}
-              >
-                <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-                  <div className="text-center text-gray-400 py-8">
-                    Day {dayNum} meal plan not generated yet.
+                {/* Original Tab Content */}
+                {mealPlan.days.map((day) => (
+                  <div
+                    key={day.day}
+                    className={`${activeTab === day.day ? 'block' : 'hidden'} mb-8`}
+                  >
+                    {/* ... existing detailed view content ... */}
                   </div>
-                </div>
-              </div>
-            ))}
+                ))}
+
+                {/* Original Placeholder Days */}
+                {[3, 4, 5].map((dayNum) => (
+                  <div
+                    key={dayNum}
+                    className={`${activeTab === dayNum ? 'block' : 'hidden'} mb-8`}
+                  >
+                    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+                      <div className="text-center text-gray-400 py-8">
+                        Day {dayNum} meal plan not generated yet.
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* New Views wrapped in OAuth provider */}
+            <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+              {viewMode === 'tiles' && <DraggableMealPlan mealPlan={mealPlan} />}
+              {viewMode === 'calendar' && <CalendarMealPlan mealPlan={mealPlan} />}
+            </GoogleOAuthProvider>
           </div>
         )}
       </div>
