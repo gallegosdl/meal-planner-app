@@ -1,23 +1,16 @@
 import React from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
-import { useGoogleLogin } from '@react-oauth/google';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const localizer = momentLocalizer(moment);
 
 const CalendarMealPlan = ({ mealPlan }) => {
-  const login = useGoogleLogin({
-    onSuccess: async (response) => {
-      await syncWithGoogleCalendar(response.access_token, mealPlan);
-    }
-  });
-
   // Convert meal plan to calendar events
   const events = mealPlan.days.flatMap(day => 
     Object.entries(day.meals).map(([mealType, meal]) => ({
       id: `${day.day}-${mealType}`,
-      title: meal.name,
+      title: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)}: ${meal.name}`,
       start: moment().add(day.day - 1, 'days').hour(
         mealType === 'breakfast' ? 8 :
         mealType === 'lunch' ? 12 : 18
@@ -26,64 +19,32 @@ const CalendarMealPlan = ({ mealPlan }) => {
         mealType === 'breakfast' ? 9 :
         mealType === 'lunch' ? 13 : 19
       ).toDate(),
-      meal
+      meal,
+      mealType
     }))
   );
 
   return (
-    <div className="h-screen p-4">
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => login()}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Sync with Google Calendar
-        </button>
-      </div>
+    <div className="h-[600px] bg-[#252B3B]/50 rounded-xl p-4">
       <Calendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 'calc(100vh - 100px)' }}
-        views={['week', 'day']}
         defaultView="week"
+        views={['week', 'day']}
+        min={moment().hour(6).minute(0).toDate()}
+        max={moment().hour(21).minute(0).toDate()}
         eventPropGetter={(event) => ({
-          className: `bg-[#2A3142] rounded-lg p-2`,
+          className: `bg-[#2A3142] text-white rounded-lg p-2 border border-[#ffffff1a] hover:bg-[#313748]`,
         })}
+        tooltipAccessor={(event) => {
+          const meal = event.meal;
+          return `${meal.name}\n\nIngredients: ${meal.ingredients.length}\nInstructions available`;
+        }}
       />
     </div>
   );
 };
-
-// Google Calendar sync function
-async function syncWithGoogleCalendar(accessToken, mealPlan) {
-  const calendar = google.calendar({ version: 'v3', auth: accessToken });
-  
-  for (const day of mealPlan.days) {
-    for (const [mealType, meal] of Object.entries(day.meals)) {
-      await calendar.events.insert({
-        calendarId: 'primary',
-        resource: {
-          summary: meal.name,
-          description: `Ingredients:\n${meal.ingredients.map(i => 
-            `- ${i.name}: ${i.amount}`).join('\n')}\n\nInstructions:\n${meal.instructions}`,
-          start: {
-            dateTime: moment().add(day.day - 1, 'days').hour(
-              mealType === 'breakfast' ? 8 :
-              mealType === 'lunch' ? 12 : 18
-            ).toISOString()
-          },
-          end: {
-            dateTime: moment().add(day.day - 1, 'days').hour(
-              mealType === 'breakfast' ? 9 :
-              mealType === 'lunch' ? 13 : 19
-            ).toISOString()
-          }
-        }
-      });
-    }
-  }
-}
 
 export default CalendarMealPlan; 

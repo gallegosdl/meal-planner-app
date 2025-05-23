@@ -1,25 +1,29 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
-const DraggableMealPlan = ({ mealPlan }) => {
-  const [meals, setMeals] = useState(mealPlan);
+const DraggableMealPlan = ({ mealPlan: initialMealPlan }) => {
+  const [meals, setMeals] = useState(initialMealPlan);
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
 
     const { source, destination } = result;
-    const newMeals = {...meals};
-    
-    // Get source and destination days/types
     const [sourceDay, sourceType] = source.droppableId.split('-');
     const [destDay, destType] = destination.droppableId.split('-');
     
-    // Move the meal
-    const meal = newMeals.days[sourceDay].meals[sourceType];
-    newMeals.days[sourceDay].meals[sourceType] = newMeals.days[destDay].meals[destType];
-    newMeals.days[destDay].meals[destType] = meal;
-    
-    setMeals(newMeals);
+    setMeals(prevMeals => {
+      const newMeals = JSON.parse(JSON.stringify(prevMeals)); // Deep clone
+      
+      // Get the meals we're swapping
+      const sourceMeal = newMeals.days[sourceDay - 1].meals[sourceType];
+      const destMeal = newMeals.days[destDay - 1].meals[destType];
+      
+      // Swap the meals
+      newMeals.days[sourceDay - 1].meals[sourceType] = destMeal;
+      newMeals.days[destDay - 1].meals[destType] = sourceMeal;
+      
+      return newMeals;
+    });
   };
 
   return (
@@ -41,12 +45,14 @@ const DraggableMealPlan = ({ mealPlan }) => {
                       draggableId={`${day.day}-${mealType}`}
                       index={0}
                     >
-                      {(provided) => (
+                      {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          className="bg-[#2A3142] p-4 rounded-lg cursor-move hover:bg-[#313748]"
+                          className={`bg-[#2A3142] p-4 rounded-lg cursor-move 
+                            ${snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''}
+                            hover:bg-[#313748] transition-all`}
                         >
                           <h5 className="font-medium mb-2">{meal.name}</h5>
                           <p className="text-sm text-gray-400">
