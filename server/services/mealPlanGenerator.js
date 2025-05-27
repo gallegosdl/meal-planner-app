@@ -9,14 +9,14 @@ class MealPlanGenerator {
   }
 
   async generateMealPlan(preferences) {
-    try {
-      // Calculate total days based on meals per week
-      const totalDays = Math.max(
-        preferences.preferences.mealsPerWeek.breakfast || 0,
-        preferences.preferences.mealsPerWeek.lunch || 0,
-        preferences.preferences.mealsPerWeek.dinner || 0
-      );
+    // Calculate total days based on meals per week - moved outside try block
+    const totalDays = Math.max(
+      preferences.preferences.mealsPerWeek.breakfast || 0,
+      preferences.preferences.mealsPerWeek.lunch || 0,
+      preferences.preferences.mealsPerWeek.dinner || 0
+    );
 
+    try {
       const prompt = `Create a gourmet ${totalDays}-day meal plan with creative, restaurant-quality dishes using these preferences:
       
 Diet Goals: ${preferences.preferences.dietGoals.join(', ')}
@@ -113,7 +113,7 @@ Focus on creating restaurant-quality dishes while respecting dietary preferences
 
     } catch (error) {
       console.error('Error generating meal plan:', error);
-      // Return a default structure matching the requested days
+      // Now totalDays is accessible here
       return {
         days: Array.from({ length: totalDays }, (_, i) => ({
           day: i + 1,
