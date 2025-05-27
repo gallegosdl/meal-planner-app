@@ -1,4 +1,3 @@
-
 import React from 'react';
 import api from '../services/api'; // Axios instance
 
@@ -10,29 +9,30 @@ const InstacartLinkButton = ({ mealPlan }) => {
           meal.ingredients.map(ing => ({
             name: ing.name,
             quantity: parseFloat(ing.amount) || 1,
-            unit: 'each'
+            unit: 'each',
+            display_text: `${ing.name} (${ing.amount || '1 each'})`
           }))
         )
       );
 
       const res = await api.post('/api/instacart/create-link', {
-        title: 'Weekly Grocery List from Meal Planner AI',
+        title: 'Weekly Meal Plan Ingredients',
         link_type: 'shopping_list',
         expires_in: 7,
         line_items: ingredients,
         landing_page_configuration: {
-          partner_linkback_url: 'https://meal-planner-frontend-woan.onrender.com/'
+          partner_linkback_url: window.location.origin
         }
       });
 
       if (res.data?.url) {
         window.open(res.data.url, '_blank');
       } else {
-        alert('Instacart link failed');
+        alert('Failed to create Instacart link');
       }
     } catch (error) {
       console.error('Instacart link error:', error);
-      alert('Failed to create Instacart link');
+      alert('Failed to create Instacart link. Please try again.');
     }
   };
 

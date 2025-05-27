@@ -8,18 +8,27 @@ const INSTACART_KEY = process.env.INSTACART_API_KEY;
 
 router.post('/create-link', async (req, res) => {
   try {
+    // Log the request for debugging
+    console.log('Creating Instacart link with:', {
+      key: INSTACART_KEY,
+      body: req.body
+    });
+
     const response = await axios.post(INSTACART_API, req.body, {
       headers: {
         'Authorization': `Bearer ${INSTACART_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       }
     });
 
+    console.log('Instacart response:', response.data);
     res.json({ url: response.data.products_link_url });
   } catch (error) {
     console.error('Instacart create-link error:', {
       message: error.message,
-      response: error.response?.data
+      response: error.response?.data,
+      key: INSTACART_KEY?.slice(0, 10) + '...' // Log partial key for debugging
     });
 
     res.status(error.response?.status || 500).json({
