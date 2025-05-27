@@ -4,6 +4,13 @@ import api from '../services/api'; // Axios instance
 const InstacartLinkButton = ({ mealPlan }) => {
   const handleCreateInstacartLink = async () => {
     try {
+      // Get session token
+      const sessionToken = sessionStorage.getItem('session_token');
+      if (!sessionToken) {
+        alert('Please authenticate first');
+        return;
+      }
+
       const ingredients = mealPlan.days.flatMap(day =>
         Object.values(day.meals).flatMap(meal =>
           meal.ingredients.map(ing => ({
@@ -22,6 +29,10 @@ const InstacartLinkButton = ({ mealPlan }) => {
         line_items: ingredients,
         landing_page_configuration: {
           partner_linkback_url: window.location.origin
+        }
+      }, {
+        headers: {
+          'x-session-token': sessionToken
         }
       });
 
