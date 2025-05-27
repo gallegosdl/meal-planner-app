@@ -9,12 +9,14 @@ class MealPlanGenerator {
   }
 
   async generateMealPlan(preferences) {
-    // Calculate total days based on meals per week - moved outside try block
     const totalDays = Math.max(
       preferences.preferences.mealsPerWeek.breakfast || 0,
       preferences.preferences.mealsPerWeek.lunch || 0,
       preferences.preferences.mealsPerWeek.dinner || 0
     );
+
+    console.log('Generating meal plan for days:', totalDays);
+    console.log('Preferences:', JSON.stringify(preferences, null, 2));
 
     try {
       const prompt = `Create a gourmet ${totalDays}-day meal plan with creative, restaurant-quality dishes using these preferences:
@@ -77,6 +79,8 @@ Format as JSON with this structure for ALL ${totalDays} DAYS:
 
 Focus on creating restaurant-quality dishes while respecting dietary preferences and macro requirements. Be creative with seasonings and cooking techniques. Ensure you provide ALL ${totalDays} DAYS in the response.`;
 
+      console.log('Sending prompt to OpenAI:', prompt);
+
       const completion = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
@@ -93,12 +97,12 @@ Focus on creating restaurant-quality dishes while respecting dietary preferences
         max_tokens: 3500   // Increased to handle ${totalDays} days of detailed meals
       });
 
-      // Parse and validate the response
-      const responseContent = completion.choices[0].message.content;
-      console.log('OpenAI Response:', responseContent);
+      console.log('OpenAI raw response:', completion);
+      console.log('OpenAI content:', completion.choices[0].message.content);
 
       try {
-        const mealPlan = JSON.parse(responseContent);
+        const mealPlan = JSON.parse(completion.choices[0].message.content);
+        console.log('Parsed meal plan:', JSON.stringify(mealPlan, null, 2));
         
         // Ensure proper structure
         if (!mealPlan.days || !Array.isArray(mealPlan.days)) {
@@ -107,12 +111,20 @@ Focus on creating restaurant-quality dishes while respecting dietary preferences
 
         return mealPlan;
       } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', parseError);
+        console.error('Parse error details:', {
+          error: parseError,
+          rawContent: completion.choices[0].message.content
+        });
         throw new Error('Failed to parse meal plan response');
       }
 
     } catch (error) {
-      console.error('Error generating meal plan:', error);
+      console.error('Full error details:', {
+        error: error,
+        message: error.message,
+        response: error.response?.data,
+        stack: error.stack
+      });
       // Now totalDays is accessible here
       return {
         days: Array.from({ length: totalDays }, (_, i) => ({
