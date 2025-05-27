@@ -159,10 +159,10 @@ app.post('/api/generate-meal-plan', async (req, res) => {
 });
 
 app.post('/api/auth', (req, res) => {
-  const { apiKey } = req.body;
+  const { apiKey } = req.body;  // Change back to just apiKey
   const sessionToken = crypto.randomUUID();
   sessions.set(sessionToken, {
-    apiKey,
+    apiKey,  // Only store the OpenAI key
     createdAt: Date.now()
   });
   
