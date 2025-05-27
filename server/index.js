@@ -5,6 +5,7 @@ const path = require('path');
 const ReceiptParser = require('./services/receiptParser');
 const MealPlanGenerator = require('./services/mealPlanGenerator');
 const crypto = require('crypto');
+const instacartRoutes = require('./routes/instacart');
 
 const app = express();
 
@@ -159,6 +160,8 @@ app.post('/api/auth', (req, res) => {
   
   res.json({ sessionToken });
 });
+
+app.use('/api/instacart', instacartRoutes);
 
 // Add near the top of your routes
 app.get('/health', (req, res) => {

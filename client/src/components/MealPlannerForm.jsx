@@ -15,6 +15,7 @@ import api, { authenticate, generateMealPlan } from '../services/api';
 import DraggableMealPlan from './DraggableMealPlan';
 import CalendarMealPlan from './CalendarMealPlan';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import SendToInstacartButton from './SendToInstacartButton';
 
 // Register ChartJS components
 ChartJS.register(
@@ -830,7 +831,7 @@ const MealPlannerForm = () => {
           <div className="mt-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Your Meal Plan</h2>
-              
+              <SendToInstacartButton mealPlan={mealPlan} />
               {/* View Toggle Buttons */}
               <div className="flex gap-2">
                 <button
