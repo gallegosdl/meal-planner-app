@@ -113,26 +113,37 @@ Focus on creating restaurant-quality dishes while respecting dietary preferences
 
     } catch (error) {
       console.error('Error generating meal plan:', error);
-      // Return a default structure if generation fails
+      // Return a default structure matching the requested days
       return {
-        days: [
-          {
-            day: 1,
-            meals: {
-              breakfast: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
-              lunch: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
-              dinner: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' }
-            }
-          },
-          {
-            day: 2,
-            meals: {
-              breakfast: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
-              lunch: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
-              dinner: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' }
+        days: Array.from({ length: totalDays }, (_, i) => ({
+          day: i + 1,
+          meals: {
+            breakfast: { 
+              name: 'Default meal', 
+              ingredients: [], 
+              instructions: 'No instructions available',
+              difficulty: 'Easy',
+              prepTime: '0 minutes',
+              plating: 'No plating suggestions'
+            },
+            lunch: { 
+              name: 'Default meal', 
+              ingredients: [], 
+              instructions: 'No instructions available',
+              difficulty: 'Easy',
+              prepTime: '0 minutes',
+              plating: 'No plating suggestions'
+            },
+            dinner: { 
+              name: 'Default meal', 
+              ingredients: [], 
+              instructions: 'No instructions available',
+              difficulty: 'Easy',
+              prepTime: '0 minutes',
+              plating: 'No plating suggestions'
             }
           }
-        ]
+        }))
       };
     }
   }
