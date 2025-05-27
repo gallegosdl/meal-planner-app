@@ -18,6 +18,17 @@ router.post('/create-link', async (req, res) => {
   }
 
   try {
+    // Log the ingredients payload
+    console.log('Instacart ingredients payload:', {
+      totalItems: req.body.line_items?.length || 0,
+      items: req.body.line_items?.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        display: item.display_text
+      }))
+    });
+
     console.log('Creating Instacart link...');
     const response = await axios.post(INSTACART_API, req.body, {
       headers: {
