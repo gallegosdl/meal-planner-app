@@ -68,16 +68,16 @@ Format as JSON with this structure for ALL ${totalDays} DAYS:
         "lunch": {...},
         "dinner": {...}
       }
-    },
-    {
-      "day": 2,
-      "meals": {...}
-    },
-    // Continue for all ${totalDays} days
+    }
   ]
 }
 
-Focus on creating restaurant-quality dishes while respecting dietary preferences and macro requirements. Be creative with seasonings and cooking techniques. Ensure you provide ALL ${totalDays} DAYS in the response.`;
+IMPORTANT: 
+- Return ONLY valid JSON
+- Include ALL ${totalDays} days in the response
+- Do not include any comments or placeholders
+- Each day must have breakfast, lunch, and dinner
+- Complete the full structure for each meal`;
 
       console.log('Sending prompt to OpenAI:', prompt);
 
@@ -104,31 +104,81 @@ Focus on creating restaurant-quality dishes while respecting dietary preferences
         const responseContent = completion.choices[0].message.content;
         console.log('OpenAI raw response:', responseContent);
 
-        // Clean the response content by removing markdown code blocks
+        // Clean the response content
         const cleanedContent = responseContent
           .replace(/```json\n?/g, '')  // Remove opening ```json
           .replace(/```\n?/g, '')      // Remove closing ```
-          .trim();                     // Remove any extra whitespace
+          .replace(/\/\/.*/g, '')      // Remove any comments
+          .replace(/\.\.\./g, '')      // Remove any ellipsis
+          .trim();                     // Remove whitespace
 
         console.log('Cleaned content:', cleanedContent);
 
-        const mealPlan = JSON.parse(cleanedContent);
-        console.log('Parsed meal plan:', JSON.stringify(mealPlan, null, 2));
-        
-        // Ensure proper structure
-        if (!mealPlan.days || !Array.isArray(mealPlan.days)) {
-          throw new Error('Invalid meal plan structure');
+        try {
+          const mealPlan = JSON.parse(cleanedContent);
+          
+          // Validate the structure
+          if (!mealPlan.days || !Array.isArray(mealPlan.days)) {
+            throw new Error('Invalid meal plan structure: missing days array');
+          }
+
+          if (mealPlan.days.length !== totalDays) {
+            throw new Error(`Expected ${totalDays} days but got ${mealPlan.days.length}`);
+          }
+
+          // Validate each day has required meals
+          mealPlan.days.forEach((day, index) => {
+            if (!day.meals?.breakfast || !day.meals?.lunch || !day.meals?.dinner) {
+              throw new Error(`Day ${index + 1} is missing required meals`);
+            }
+          });
+
+          return mealPlan;
+        } catch (parseError) {
+          console.error('Parse error:', parseError.message);
+          console.error('Cleaned content that failed to parse:', cleanedContent);
+          throw new Error(`Failed to parse meal plan: ${parseError.message}`);
         }
-
-        return mealPlan;
-      } catch (parseError) {
-        console.error('Parse error details:', {
-          error: parseError,
-          rawContent: completion.choices[0].message.content
+      } catch (error) {
+        console.error('Full error details:', {
+          error: error,
+          message: error.message,
+          response: error.response?.data,
+          stack: error.stack
         });
-        throw new Error('Failed to parse meal plan response');
+        // Now totalDays is accessible here
+        return {
+          days: Array.from({ length: totalDays }, (_, i) => ({
+            day: i + 1,
+            meals: {
+              breakfast: { 
+                name: 'Default meal', 
+                ingredients: [], 
+                instructions: 'No instructions available',
+                difficulty: 'Easy',
+                prepTime: '0 minutes',
+                plating: 'No plating suggestions'
+              },
+              lunch: { 
+                name: 'Default meal', 
+                ingredients: [], 
+                instructions: 'No instructions available',
+                difficulty: 'Easy',
+                prepTime: '0 minutes',
+                plating: 'No plating suggestions'
+              },
+              dinner: { 
+                name: 'Default meal', 
+                ingredients: [], 
+                instructions: 'No instructions available',
+                difficulty: 'Easy',
+                prepTime: '0 minutes',
+                plating: 'No plating suggestions'
+              }
+            }
+          }))
+        };
       }
-
     } catch (error) {
       console.error('Full error details:', {
         error: error,
