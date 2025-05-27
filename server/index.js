@@ -159,11 +159,10 @@ app.post('/api/generate-meal-plan', async (req, res) => {
 });
 
 app.post('/api/auth', (req, res) => {
-  const { apiKey, instacartKey } = req.body;
+  const { apiKey } = req.body;
   const sessionToken = crypto.randomUUID();
   sessions.set(sessionToken, {
     apiKey,
-    instacartKey,
     createdAt: Date.now()
   });
   
