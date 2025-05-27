@@ -6,6 +6,7 @@ const ReceiptParser = require('./services/receiptParser');
 const MealPlanGenerator = require('./services/mealPlanGenerator');
 const crypto = require('crypto');
 const instacartRoutes = require('./routes/instacart');
+const recipesRouter = require('./routes/recipes');
 require('dotenv').config();
 
 const app = express();
@@ -170,6 +171,7 @@ app.post('/api/auth', (req, res) => {
 });
 
 app.use('/api/instacart', instacartRoutes);
+app.use('/api/recipes', recipesRouter);
 
 // Add near the top of your routes
 app.get('/health', (req, res) => {

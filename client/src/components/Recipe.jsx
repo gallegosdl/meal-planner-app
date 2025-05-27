@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StarIcon } from '@heroicons/react/solid';
+import api from '../services/api';
 
 const Recipe = ({ recipe }) => {
   const [rating, setRating] = useState(0);
