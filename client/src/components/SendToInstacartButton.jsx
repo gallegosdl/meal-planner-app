@@ -22,6 +22,12 @@ const InstacartLinkButton = ({ mealPlan }) => {
         )
       );
 
+      // Add client-side logging
+      console.log('Client: Sending to Instacart:', {
+        ingredients,
+        totalItems: ingredients.length
+      });
+
       const res = await api.post('/api/instacart/create-link', {
         title: 'Weekly Meal Plan Ingredients',
         link_type: 'shopping_list',
@@ -36,13 +42,19 @@ const InstacartLinkButton = ({ mealPlan }) => {
         }
       });
 
+      console.log('Client: Instacart response:', res.data);
+
       if (res.data?.url) {
         window.open(res.data.url, '_blank');
       } else {
         alert('Failed to create Instacart link');
       }
     } catch (error) {
-      console.error('Instacart link error:', error);
+      console.error('Client: Instacart link error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       alert('Failed to create Instacart link. Please try again.');
     }
   };
