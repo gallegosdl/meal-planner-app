@@ -4,7 +4,6 @@ const router = express.Router();
 
 //const INSTACART_API = 'https://connect.instacart.com/idp/v1/products/products_link'; // PRODUCTION
 const INSTACART_API = 'https://connect.dev.instacart.tools/idp/v1/products/products_link'; // DEV
-const INSTACART_API_KEY = process.env.INSTACART_API_KEY;
 
 router.post('/create-link', async (req, res) => {
   const sessionToken = req.headers['x-session-token'];
@@ -12,16 +11,17 @@ router.post('/create-link', async (req, res) => {
     return res.status(401).json({ error: 'No session token provided' });
   }
 
+  // Get session to validate user is authenticated
   const session = req.app.get('sessions').get(sessionToken);
-  if (!session?.instacartKey) {
-    return res.status(401).json({ error: 'No Instacart API key found in session' });
+  if (!session?.apiKey) {
+    return res.status(401).json({ error: 'Invalid session' });
   }
 
   try {
     console.log('Creating Instacart link...');
     const response = await axios.post(INSTACART_API, req.body, {
       headers: {
-        'Authorization': `Bearer ${INSTACART_API_KEY}`,
+        'Authorization': `Bearer ${process.env.INSTACART_API_KEY}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       }
