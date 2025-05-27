@@ -8,41 +8,44 @@ export default function App() {
 
   const handleMealPlanGenerated = (mealPlan) => {
     setGeneratedMealPlan(mealPlan);
-    // Optionally switch to recipes tab to show saved recipes
-    // setActiveTab('recipes');
+    // Optionally switch to recipes tab after generating
+    setActiveTab('recipes');
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Navigation Tabs */}
-      <nav className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white">
+      {/* Header with Navigation */}
+      <div className="bg-[#252B3B]/50 backdrop-blur-sm border-b border-[#ffffff0f]">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex space-x-8">
-            <button
-              className={`px-3 py-4 text-sm font-medium ${
-                activeTab === 'planner'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('planner')}
-            >
-              Meal Planner
-            </button>
-            <button
-              className={`px-3 py-4 text-sm font-medium ${
-                activeTab === 'recipes'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('recipes')}
-            >
-              Recipe Library
-            </button>
+          <div className="flex items-center justify-between h-16">
+            <h1 className="text-xl font-bold">Meal Planner AI</h1>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setActiveTab('planner')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === 'planner'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                Meal Planner
+              </button>
+              <button
+                onClick={() => setActiveTab('recipes')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === 'recipes'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                Recipe Library
+              </button>
+            </div>
           </div>
         </div>
-      </nav>
+      </div>
 
-      {/* Content */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6">
         {activeTab === 'planner' ? (
           <MealPlannerForm onMealPlanGenerated={handleMealPlanGenerated} />

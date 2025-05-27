@@ -60,4 +60,42 @@ router.post('/create-link', async (req, res) => {
   }
 });
 
+const createShoppingList = async (mealPlan) => {
+  const lineItems = mealPlan.days.flatMap(day =>
+    Object.values(day.meals).flatMap(meal =>
+      meal.ingredients.map(ingredient => ({
+        name: ingredient.name,
+        quantity: parseFloat(ingredient.amount) || 1,
+        unit: extractUnit(ingredient.amount) || 'each',
+        // Add filters to prefer sale items
+        filters: {
+          // No direct "on sale" filter in API, but we can use store brands 
+          brand_filters: ["Signature SELECT", "Great Value", "Simple Truth"],
+          // Add any health filters based on diet preferences
+          health_filters: [] 
+        }
+      }))
+    )
+  );
+
+  const response = await fetch('https://connect.instacart.com/idp/v1/products/products_link', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.INSTACART_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      title: "Weekly Meal Plan Shopping List",
+      line_items: lineItems,
+      // Enable pantry items feature to let users exclude items they have
+      landing_page_configuration: {
+        enable_pantry_items: true,
+        partner_linkback_url: process.env.APP_URL
+      }
+    })
+  });
+
+  return response.json();
+};
+
 module.exports = router;
