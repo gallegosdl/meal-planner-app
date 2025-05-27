@@ -342,11 +342,14 @@ const MealPlannerForm = () => {
     if (value) {
       try {
         // Authenticate and get session token
-        await authenticate(value);
+        await authenticate({
+          apiKey: value,
+          instacartKey: process.env.REACT_APP_INSTACART_API_KEY
+        });
         console.log('Authentication successful');
       } catch (error) {
         console.error('Authentication failed:', error);
-        alert('Failed to authenticate API key');
+        alert('Authentication failed. Please check your API key.');
       }
     } else {
       // Clear session when API key is removed
