@@ -6,6 +6,7 @@ const ReceiptParser = require('./services/receiptParser');
 const MealPlanGenerator = require('./services/mealPlanGenerator');
 const crypto = require('crypto');
 const instacartRoutes = require('./routes/instacart');
+require('dotenv').config();
 
 const app = express();
 
@@ -60,6 +61,12 @@ const getApiKey = (req) => {
   const session = sessions.get(sessionToken);
   return session?.apiKey;
 };
+
+// Add this near the top after loading env vars
+console.log('Server starting with env vars:', {
+  INSTACART_API_KEY: process.env.INSTACART_API_KEY ? 'Present' : 'Missing',
+  NODE_ENV: process.env.NODE_ENV
+});
 
 // Receipt parsing endpoint
 app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
