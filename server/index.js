@@ -55,6 +55,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 const sessions = new Map();
+app.set('sessions', sessions); // Make sessions available to routes
 
 const getApiKey = (req) => {
   const sessionToken = req.headers['x-session-token'];

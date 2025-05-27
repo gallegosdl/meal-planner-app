@@ -6,33 +6,30 @@ const router = express.Router();
 const INSTACART_API = 'https://connect.dev.instacart.tools/idp/v1/products/products_link'; // DEV
 
 router.post('/create-link', async (req, res) => {
-  // Get session token from request headers
+  // Get session token and API key
   const sessionToken = req.headers['x-session-token'];
   if (!sessionToken) {
     return res.status(401).json({ error: 'No session token provided' });
   }
 
-  // Debug logging
-  console.log('Environment variables:', {
-    INSTACART_API_KEY: process.env.INSTACART_API_KEY ? 'Present' : 'Missing',
-    NODE_ENV: process.env.NODE_ENV
-  });
+  // Get API key from session
+  const session = req.app.get('sessions').get(sessionToken);
+  if (!session?.apiKey) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
 
   try {
     // Log the full request being sent
     console.log('Sending request to Instacart:', {
       url: INSTACART_API,
-      headers: {
-        'Authorization': `Bearer ${process.env.INSTACART_API_KEY?.slice(0,10)}...`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
+      sessionToken: sessionToken,
+      hasApiKey: !!session.apiKey,
       body: req.body
     });
 
     const response = await axios.post(INSTACART_API, req.body, {
       headers: {
-        'Authorization': `Bearer ${process.env.INSTACART_API_KEY}`,
+        'Authorization': `Bearer ${session.apiKey}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       }
