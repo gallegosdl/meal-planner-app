@@ -10,8 +10,7 @@ class MealPlanGenerator {
 
   async generateMealPlan(preferences) {
     try {
-      // Construct the prompt using user preferences
-      const prompt = `Generate a meal plan with the following preferences:
+      const prompt = `Create a gourmet meal plan with creative, restaurant-quality dishes using these preferences:
       
 Diet Goals: ${preferences.preferences.dietGoals.join(', ')}
 Likes: ${preferences.preferences.likes.join(', ')}
@@ -22,10 +21,17 @@ Cuisine Preferences: ${Object.entries(preferences.preferences.cuisinePreferences
   .map(([cuisine, value]) => `${cuisine} (${value})`).join(', ')}
 Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
 
-For each meal, provide:
-1. Name
-2. Ingredients with amounts
-3. Brief cooking instructions
+For each meal:
+1. Create an innovative, flavorful dish name
+2. List all ingredients with precise measurements
+3. Provide detailed, step-by-step cooking instructions including:
+   - Preparation techniques
+   - Cooking methods and times
+   - Seasoning suggestions
+   - Plating recommendations
+4. Include flavor combinations that complement each other
+5. Suggest garnishes and presentation tips
+6. Add estimated cooking time and difficulty level
 
 Format as JSON with this structure:
 {
@@ -33,30 +39,39 @@ Format as JSON with this structure:
     {
       "day": 1,
       "meals": {
-        "breakfast": { "name": "", "ingredients": [{"name": "", "amount": ""}], "instructions": "" },
-        "lunch": { "name": "", "ingredients": [{"name": "", "amount": ""}], "instructions": "" },
-        "dinner": { "name": "", "ingredients": [{"name": "", "amount": ""}], "instructions": "" }
+        "breakfast": {
+          "name": "Creative dish name",
+          "difficulty": "Easy/Medium/Hard",
+          "prepTime": "X minutes",
+          "ingredients": [
+            {"name": "ingredient", "amount": "precise amount", "notes": "optional prep notes"}
+          ],
+          "instructions": "Detailed, step-by-step cooking instructions",
+          "plating": "Presentation suggestions"
+        },
+        "lunch": {...},
+        "dinner": {...}
       }
     }
   ]
 }
 
-Consider dietary restrictions and preferences when creating meals. Ensure meals fit within the budget and macro requirements.`;
+Focus on creating restaurant-quality dishes while respecting dietary preferences and macro requirements. Be creative with seasonings and cooking techniques.`;
 
       const completion = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: "You are a professional meal planner and nutritionist. Generate detailed meal plans that match the user's preferences and dietary requirements. Always respond with properly formatted JSON."
+            content: "You are a Michelin-starred chef and nutritionist. Create innovative, flavorful meal plans that are both nutritious and worthy of fine dining. Focus on creative combinations, proper techniques, and beautiful presentation while maintaining nutritional requirements."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        temperature: 0.7,
-        max_tokens: 2000
+        temperature: 0.8,  // Slightly higher for more creativity
+        max_tokens: 2500   // Increased for more detailed responses
       });
 
       // Parse and validate the response
