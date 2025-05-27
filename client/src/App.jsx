@@ -4,6 +4,13 @@ import RecipeList from './components/RecipeList';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner'); // 'planner' or 'recipes'
+  const [generatedMealPlan, setGeneratedMealPlan] = useState(null);
+
+  const handleMealPlanGenerated = (mealPlan) => {
+    setGeneratedMealPlan(mealPlan);
+    // Optionally switch to recipes tab to show saved recipes
+    // setActiveTab('recipes');
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -37,7 +44,14 @@ export default function App() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto p-6">
-        {activeTab === 'planner' ? <MealPlannerForm /> : <RecipeList />}
+        {activeTab === 'planner' ? (
+          <MealPlannerForm onMealPlanGenerated={handleMealPlanGenerated} />
+        ) : (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Recipe Library</h2>
+            <RecipeList />
+          </div>
+        )}
       </div>
     </div>
   );

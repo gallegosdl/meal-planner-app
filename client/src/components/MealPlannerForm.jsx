@@ -29,7 +29,7 @@ ChartJS.register(
   PieController
 );
 
-const MealPlannerForm = () => {
+const MealPlannerForm = (props) => {
   const [formData, setFormData] = useState({
     householdSize: 1,
     householdMembers: [{ id: 1, name: 'Member 1', photo: null }],
@@ -118,9 +118,29 @@ const MealPlannerForm = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Submitting form:', formData);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.post('/api/generate-meal-plan', preferences);
+      const mealPlan = response.data;
+      
+      // Save each recipe to the database
+      await Promise.all(mealPlan.days.flatMap(day => 
+        Object.values(day.meals).map(meal =>
+          api.post('/api/recipes', meal)
+        )
+      ));
+
+      setMealPlan(mealPlan);
+      props.onMealPlanGenerated?.(mealPlan);
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to generate meal plan');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleMacroChange = (macro, value) => {
