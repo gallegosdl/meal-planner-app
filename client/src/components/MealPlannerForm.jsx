@@ -29,7 +29,28 @@ ChartJS.register(
   PieController
 );
 
-const MealPlannerForm = (props) => {
+const MealPlannerForm = ({ onMealPlanGenerated }) => {
+  const [preferences, setPreferences] = useState({
+    preferences: {
+      dietGoals: [], // From diet type checkboxes
+      likes: [], // From user input
+      dislikes: [], // From user input
+      macros: {
+        protein: 0,
+        carbs: 0,
+        fat: 0
+      },
+      budget: 75, // From budget slider
+      cuisinePreferences: {}, // From cuisine preference sliders
+      mealsPerWeek: {
+        breakfast: 0,
+        lunch: 0,
+        dinner: 0
+      }
+    },
+    ingredients: [] // From receipt parsing or manual input
+  });
+
   const [formData, setFormData] = useState({
     householdSize: 1,
     householdMembers: [{ id: 1, name: 'Member 1', photo: null }],
@@ -135,7 +156,7 @@ const MealPlannerForm = (props) => {
       ));
 
       setMealPlan(mealPlan);
-      props.onMealPlanGenerated?.(mealPlan);
+      onMealPlanGenerated(mealPlan);
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to generate meal plan');
     } finally {
@@ -534,7 +555,7 @@ const MealPlannerForm = (props) => {
                     min="0"
                     max="100"
                     value={value}
-                    onChange={(e) => handleCuisineChange(cuisine, e.target.value)}
+                    onChange={(e) => handleCuisineChange(cuisine, parseInt(e.target.value))}
                     className="w-full h-2 bg-gray-700 rounded-full accent-blue-500"
                   />
                 </div>

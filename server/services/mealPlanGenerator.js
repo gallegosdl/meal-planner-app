@@ -20,15 +20,144 @@ class MealPlanGenerator {
     console.log('Preferences:', JSON.stringify(preferences, null, 2));
 
     try {
-      const prompt = `Create a gourmet ${totalDays}-day meal plan with creative, restaurant-quality dishes using these preferences:
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a Michelin-starred chef. Return ONLY valid JSON with no comments, no trailing commas, and properly escaped strings."
+          },
+          {
+            role: "user",
+            content: this.buildPrompt(preferences, totalDays)
+          }
+        ],
+        temperature: 0.5, // Lower temperature for more consistent output
+        max_tokens: 4000,
+        response_format: { type: "json_object" }
+      });
+
+      let responseContent = completion.choices[0].message.content;
       
+      // Clean the response content
+      try {
+        // Remove any markdown code blocks if present
+        responseContent = responseContent.replace(/```json\n?|\n?```/g, '');
+        
+        // Remove any trailing commas
+        responseContent = responseContent.replace(/,(\s*[}\]])/g, '$1');
+        
+        // Ensure all quotes are properly escaped
+        responseContent = responseContent.replace(/(?<!\\)\\(?!["\\/bfnrt])/g, '\\\\');
+        
+        console.log('Cleaned OpenAI response:', responseContent);
+        
+        const mealPlan = JSON.parse(responseContent);
+
+        if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
+          console.error('Invalid meal plan structure:', mealPlan);
+          return this.generateDefaultMealPlan(totalDays);
+        }
+
+        try {
+          await this.saveRecipesToDatabase(mealPlan);
+        } catch (dbError) {
+          console.error('Database Error:', dbError);
+          // Continue with meal plan even if saving fails
+        }
+
+        return mealPlan;
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.error('Failed Content:', responseContent);
+        return this.generateDefaultMealPlan(totalDays);
+      }
+    } catch (error) {
+      console.error('Meal Plan Generation Error:', error);
+      return this.generateDefaultMealPlan(totalDays);
+    }
+  }
+
+  validateMealPlanStructure(mealPlan, totalDays) {
+    if (!mealPlan?.days || !Array.isArray(mealPlan.days)) return false;
+    if (mealPlan.days.length !== totalDays) return false;
+
+    return mealPlan.days.every(day => {
+      return day?.meals?.breakfast 
+        && day?.meals?.lunch 
+        && day?.meals?.dinner
+        && this.validateMealStructure(day.meals.breakfast)
+        && this.validateMealStructure(day.meals.lunch)
+        && this.validateMealStructure(day.meals.dinner);
+    });
+  }
+
+  validateMealStructure(meal) {
+    return meal?.name 
+      && meal?.difficulty 
+      && meal?.prepTime 
+      && Array.isArray(meal?.ingredients)
+      && meal?.instructions
+      && meal?.plating;
+  }
+
+  async saveRecipesToDatabase(mealPlan) {
+    for (const day of mealPlan.days) {
+      for (const [mealType, meal] of Object.entries(day.meals)) {
+        await db.query(
+          `INSERT INTO recipes (name, difficulty, prep_time, ingredients, instructions, plating)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            meal.name,
+            meal.difficulty,
+            meal.prepTime,
+            JSON.stringify(meal.ingredients),
+            meal.instructions,
+            meal.plating
+          ]
+        );
+      }
+    }
+  }
+
+  generateDefaultMealPlan(totalDays) {
+    return {
+      days: Array.from({ length: totalDays }, (_, i) => ({
+        day: i + 1,
+        meals: {
+          breakfast: this.getDefaultMeal("Healthy Breakfast"),
+          lunch: this.getDefaultMeal("Balanced Lunch"),
+          dinner: this.getDefaultMeal("Nutritious Dinner")
+        }
+      }))
+    };
+  }
+
+  getDefaultMeal(name) {
+    return {
+      name,
+      difficulty: "Medium",
+      prepTime: "30 minutes",
+      ingredients: [
+        { name: "Protein", amount: "150g", notes: "Your choice of protein" },
+        { name: "Vegetables", amount: "200g", notes: "Mixed vegetables" },
+        { name: "Grains", amount: "100g", notes: "Your choice of grains" }
+      ],
+      instructions: "Prepare ingredients. Cook protein. Add vegetables. Serve with grains.",
+      plating: "Arrange on plate with garnish"
+    };
+  }
+
+  buildPrompt(preferences, totalDays) {
+    return `Create a ${totalDays}-day meal plan as a JSON object with these preferences:
+
 Diet Goals: ${preferences.preferences.dietGoals.join(', ')}
 Likes: ${preferences.preferences.likes.join(', ')}
 Dislikes: ${preferences.preferences.dislikes.join(', ')}
 Macro Split: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
 Weekly Budget: $${preferences.preferences.budget}
 Cuisine Preferences: ${Object.entries(preferences.preferences.cuisinePreferences)
-  .map(([cuisine, value]) => `${cuisine} (${value})`).join(', ')}
+  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
 Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
 
 Meals per week:
@@ -36,208 +165,32 @@ Meals per week:
 - Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
 - Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
 
-Generate a COMPLETE ${totalDays}-DAY meal plan. Include meals based on the above preferences.
-
-For each meal:
-1. Create an innovative, flavorful dish name
-2. List all ingredients with precise measurements
-3. Provide detailed, step-by-step cooking instructions including:
-   - Preparation techniques
-   - Cooking methods and times
-   - Seasoning suggestions
-   - Plating recommendations
-4. Include flavor combinations that complement each other
-5. Suggest garnishes and presentation tips
-6. Add estimated cooking time and difficulty level
-
-Format as JSON with this structure for ALL ${totalDays} DAYS:
+IMPORTANT: Return ONLY valid JSON with this exact structure:
 {
   "days": [
     {
       "day": 1,
       "meals": {
         "breakfast": {
-          "name": "Creative dish name",
-          "difficulty": "Easy/Medium/Hard",
-          "prepTime": "X minutes",
-          "ingredients": [
-            {"name": "ingredient", "amount": "precise amount", "notes": "optional prep notes"}
-          ],
-          "instructions": "Detailed, step-by-step cooking instructions",
-          "plating": "Presentation suggestions"
+          "name": string,
+          "difficulty": "Easy"|"Medium"|"Hard",
+          "prepTime": string,
+          "ingredients": [{"name": string, "amount": string, "notes": string}],
+          "instructions": string,
+          "plating": string
         },
-        "lunch": {...},
-        "dinner": {...}
+        "lunch": {same structure},
+        "dinner": {same structure}
       }
     }
   ]
 }
 
-IMPORTANT: 
-- Return ONLY valid JSON
-- Include ALL ${totalDays} days in the response
-- Do not include any comments or placeholders
-- Each day must have breakfast, lunch, and dinner
-- Complete the full structure for each meal`;
-
-      console.log('Sending prompt to OpenAI:', prompt);
-
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a Michelin-starred chef and nutritionist. Create innovative, flavorful meal plans that are both nutritious and worthy of fine dining. Focus on creative combinations, proper techniques, and beautiful presentation while maintaining nutritional requirements."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.8,  // Slightly higher for more creativity
-        max_tokens: 3500   // Increased to handle ${totalDays} days of detailed meals
-      });
-
-      console.log('OpenAI raw response:', completion);
-      console.log('OpenAI content:', completion.choices[0].message.content);
-
-      try {
-        const responseContent = completion.choices[0].message.content;
-        console.log('OpenAI raw response:', responseContent);
-
-        // Clean the response content
-        const cleanedContent = responseContent
-          .replace(/```json\n?/g, '')  // Remove opening ```json
-          .replace(/```\n?/g, '')      // Remove closing ```
-          .replace(/\/\/.*/g, '')      // Remove any comments
-          .replace(/\.\.\./g, '')      // Remove any ellipsis
-          .trim();                     // Remove whitespace
-
-        console.log('Cleaned content:', cleanedContent);
-
-        try {
-          const mealPlan = JSON.parse(cleanedContent);
-          
-          // Validate the structure
-          if (!mealPlan.days || !Array.isArray(mealPlan.days)) {
-            throw new Error('Invalid meal plan structure: missing days array');
-          }
-
-          if (mealPlan.days.length !== totalDays) {
-            throw new Error(`Expected ${totalDays} days but got ${mealPlan.days.length}`);
-          }
-
-          // Validate each day has required meals
-          mealPlan.days.forEach((day, index) => {
-            if (!day.meals?.breakfast || !day.meals?.lunch || !day.meals?.dinner) {
-              throw new Error(`Day ${index + 1} is missing required meals`);
-            }
-          });
-
-          // Save each recipe to the database
-          for (const day of mealPlan.days) {
-            for (const [mealType, meal] of Object.entries(day.meals)) {
-              await db.query(
-                `INSERT INTO recipes (name, difficulty, prep_time, ingredients, instructions, plating)
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [
-                  meal.name,
-                  meal.difficulty,
-                  meal.prepTime,
-                  JSON.stringify(meal.ingredients),
-                  meal.instructions,
-                  meal.plating
-                ]
-              );
-            }
-          }
-
-          return mealPlan;
-        } catch (parseError) {
-          console.error('Parse error:', parseError.message);
-          console.error('Cleaned content that failed to parse:', cleanedContent);
-          throw new Error(`Failed to parse meal plan: ${parseError.message}`);
-        }
-      } catch (error) {
-        console.error('Full error details:', {
-          error: error,
-          message: error.message,
-          response: error.response?.data,
-          stack: error.stack
-        });
-        // Now totalDays is accessible here
-        return {
-          days: Array.from({ length: totalDays }, (_, i) => ({
-            day: i + 1,
-            meals: {
-              breakfast: { 
-                name: 'Default meal', 
-                ingredients: [], 
-                instructions: 'No instructions available',
-                difficulty: 'Easy',
-                prepTime: '0 minutes',
-                plating: 'No plating suggestions'
-              },
-              lunch: { 
-                name: 'Default meal', 
-                ingredients: [], 
-                instructions: 'No instructions available',
-                difficulty: 'Easy',
-                prepTime: '0 minutes',
-                plating: 'No plating suggestions'
-              },
-              dinner: { 
-                name: 'Default meal', 
-                ingredients: [], 
-                instructions: 'No instructions available',
-                difficulty: 'Easy',
-                prepTime: '0 minutes',
-                plating: 'No plating suggestions'
-              }
-            }
-          }))
-        };
-      }
-    } catch (error) {
-      console.error('Full error details:', {
-        error: error,
-        message: error.message,
-        response: error.response?.data,
-        stack: error.stack
-      });
-      // Now totalDays is accessible here
-      return {
-        days: Array.from({ length: totalDays }, (_, i) => ({
-          day: i + 1,
-          meals: {
-            breakfast: { 
-              name: 'Default meal', 
-              ingredients: [], 
-              instructions: 'No instructions available',
-              difficulty: 'Easy',
-              prepTime: '0 minutes',
-              plating: 'No plating suggestions'
-            },
-            lunch: { 
-              name: 'Default meal', 
-              ingredients: [], 
-              instructions: 'No instructions available',
-              difficulty: 'Easy',
-              prepTime: '0 minutes',
-              plating: 'No plating suggestions'
-            },
-            dinner: { 
-              name: 'Default meal', 
-              ingredients: [], 
-              instructions: 'No instructions available',
-              difficulty: 'Easy',
-              prepTime: '0 minutes',
-              plating: 'No plating suggestions'
-            }
-          }
-        }))
-      };
-    }
+Rules:
+1. No comments or trailing commas
+2. All strings must be properly escaped
+3. Must include ALL ${totalDays} days
+4. Each meal must have all required fields`;
   }
 
   validateMeal(meal) {
