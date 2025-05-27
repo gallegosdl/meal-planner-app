@@ -1,5 +1,6 @@
 import React from 'react';
 import MealPlannerForm from './components/MealPlannerForm';
+import RecipeList from './components/RecipeList';
 
 export default function App() {
   return (
