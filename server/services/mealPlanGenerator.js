@@ -101,7 +101,18 @@ Focus on creating restaurant-quality dishes while respecting dietary preferences
       console.log('OpenAI content:', completion.choices[0].message.content);
 
       try {
-        const mealPlan = JSON.parse(completion.choices[0].message.content);
+        const responseContent = completion.choices[0].message.content;
+        console.log('OpenAI raw response:', responseContent);
+
+        // Clean the response content by removing markdown code blocks
+        const cleanedContent = responseContent
+          .replace(/```json\n?/g, '')  // Remove opening ```json
+          .replace(/```\n?/g, '')      // Remove closing ```
+          .trim();                     // Remove any extra whitespace
+
+        console.log('Cleaned content:', cleanedContent);
+
+        const mealPlan = JSON.parse(cleanedContent);
         console.log('Parsed meal plan:', JSON.stringify(mealPlan, null, 2));
         
         // Ensure proper structure
