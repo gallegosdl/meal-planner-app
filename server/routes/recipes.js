@@ -17,7 +17,10 @@ router.get('/', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Failed to fetch recipes:', error);
-    res.status(500).json({ error: 'Failed to fetch recipes' });
+    res.status(500).json({ 
+      error: 'Failed to fetch recipes',
+      details: error.message 
+    });
   }
 });
 
