@@ -1,5 +1,6 @@
 const OpenAI = require('openai');
 require('dotenv').config();
+const db = require('../services/database');
 
 class MealPlanGenerator {
   constructor(apiKey) {
@@ -132,6 +133,24 @@ IMPORTANT:
               throw new Error(`Day ${index + 1} is missing required meals`);
             }
           });
+
+          // Save each recipe to the database
+          for (const day of mealPlan.days) {
+            for (const [mealType, meal] of Object.entries(day.meals)) {
+              await db.query(
+                `INSERT INTO recipes (name, difficulty, prep_time, ingredients, instructions, plating)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [
+                  meal.name,
+                  meal.difficulty,
+                  meal.prepTime,
+                  JSON.stringify(meal.ingredients),
+                  meal.instructions,
+                  meal.plating
+                ]
+              );
+            }
+          }
 
           return mealPlan;
         } catch (parseError) {

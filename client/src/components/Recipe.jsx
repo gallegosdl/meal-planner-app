@@ -3,7 +3,7 @@ import { StarIcon } from '@heroicons/react/solid';
 import api from '../services/api';
 
 const Recipe = ({ recipe }) => {
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(recipe.average_rating || 0);
 
   const handleRate = async (newRating) => {
     try {
