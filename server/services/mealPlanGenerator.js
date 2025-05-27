@@ -8,48 +8,98 @@ class MealPlanGenerator {
     });
   }
 
-  cleanJsonString(str) {
+  async generateMealPlan(preferences) {
     try {
-      // First remove any markdown formatting
-      let cleaned = str
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
+      // Construct the prompt using user preferences
+      const prompt = `Generate a meal plan with the following preferences:
+      
+Diet Goals: ${preferences.preferences.dietGoals.join(', ')}
+Likes: ${preferences.preferences.likes.join(', ')}
+Dislikes: ${preferences.preferences.dislikes.join(', ')}
+Macro Split: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
+Weekly Budget: $${preferences.preferences.budget}
+Cuisine Preferences: ${Object.entries(preferences.preferences.cuisinePreferences)
+  .map(([cuisine, value]) => `${cuisine} (${value})`).join(', ')}
+Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
 
-      // Try direct parse first
-      try {
-        const parsed = JSON.parse(cleaned);
-        if (parsed.day && parsed.meals) {
-          return JSON.stringify(parsed);
-        }
-      } catch (e) {
-        console.log('First parse attempt failed, cleaning JSON...');
+For each meal, provide:
+1. Name
+2. Ingredients with amounts
+3. Brief cooking instructions
+
+Format as JSON with this structure:
+{
+  "days": [
+    {
+      "day": 1,
+      "meals": {
+        "breakfast": { "name": "", "ingredients": [{"name": "", "amount": ""}], "instructions": "" },
+        "lunch": { "name": "", "ingredients": [{"name": "", "amount": ""}], "instructions": "" },
+        "dinner": { "name": "", "ingredients": [{"name": "", "amount": ""}], "instructions": "" }
       }
+    }
+  ]
+}
 
-      // More aggressive cleaning only if needed
-      cleaned = cleaned
-        .replace(/\*+/g, '')
-        .replace(/\s+/g, ' ')
-        // Ensure proper quotes around property names
-        .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":')
-        // Ensure proper quotes around string values
-        .replace(/:\s*([^"{}\[\],\s][^,}\]]*[^"{}\[\],\s]?)([,}\]])/g, ':"$1"$2')
-        .trim();
+Consider dietary restrictions and preferences when creating meals. Ensure meals fit within the budget and macro requirements.`;
 
-      // Final parse attempt
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional meal planner and nutritionist. Generate detailed meal plans that match the user's preferences and dietary requirements. Always respond with properly formatted JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      // Parse and validate the response
+      const responseContent = completion.choices[0].message.content;
+      console.log('OpenAI Response:', responseContent);
+
       try {
-        const parsed = JSON.parse(cleaned);
-        if (!parsed.day || !parsed.meals) {
+        const mealPlan = JSON.parse(responseContent);
+        
+        // Ensure proper structure
+        if (!mealPlan.days || !Array.isArray(mealPlan.days)) {
           throw new Error('Invalid meal plan structure');
         }
-        return JSON.stringify(parsed);
+
+        return mealPlan;
       } catch (parseError) {
-        console.error('Parse error after cleaning:', parseError);
-        throw new Error('Failed to parse JSON after cleaning');
+        console.error('Failed to parse OpenAI response:', parseError);
+        throw new Error('Failed to parse meal plan response');
       }
+
     } catch (error) {
-      console.error('JSON cleaning error:', error);
-      throw new Error('Failed to clean JSON response');
+      console.error('Error generating meal plan:', error);
+      // Return a default structure if generation fails
+      return {
+        days: [
+          {
+            day: 1,
+            meals: {
+              breakfast: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
+              lunch: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
+              dinner: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' }
+            }
+          },
+          {
+            day: 2,
+            meals: {
+              breakfast: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
+              lunch: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' },
+              dinner: { name: 'Default meal', ingredients: [], instructions: 'No instructions available' }
+            }
+          }
+        ]
+      };
     }
   }
 
@@ -76,182 +126,6 @@ class MealPlanGenerator {
     };
   }
 
-  async generateMealPlan(data) {
-    try {
-      const { ingredients, preferences } = data;
-      
-      if (!ingredients || !preferences || !preferences.cuisinePreferences) {
-        throw new Error('Missing required data');
-      }
-
-      // Helper function to handle API calls with retries
-      const makeOpenAIRequest = async (prompt, retries = 3, delay = 1000) => {
-        for (let i = 0; i < retries; i++) {
-          try {
-            const response = await this.openai.chat.completions.create({
-              model: "gpt-3.5-turbo",
-              messages: [
-                {
-                  role: "system",
-                  content: `You are a meal planning assistant. Generate a single day of meals in JSON format.
-Return ONLY a JSON object with exactly this structure:
-{
-  "day": (number),
-  "meals": {
-    "breakfast": {
-      "name": "string",
-      "ingredients": [{"name": "string", "amount": "string"}],
-      "instructions": "string"
-    },
-    "lunch": {
-      "name": "string",
-      "ingredients": [{"name": "string", "amount": "string"}],
-      "instructions": "string"
-    },
-    "dinner": {
-      "name": "string",
-      "ingredients": [{"name": "string", "amount": "string"}],
-      "instructions": "string"
-    }
-  }
-}`
-                },
-                {
-                  role: "user",
-                  content: prompt
-                }
-              ],
-              temperature: 0.7,
-              max_tokens: 2000
-            });
-            return response;
-          } catch (error) {
-            if (error.status === 429) {  // Rate limit error
-              console.log(`Rate limit hit, attempt ${i + 1} of ${retries}. Waiting ${delay}ms...`);
-              if (i < retries - 1) {
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2;  // Exponential backoff
-                continue;
-              }
-            }
-            throw error;
-          }
-        }
-        throw new Error('Failed after retry attempts');
-      };
-
-      // Format preferences with type checking
-      const formatPreference = (pref) => {
-        if (!pref) return 'None';
-        if (Array.isArray(pref)) return pref.join(', ');
-        if (typeof pref === 'string') return pref;
-        return String(pref);
-      };
-
-      // Generate one day at a time with retries
-      const days = [];
-      for (let dayNum = 1; dayNum <= 2; dayNum++) {
-        try {
-          const dayPrompt = `Create day ${dayNum} of a 2-day meal plan using these ingredients:
-${ingredients.map(i => `- ${i.name} (${i.quantity})`).join('\n')}
-
-Cuisine preferences (percentage influence):
-${Object.entries(preferences.cuisinePreferences)
-  .filter(([_, value]) => value > 0)
-  .map(([cuisine, value]) => `- ${cuisine}: ${value}%`)
-  .join('\n')}
-
-Dietary Preferences:
-Preferred Foods: ${formatPreference(preferences.likes)}
-Foods to Avoid: ${formatPreference(preferences.dislikes)}
-
-Format the response as a single JSON object with this exact structure:
-{
-  "day": ${dayNum},
-  "meals": {
-    "breakfast": {
-      "name": "Meal Name",
-      "ingredients": [{"name": "ingredient", "amount": "amount"}],
-      "instructions": "cooking instructions"
-    },
-    "lunch": {
-      "name": "Meal Name",
-      "ingredients": [{"name": "ingredient", "amount": "amount"}],
-      "instructions": "cooking instructions"
-    },
-    "dinner": {
-      "name": "Meal Name",
-      "ingredients": [{"name": "ingredient", "amount": "amount"}],
-      "instructions": "cooking instructions"
-    }
-  }
-}`;
-
-          const response = await makeOpenAIRequest(dayPrompt);
-          const content = response.choices[0]?.message?.content;
-          
-          if (!content) {
-            console.warn(`Empty response for day ${dayNum}, using default meal plan`);
-            days.push({
-              day: dayNum,
-              meals: {
-                breakfast: this.validateMeal(),
-                lunch: this.validateMeal(),
-                dinner: this.validateMeal()
-              }
-            });
-            continue;
-          }
-
-          // Clean and parse the response
-          const cleanedContent = this.cleanJsonString(content);
-          console.log(`Day ${dayNum} cleaned content:`, cleanedContent); // Debug log
-
-          try {
-            const dayPlan = JSON.parse(cleanedContent);
-            // Validate the entire day structure
-            const validatedDayPlan = this.validateDayPlan(dayPlan, dayNum);
-            days.push(validatedDayPlan);
-          } catch (parseError) {
-            console.error(`Parse error for day ${dayNum}:`, parseError);
-            console.error('Content that failed to parse:', cleanedContent);
-            days.push(this.validateDayPlan(null, dayNum));
-          }
-        } catch (error) {
-          console.error(`Error generating day ${dayNum}:`, error);
-          days.push({
-            day: dayNum,
-            meals: {
-              breakfast: this.validateMeal(),
-              lunch: this.validateMeal(),
-              dinner: this.validateMeal()
-            }
-          });
-        }
-      }
-
-      return { days };
-    } catch (error) {
-      if (error.status === 429) {
-        throw new Error('API rate limit exceeded. Please try again in a few minutes.');
-      }
-      throw new Error(error.message || 'Failed to generate meal plan');
-    }
-  }
-
-  // Helper method for default days
-  getDefaultDay(dayNum) {
-    return {
-      day: dayNum,
-      meals: {
-        breakfast: this.validateMeal(),
-        lunch: this.validateMeal(),
-        dinner: this.validateMeal()
-      }
-    };
-  }
-
-  // Add meal structure validation
   validateDayPlan(dayPlan, dayNum) {
     const defaultMeal = {
       name: "Default meal",
