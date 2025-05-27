@@ -8,8 +8,8 @@ export default function App() {
 
   const handleMealPlanGenerated = (mealPlan) => {
     setGeneratedMealPlan(mealPlan);
-    // Optionally switch to recipes tab after generating
-    setActiveTab('recipes');
+    // Don't auto-switch to recipes tab anymore
+    // setActiveTab('recipes');
   };
 
   return (

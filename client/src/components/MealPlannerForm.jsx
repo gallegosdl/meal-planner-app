@@ -16,6 +16,7 @@ import DraggableMealPlan from './DraggableMealPlan';
 import CalendarMealPlan from './CalendarMealPlan';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import SendToInstacartButton from './SendToInstacartButton';
+import RecipeList from './RecipeList';
 
 // Register ChartJS components
 ChartJS.register(
@@ -117,7 +118,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
   const storeOptions = ['Smiths', 'Albertsons', 'Walmart', 'Whole Foods', 'Trader Joe\'s'];
 
   const [activeTab, setActiveTab] = useState(1);
-  const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', or 'calendar'
+  const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', 'calendar', or 'recipes'
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -885,6 +886,16 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                   Detailed View
                 </button>
                 <button
+                  onClick={() => setViewMode('recipes')}
+                  className={`px-4 py-2 rounded-lg ${
+                    viewMode === 'recipes' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-[#2A3142] text-gray-400'
+                  }`}
+                >
+                  Recipe Library
+                </button>
+                <button
                   onClick={() => setViewMode('tiles')}
                   className={`px-4 py-2 rounded-lg ${
                     viewMode === 'tiles' 
@@ -977,6 +988,14 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                   </div>
                 ))}
               </>
+            )}
+
+            {/* Add Recipe Library View */}
+            {viewMode === 'recipes' && (
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold mb-6">Recipe Library</h2>
+                <RecipeList />
+              </div>
             )}
 
             {/* New Views wrapped in OAuth provider */}
