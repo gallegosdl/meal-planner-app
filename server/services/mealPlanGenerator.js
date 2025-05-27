@@ -10,7 +10,14 @@ class MealPlanGenerator {
 
   async generateMealPlan(preferences) {
     try {
-      const prompt = `Create a gourmet meal plan with creative, restaurant-quality dishes using these preferences:
+      // Calculate total days based on meals per week
+      const totalDays = Math.max(
+        preferences.preferences.mealsPerWeek.breakfast || 0,
+        preferences.preferences.mealsPerWeek.lunch || 0,
+        preferences.preferences.mealsPerWeek.dinner || 0
+      );
+
+      const prompt = `Create a gourmet ${totalDays}-day meal plan with creative, restaurant-quality dishes using these preferences:
       
 Diet Goals: ${preferences.preferences.dietGoals.join(', ')}
 Likes: ${preferences.preferences.likes.join(', ')}
@@ -20,6 +27,13 @@ Weekly Budget: $${preferences.preferences.budget}
 Cuisine Preferences: ${Object.entries(preferences.preferences.cuisinePreferences)
   .map(([cuisine, value]) => `${cuisine} (${value})`).join(', ')}
 Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
+
+Meals per week:
+- Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
+- Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
+- Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
+
+Generate a COMPLETE ${totalDays}-DAY meal plan. Include meals based on the above preferences.
 
 For each meal:
 1. Create an innovative, flavorful dish name
@@ -33,7 +47,7 @@ For each meal:
 5. Suggest garnishes and presentation tips
 6. Add estimated cooking time and difficulty level
 
-Format as JSON with this structure:
+Format as JSON with this structure for ALL ${totalDays} DAYS:
 {
   "days": [
     {
@@ -52,11 +66,16 @@ Format as JSON with this structure:
         "lunch": {...},
         "dinner": {...}
       }
-    }
+    },
+    {
+      "day": 2,
+      "meals": {...}
+    },
+    // Continue for all ${totalDays} days
   ]
 }
 
-Focus on creating restaurant-quality dishes while respecting dietary preferences and macro requirements. Be creative with seasonings and cooking techniques.`;
+Focus on creating restaurant-quality dishes while respecting dietary preferences and macro requirements. Be creative with seasonings and cooking techniques. Ensure you provide ALL ${totalDays} DAYS in the response.`;
 
       const completion = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -71,7 +90,7 @@ Focus on creating restaurant-quality dishes while respecting dietary preferences
           }
         ],
         temperature: 0.8,  // Slightly higher for more creativity
-        max_tokens: 2500   // Increased for more detailed responses
+        max_tokens: 3500   // Increased to handle ${totalDays} days of detailed meals
       });
 
       // Parse and validate the response
