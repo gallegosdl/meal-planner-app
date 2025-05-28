@@ -48,10 +48,17 @@ You MUST:
         frequency_penalty: 0
       });
 
-      // Add safety check for response length
       const responseContent = completion.choices[0].message.content;
-      if (responseContent.length > 15000) {
-        console.error('Response too long, may be truncated');
+      
+      // Debug response
+      console.log('Raw response length:', responseContent.length);
+      console.log('First 500 chars:', responseContent.substring(0, 500));
+      console.log('Last 500 chars:', responseContent.substring(responseContent.length - 500));
+
+      // Check for common JSON issues
+      const issues = this.checkJSONIssues(responseContent);
+      if (issues.length > 0) {
+        console.error('JSON structure issues found:', issues);
         return this.generateDefaultMealPlan(totalDays);
       }
 
@@ -64,7 +71,11 @@ You MUST:
         await this.saveRecipesToDatabase(mealPlan);
         return mealPlan;
       } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
+        console.error('JSON Parse Error at position:', parseError.position);
+        console.error('Context around error:', 
+          responseContent.substring(Math.max(0, parseError.position - 100), 
+          Math.min(responseContent.length, parseError.position + 100))
+        );
         return this.generateDefaultMealPlan(totalDays);
       }
     } catch (error) {
@@ -74,30 +85,63 @@ You MUST:
   }
 
   validateMealPlanStructure(mealPlan, totalDays) {
-    // Check basic structure
+    const issues = [];
+
+    // Basic structure checks
     if (!mealPlan?.days || !Array.isArray(mealPlan.days)) {
-      console.error('Invalid days array');
-      return false;
-    }
-    
-    // Check day count
-    if (mealPlan.days.length !== totalDays) {
-      console.error(`Expected ${totalDays} days, got ${mealPlan.days.length}`);
+      issues.push('Invalid days array');
       return false;
     }
 
-    // Check each day's structure
-    return mealPlan.days.every((day, index) => {
+    if (mealPlan.days.length !== totalDays) {
+      issues.push(`Expected ${totalDays} days, got ${mealPlan.days.length}`);
+      return false;
+    }
+
+    // Validate each day
+    mealPlan.days.forEach((day, index) => {
       if (!day.day || day.day !== index + 1) {
-        console.error(`Invalid day number at index ${index}`);
-        return false;
+        issues.push(`Day ${index + 1}: Invalid day number`);
       }
-      if (!day.meals?.breakfast || !day.meals?.lunch || !day.meals?.dinner) {
-        console.error(`Missing meal at day ${day.day}`);
-        return false;
+
+      if (!day.meals) {
+        issues.push(`Day ${index + 1}: Missing meals object`);
+        return;
       }
-      return true;
+
+      // Check each meal
+      ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
+        const meal = day.meals[mealType];
+        if (!meal) {
+          issues.push(`Day ${index + 1}: Missing ${mealType}`);
+          return;
+        }
+
+        // Validate meal structure
+        if (!meal.name) issues.push(`Day ${index + 1} ${mealType}: Missing name`);
+        if (!meal.difficulty) issues.push(`Day ${index + 1} ${mealType}: Missing difficulty`);
+        if (!meal.prepTime) issues.push(`Day ${index + 1} ${mealType}: Missing prepTime`);
+        if (!meal.instructions) issues.push(`Day ${index + 1} ${mealType}: Missing instructions`);
+        if (!meal.plating) issues.push(`Day ${index + 1} ${mealType}: Missing plating`);
+        
+        if (!Array.isArray(meal.ingredients)) {
+          issues.push(`Day ${index + 1} ${mealType}: Invalid ingredients array`);
+        } else {
+          meal.ingredients.forEach((ing, i) => {
+            if (!ing.name) issues.push(`Day ${index + 1} ${mealType} ingredient ${i}: Missing name`);
+            if (!ing.amount) issues.push(`Day ${index + 1} ${mealType} ingredient ${i}: Missing amount`);
+            if (!ing.notes) issues.push(`Day ${index + 1} ${mealType} ingredient ${i}: Missing notes`);
+          });
+        }
+      });
     });
+
+    if (issues.length > 0) {
+      console.error('Validation issues:', issues);
+      return false;
+    }
+
+    return true;
   }
 
   validateMealStructure(meal) {
@@ -242,6 +286,44 @@ Where meal_object is:
         dinner: this.validateMeal(meals.dinner) || defaultMeal
       }
     };
+  }
+
+  checkJSONIssues(content) {
+    const issues = [];
+    
+    // Check for unescaped quotes
+    const unescapedQuotes = content.match(/[^\\]"/g);
+    if (unescapedQuotes) {
+      issues.push('Found unescaped quotes');
+    }
+
+    // Check for unclosed braces/brackets
+    const openBraces = (content.match(/{/g) || []).length;
+    const closeBraces = (content.match(/}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      issues.push(`Mismatched braces: ${openBraces} open vs ${closeBraces} closed`);
+    }
+
+    const openBrackets = (content.match(/\[/g) || []).length;
+    const closeBrackets = (content.match(/\]/g) || []).length;
+    if (openBrackets !== closeBrackets) {
+      issues.push(`Mismatched brackets: ${openBrackets} open vs ${closeBrackets} closed`);
+    }
+
+    // Check for truncation indicators
+    if (content.endsWith('...') || content.endsWith('…')) {
+      issues.push('Response appears truncated');
+    }
+
+    // Check basic structure
+    if (!content.startsWith('{"days":[{')) {
+      issues.push('Invalid starting structure');
+    }
+    if (!content.endsWith(']}')) {
+      issues.push('Invalid ending structure');
+    }
+
+    return issues;
   }
 }
 
