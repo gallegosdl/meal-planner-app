@@ -25,7 +25,7 @@ class MealPlanGenerator {
         messages: [
           {
             role: "system",
-            content: "You are a Michelin-starred chef. Create detailed recipes and return them in strict JSON format."
+            content: "You are a Michelin-starred chef specializing in creative, detailed recipes. Return ONLY valid JSON."
           },
           {
             role: "user",
@@ -39,23 +39,24 @@ class MealPlanGenerator {
 
       let responseContent = completion.choices[0].message.content;
       
-      // Clean and validate JSON response
+      // Clean the response content
       try {
-        // Check for and fix common JSON issues
-        responseContent = responseContent
-          // Ensure all strings are terminated
-          .replace(/:\s*"([^"]*?)(?=\s*[,}])/g, ':"$1"')
-          // Remove any trailing commas
-          .replace(/,(\s*[}\]])/g, '$1')
-          // Fix any malformed line breaks in strings
-          .replace(/(?<!\\)\n/g, '\\n');
-
-        console.log('Cleaned response:', responseContent);
+        // Remove any markdown code blocks if present
+        responseContent = responseContent.replace(/```json\n?|\n?```/g, '');
+        
+        // Remove any trailing commas
+        responseContent = responseContent.replace(/,(\s*[}\]])/g, '$1');
+        
+        // Ensure all quotes are properly escaped
+        responseContent = responseContent.replace(/(?<!\\)\\(?!["\\/bfnrt])/g, '\\\\');
+        
+        console.log('Cleaned OpenAI response:', responseContent);
         
         const mealPlan = JSON.parse(responseContent);
-        
+
         if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
-          throw new Error('Invalid meal plan structure');
+          console.error('Invalid meal plan structure:', mealPlan);
+          return this.generateDefaultMealPlan(totalDays);
         }
 
         try {
