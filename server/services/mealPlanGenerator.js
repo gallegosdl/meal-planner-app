@@ -149,69 +149,70 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preferences, totalDays) {
-    const formattedIngredients = preferences.ingredients?.map(i => `- ${i.name} (${i.quantity})`).join('\n') || 'None provided';
-    const cuisinePrefs = Object.entries(preferences.preferences.cuisinePreferences || {})
-      .filter(([_, value]) => value > 0)
-      .map(([cuisine, value]) => `- ${cuisine}: ${value}%`).join('\n') || 'None';
+    return `As a Michelin-starred chef, create an innovative ${totalDays}-day meal plan that combines culinary excellence with nutritional balance. Each recipe must be detailed and creative while following the exact JSON structure required.
 
-    const likes = (preferences.preferences.likes || []).join(', ') || 'None';
-    const dislikes = (preferences.preferences.dislikes || []).join(', ') || 'None';
-    const macros = preferences.preferences.macros || { protein: 30, carbs: 40, fat: 30 };
-    const mealsPerWeek = preferences.preferences.mealsPerWeek || { breakfast: 5, lunch: 5, dinner: 5 };
+Dietary Requirements:
+- Goals: ${preferences.preferences.dietGoals.join(', ')}
+- Likes: ${preferences.preferences.likes.join(', ')}
+- Dislikes: ${preferences.preferences.dislikes.join(', ')}
+- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
+- Budget: $${preferences.preferences.budget}
+- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
+  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
+- Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
 
-    return `As a Michelin-starred chef, create an innovative ${totalDays}-day meal plan that combines culinary excellence with nutritional balance. Each recipe should showcase creative flavor combinations, professional techniques, and elegant plating.
+Culinary Requirements:
+1. Each dinner must feature a signature sauce or compound butter
+2. Include textural elements in every dish (e.g., crispy garnish, creamy element)
+3. Incorporate professional techniques (e.g., pan searing, reduction sauces)
+4. Every meal should have a thoughtful garnish and plating description
+5. Breakfast should range from quick (15 min) to elaborate weekend-style
+6. Lunches should be packable but restaurant-quality
+7. Dinners should showcase advanced techniques and plating
 
-Key Requirements:
-1. Every dish must feature at least one signature element (e.g., a unique sauce, spice blend, or cooking technique)
-2. Include contrasting textures and complementary flavors in each meal
-3. Incorporate seasonal ingredients and creative garnishes
-4. Balance nutrition with gourmet appeal
-
-For each meal, provide:
-- name: Creative, restaurant-worthy title
-- difficulty: "Easy", "Medium", or "Hard"
-- prepTime: Detailed timing (prep + cooking)
-- ingredients: [
+Return ONLY valid JSON matching this structure exactly:
+{
+  "days": [
     {
-      name: Specific ingredient (e.g., "Fresh Atlantic Salmon" not just "Salmon"),
-      amount: Precise measurement,
-      notes: Preparation notes, substitutions, or quality indicators
+      "day": 1,
+      "meals": {
+        "breakfast": {
+          "name": "Creative, descriptive name (e.g., 'Herb-Crusted Eggs Florentine with Citrus Hollandaise')",
+          "difficulty": "Easy"|"Medium"|"Hard",
+          "prepTime": "Detailed timing (e.g., '15 min prep, 25 min cooking')",
+          "ingredients": [
+            {
+              "name": "Specific ingredient (e.g., 'Fresh Atlantic Salmon Fillet')",
+              "amount": "Precise measurement",
+              "notes": "Quality indicators, prep notes, or substitutions"
+            }
+          ],
+          "instructions": "Detailed, numbered steps with techniques and timing",
+          "plating": "Specific plating guide with garnish details"
+        },
+        "lunch": {same structure},
+        "dinner": {same structure}
+      }
     }
   ]
-- instructions: Detailed, professional-grade steps (minimum 6 steps)
-- plating: Specific plating instructions with garnish details
-- techniques: List of culinary techniques used
-- pairings: Suggested accompaniments or wine pairings
+}
 
-Nutritional Guidelines:
-- Protein: ${macros.protein}% (focus on diverse protein sources)
-- Carbs: ${macros.carbs}% (emphasize complex carbohydrates)
-- Fats: ${macros.fat}% (incorporate healthy fats)
+Weekly Meal Distribution:
+- Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
+- Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
+- Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
 
-Available Ingredients:
-${formattedIngredients}
+STRICT REQUIREMENTS:
+1. Instructions MUST be detailed, professional steps (minimum 4 steps)
+2. Each ingredient MUST have specific measurements and notes
+3. Plating MUST include specific garnish and presentation details
+4. NO comments or trailing commas in JSON
+5. ALL strings MUST be properly escaped
+6. MUST include exactly ${totalDays} days
+7. Each meal MUST have all required fields
+8. Each recipe name MUST be descriptive and appetizing
 
-Cuisine Preferences (incorporate fusion elements):
-${cuisinePrefs}
-
-Dietary Preferences:
-- Likes: ${likes}
-- Dislikes: ${dislikes}
-
-Meal Distribution:
-- Breakfast: ${mealsPerWeek.breakfast} (include both quick and elaborate options)
-- Lunch: ${mealsPerWeek.lunch} (focus on balanced, energizing meals)
-- Dinner: ${mealsPerWeek.dinner} (showcase signature dishes)
-
-Special Instructions:
-1. Each dinner should include at least one "wow factor" element
-2. Breakfast should balance convenience with gourmet touches
-3. Lunches should be packable but impressive
-4. Include creative sauce pairings and garnishes
-5. Suggest texture contrasts in each dish
-6. Include chef's notes for advanced techniques
-
-Return as valid JSON with detailed, professional-grade instructions.`;
+Focus on creating restaurant-worthy dishes while maintaining the exact JSON structure.`;
   }
 
   validateMeal(meal) {
