@@ -43,8 +43,8 @@ class MealPlanGenerator {
       try {
         // Fix common JSON formatting issues
         responseContent = responseContent
-          // Remove newlines and extra spaces
-          .replace(/\n/g, ' ')
+          // Remove newlines and extra spaces in strings, but keep JSON formatting
+          .replace(/:\s*"([^"]*?)\\n/g, ': "$1 ')
           .replace(/\s+/g, ' ')
           // Fix prep time format issues
           .replace(/(\d+)\s*min\s*prep",\s*(\d+)\s*min\s*(\w+)"/g, '$1 min prep, $2 min $3"')
@@ -55,10 +55,11 @@ class MealPlanGenerator {
           // Fix instruction format issues
           .replace(/(\d+)\.\s*([^"]+)",\s*([^"]+)\."/g, '$1. $2. $3."')
           // Remove any remaining invalid commas
-          .replace(/,(\s*[}\]])/g, '$1')
-          // Ensure proper string escaping
-          .replace(/(?<!\\)"/g, '\\"')
-          .replace(/\\\\/g, '\\');
+          .replace(/,(\s*[}\]])/g, '$1');
+
+        // Don't re-escape quotes that are already escaped
+        // .replace(/(?<!\\)"/g, '\\"')
+        // .replace(/\\\\/g, '\\');
 
         console.log('Cleaned response:', responseContent);
         
