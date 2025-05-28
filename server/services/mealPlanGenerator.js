@@ -27,46 +27,48 @@ class MealPlanGenerator {
             role: "system",
             content: `You are a Michelin-starred chef specializing in creative, detailed recipes. 
 You MUST:
-- Return ONLY valid JSON
+- Return ONLY valid, complete JSON
 - Follow the exact structure provided
 - Include all required fields
-- Never truncate or leave incomplete JSON
+- Never truncate responses
 - Never include extra fields
-- Never include comments or explanations
-- Ensure all JSON is properly formatted with no syntax errors`
+- Never use line breaks in strings
+- Escape all quotes in strings
+- Keep responses under 15000 characters`
           },
           {
             role: "user", 
             content: this.buildPrompt(preferences, totalDays)
           }
         ],
-        response_format: {
-          type: "json_object"  // Force JSON response
-        },
-        temperature: 0.7,  // Lower temperature for more consistent formatting
-        max_tokens: 4096,  // Increase token limit to avoid truncation
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 3072,  // Increased buffer
         presence_penalty: 0,
         frequency_penalty: 0
       });
 
+      // Add safety check for response length
       const responseContent = completion.choices[0].message.content;
-      const mealPlan = JSON.parse(responseContent);  // Let it fail if JSON is invalid
-
-      if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
-        console.error('Invalid meal plan structure:', mealPlan);
+      if (responseContent.length > 15000) {
+        console.error('Response too long, may be truncated');
         return this.generateDefaultMealPlan(totalDays);
       }
 
       try {
+        const mealPlan = JSON.parse(responseContent);
+        if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
+          console.error('Invalid meal plan structure');
+          return this.generateDefaultMealPlan(totalDays);
+        }
         await this.saveRecipesToDatabase(mealPlan);
-      } catch (dbError) {
-        console.error('Database Error:', dbError);
-        // Continue with meal plan even if saving fails
+        return mealPlan;
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        return this.generateDefaultMealPlan(totalDays);
       }
-
-      return mealPlan;
     } catch (error) {
-      console.error('Failed to parse meal plan:', error);
+      console.error('API Error:', error);
       return this.generateDefaultMealPlan(totalDays);
     }
   }
@@ -155,8 +157,16 @@ You MUST:
   }
 
   buildPrompt(preferences, totalDays) {
-    return `As a seasoned chef, create a detailed and flavorful ${totalDays}-day meal plan. Return ONLY valid JSON with this EXACT structure:
+    return `Create a ${totalDays}-day meal plan following these requirements:
 
+Dietary Preferences:
+- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
+  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
+- Likes: ${preferences.preferences.likes.join(', ')}
+- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
+- Budget: $${preferences.preferences.budget} per day
+
+Return ONLY valid JSON with this structure:
 {
   "days": [
     {
@@ -166,16 +176,7 @@ You MUST:
         "lunch": { meal_object },
         "dinner": { meal_object }
       }
-    },
-    {
-      "day": 2,
-      "meals": {
-        "breakfast": { meal_object },
-        "lunch": { meal_object },
-        "dinner": { meal_object }
-      }
     }
-    // Continue for all ${totalDays} days
   ]
 }
 
@@ -184,21 +185,10 @@ Where meal_object is:
   "name": "Name of dish",
   "difficulty": "Easy"|"Medium"|"Hard",
   "prepTime": "XX min prep, YY min cooking",
-  "ingredients": [
-    {
-      "name": "Ingredient name",
-      "amount": "Amount with unit",
-      "notes": "Quality notes"
-    }
-  ],
+  "ingredients": [{"name": "Ingredient", "amount": "Amount", "notes": "Notes"}],
   "instructions": "Detailed steps",
   "plating": "Brief plating guide"
-}
-
-IMPORTANT: 
-- Each day MUST have exactly one breakfast, lunch, and dinner
-- All ${totalDays} days must be included
-- Do not include any other fields or structure`;
+}`;
   }
 
   validateMeal(meal) {
