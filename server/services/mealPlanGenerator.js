@@ -167,7 +167,53 @@ class MealPlanGenerator {
 5. No trailing commas
 6. No line breaks in strings
 
-${/* rest of your existing prompt */}`;
+Dietary Requirements:
+- Goals: ${preferences.preferences.dietGoals.join(', ')}
+- Likes: ${preferences.preferences.likes.join(', ')}
+- Dislikes: ${preferences.preferences.dislikes.join(', ')}
+- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
+- Budget: $${preferences.preferences.budget}
+- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
+  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
+- Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
+
+Required Meal Structure:
+{
+  "days": [
+    {
+      "day": 1,
+      "meals": {
+        "breakfast": {
+          "name": "Creative name",
+          "difficulty": "Easy"|"Medium"|"Hard",
+          "prepTime": "XX min prep, YY min cooking",
+          "ingredients": [
+            {
+              "name": "Specific ingredient",
+              "amount": "Precise measurement",
+              "notes": "Quality indicators"
+            }
+          ],
+          "instructions": "Detailed steps with periods",
+          "plating": "Brief plating guide"
+        }
+      }
+    }
+  ]
+}
+
+Weekly Distribution:
+- Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
+- Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
+- Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
+
+Requirements:
+1. Each meal must have at least 4 detailed steps
+2. Each ingredient needs specific measurements
+3. Plating descriptions under 100 characters
+4. Include exactly ${totalDays} days
+5. All meals must be restaurant-quality
+6. Focus on preferred cuisines and ingredients`;
   }
 
   validateMeal(meal) {
