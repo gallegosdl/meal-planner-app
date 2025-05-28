@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StarIcon } from '@heroicons/react/solid';
+import { StarIcon } from '@heroicons/react/24/solid';
 import api from '../services/api';
 
 const Recipe = ({ recipe }) => {
@@ -15,10 +15,10 @@ const Recipe = ({ recipe }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-bold mb-4">{recipe.name}</h2>
+    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+      <h2 className="text-2xl font-bold mb-4 text-white">{recipe.name}</h2>
       
-      <div className="flex justify-between mb-4">
+      <div className="flex justify-between mb-4 text-gray-300">
         <div>
           <span className="font-semibold">Difficulty:</span> {recipe.difficulty}
         </div>
