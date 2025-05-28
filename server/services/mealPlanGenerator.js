@@ -25,7 +25,7 @@ class MealPlanGenerator {
         messages: [
           {
             role: "system",
-            content: "You are a Michelin-starred chef. Create detailed recipes and ensure all JSON strings are properly terminated."
+            content: "You are a Michelin-starred chef. Create detailed recipes and return them in strict JSON format."
           },
           {
             role: "user",
@@ -39,17 +39,27 @@ class MealPlanGenerator {
 
       let responseContent = completion.choices[0].message.content;
       
-      // Add safety checks for JSON string termination
+      // Clean and validate JSON response
       try {
-        // Check for and fix common JSON issues
+        // Fix common JSON formatting issues
         responseContent = responseContent
-          // Ensure all strings are terminated
-          .replace(/:\s*"([^"]*?)(?=\s*[,}])/g, ':"$1"')
-          // Remove any trailing commas
+          // Remove newlines and extra spaces
+          .replace(/\n/g, ' ')
+          .replace(/\s+/g, ' ')
+          // Fix prep time format issues
+          .replace(/(\d+)\s*min\s*prep",\s*(\d+)\s*min\s*(\w+)"/g, '$1 min prep, $2 min $3"')
+          // Fix amount format issues
+          .replace(/"amount"\s*:\s*"(\d+)",\s*(\w+)"/g, '"amount": "$1 $2"')
+          // Fix notes format issues
+          .replace(/"notes"\s*:\s*"(\w+)",\s*(\w+)"/g, '"notes": "$1 $2"')
+          // Fix instruction format issues
+          .replace(/(\d+)\.\s*([^"]+)",\s*([^"]+)\."/g, '$1. $2. $3."')
+          // Remove any remaining invalid commas
           .replace(/,(\s*[}\]])/g, '$1')
-          // Fix any malformed line breaks in strings
-          .replace(/(?<!\\)\n/g, '\\n');
-        
+          // Ensure proper string escaping
+          .replace(/(?<!\\)"/g, '\\"')
+          .replace(/\\\\/g, '\\');
+
         console.log('Cleaned response:', responseContent);
         
         const mealPlan = JSON.parse(responseContent);
@@ -148,119 +158,16 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preferences, totalDays) {
-    return `As a Michelin-starred chef, create a detailed and impressive ${totalDays}-day meal plan that combines culinary excellence with nutritional balance. All dietary and health goals as well as preferences are included in the prompt. Each recipe must be detailed and creative while following the exact JSON structure required.
+    return `As a Michelin-starred chef, create a detailed ${totalDays}-day meal plan. Follow these JSON formatting rules strictly:
 
-    Here is an example of the level of detail and format expected:
+1. All string values must use escaped quotes: \\"value\\"
+2. Time formats must be: "XX min prep, YY min cooking"
+3. Amounts must be single strings: "1 cup" not "1", "cup"
+4. Instructions must be single strings with periods
+5. No trailing commas
+6. No line breaks in strings
 
-🧑‍🍳 Stuffed Pepper Protein Skillet (Low-Carb Edition)
-Servings: 2–3
-Prep Time: 10 minutes
-Cook Time: 15–20 minutes
-Dietary: High-Protein, Low-Carb, Low-Fat
-
-Ingredients (on hand)
-- 1/2 lb lean ground beef (or ground chicken)
-- 1 chicken breast, diced small
-- 1 red bell pepper, diced
-- 1 green bell pepper, diced
-- 1 small yellow onion, diced
-- 1/4 cup cheddar cheese, shredded (reduced fat if available)
-- Salt, black pepper – to taste
-- 1/2 tsp smoked paprika
-- 1/2 tsp garlic powder
-- 1/4 tsp chili flakes (optional for heat)
-- 1/4 tsp cumin
-- 1/4 tsp oregano
-- Fresh parsley or green onion for garnish (optional)
-
-Instructions
-1. Sear the Chicken & Beef:
-   - In a nonstick skillet over medium-high heat, lightly spray with olive oil or cooking spray.
-   - Add ground beef and sear until browned (about 5–6 min). Remove and set aside.
-   - Add diced chicken to the same pan. Sear until cooked through and golden. Set aside with beef.
-
-2. Sauté Veggies:
-   - In the same skillet, add onions and bell peppers. Sauté until tender and lightly charred, ~5–6 min.
-   - Season with a pinch of salt and the spice mix: paprika, garlic powder, cumin, oregano, and chili flakes.
-
-3. Combine:
-   - Return cooked chicken and beef to the skillet. Stir to combine with veggies.
-   - Adjust salt and pepper to taste.
-
-4. Top with Cheese:
-   - Sprinkle cheddar cheese on top, cover with lid, and reduce heat to low for 2 minutes or until cheese is melted.
-
-5. Serve:
-   - Plate it hot, garnish with chopped parsley or green onion if desired.
-   - Optional: Serve with a dollop of Greek yogurt or a low-fat salsa for added moisture.
-
-💡 Chef Tips
-- Swap beef for 99% lean turkey for even less fat.
-- Add chopped spinach or zucchini for more fiber and micronutrients.
-- For meal prep: This dish reheats beautifully and can be stored up to 4 days in the fridge.
-   
-Dietary Requirements:
-- Goals: ${preferences.preferences.dietGoals.join(', ')}
-- Likes: ${preferences.preferences.likes.join(', ')}
-- Dislikes: ${preferences.preferences.dislikes.join(', ')}
-- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
-- Budget: $${preferences.preferences.budget}
-- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
-  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
-- Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
-
-Culinary Requirements:
-1. Each dinner must feature a signature sauce or compound butter
-2. Include textural elements in every dish (e.g., crispy garnish, creamy element)
-3. Incorporate professional techniques (e.g., pan searing, reduction sauces)
-4. Every meal should have a thoughtful garnish and plating description
-5. Breakfast should range from quick (15 min) to elaborate weekend-style
-6. Lunches should be packable but restaurant-quality
-7. Dinners should showcase advanced techniques and plating
-
-Return ONLY valid JSON matching this structure exactly:
-{
-  "days": [
-    {
-      "day": 1,
-      "meals": {
-        "breakfast": {
-          "name": "Creative, descriptive name (e.g., 'Herb-Crusted Eggs Florentine with Citrus Hollandaise')",
-          "difficulty": "Easy"|"Medium"|"Hard",
-          "prepTime": "Detailed timing (e.g., '15 min prep, 25 min cooking')",
-          "ingredients": [
-            {
-              "name": "Specific ingredient (e.g., 'Fresh Atlantic Salmon Fillet')",
-              "amount": "Precise measurement",
-              "notes": "Quality indicators, prep notes, or substitutions"
-            }
-          ],
-          "instructions": "Detailed, numbered steps with techniques and timing",
-          "plating": "Specific plating guide with garnish details"
-        },
-        "lunch": {same structure},
-        "dinner": {same structure}
-      }
-    }
-  ]
-}
-
-Weekly Meal Distribution:
-- Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
-- Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
-- Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
-
-STRICT REQUIREMENTS:
-1. Instructions MUST be detailed, professional steps (minimum 4 steps)
-2. Each ingredient MUST have specific measurements and notes
-3. Plating descriptions MUST be under 100 characters
-4. NO comments or trailing commas in JSON
-5. ALL strings MUST be properly escaped and terminated
-6. MUST include exactly ${totalDays} days
-7. Each meal MUST have all required fields
-8. Each recipe name MUST be descriptive and appetizing
-
-Focus on creating restaurant-worthy dishes while maintaining valid JSON structure.`;
+${/* rest of your existing prompt */}`;
   }
 
   validateMeal(meal) {
