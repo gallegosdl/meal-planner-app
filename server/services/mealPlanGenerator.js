@@ -49,6 +49,15 @@ class MealPlanGenerator {
         // Remove any markdown code blocks if present
         responseContent = responseContent.replace(/```json\n?|\n?```/g, '');
         
+        // Fix malformed day structure
+        responseContent = responseContent.replace(/}, {"\s*name":/g, '}, {"day": 2, "meals": {"breakfast": {');
+        
+        // Fix missing meal type markers
+        responseContent = responseContent.replace(/} {/g, '}, "lunch": {');
+        
+        // Fix truncated content
+        responseContent = responseContent.replace(/"plating": "[^"]*?$/, '"plating": "Serve as described."}}}]}');
+        
         // Remove duplicate entries and fix nested structures
         responseContent = responseContent.replace(/("ingredients":\s*\[[\s\S]*?\])\s*,\s*"ingredients":\s*\[[\s\S]*?\]/g, '$1');
         
