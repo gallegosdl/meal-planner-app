@@ -25,15 +25,15 @@ class MealPlanGenerator {
         messages: [
           {
             role: "system",
-            content: "You are a Michelin-starred chef. Return ONLY valid JSON with no comments, no trailing commas, and properly escaped strings."
+            content: "You are a Michelin-starred chef specializing in creative, detailed recipes. Return ONLY valid JSON."
           },
           {
             role: "user",
             content: this.buildPrompt(preferences, totalDays)
           }
         ],
-        temperature: 0.5, // Lower temperature for more consistent output
-        max_tokens: 4000,
+        temperature: 0.7,
+        max_tokens: 4096,
         response_format: { type: "json_object" }
       });
 
