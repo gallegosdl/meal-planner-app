@@ -32,9 +32,14 @@ class MealPlanGenerator {
             content: this.buildPrompt(preferences, totalDays)
           }
         ],
-        temperature: 0.7,
-        max_tokens: 4096,
-        response_format: { type: "json_object" }
+        response_format: {
+          type: "json_object"
+        },
+        temperature: 1,
+        max_completion_tokens: 2048,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0
       });
 
       let responseContent = completion.choices[0].message.content;
