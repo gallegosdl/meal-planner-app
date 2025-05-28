@@ -25,16 +25,13 @@ class MealPlanGenerator {
         messages: [
           {
             role: "system",
-            content: `You are a Michelin-starred chef specializing in creative, detailed recipes. 
-You MUST:
-- Return ONLY valid, complete JSON
-- Follow the exact structure provided
-- Include all required fields
-- Never truncate responses
-- Never include extra fields
-- Never use line breaks in strings
-- Escape all quotes in strings
-- Keep responses under 15000 characters`
+            content: `You are a chef creating meal plans. RULES:
+- Return ONLY valid JSON
+- Keep responses under 12000 characters
+- No line breaks in strings
+- No special characters
+- Keep descriptions brief
+- No comments or explanations`
           },
           {
             role: "user", 
@@ -43,13 +40,19 @@ You MUST:
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
-        max_tokens: 3072,  // Increased buffer
+        max_tokens: 2048,  // Reduced to prevent truncation
         presence_penalty: 0,
         frequency_penalty: 0
       });
 
+      const MAX_CHARS = 12000;
       const responseContent = completion.choices[0].message.content;
       
+      if (responseContent.length > MAX_CHARS) {
+        console.error(`Response too long: ${responseContent.length} chars`);
+        return this.generateDefaultMealPlan(totalDays);
+      }
+
       // Debug response
       console.log('Raw response length:', responseContent.length);
       console.log('First 500 chars:', responseContent.substring(0, 500));
@@ -201,38 +204,42 @@ You MUST:
   }
 
   buildPrompt(preferences, totalDays) {
-    return `Create a ${totalDays}-day meal plan following these requirements:
+    return `Create a ${totalDays}-day meal plan as a single JSON object. Keep descriptions brief and concise.
 
-Dietary Preferences:
-- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
-  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
-- Likes: ${preferences.preferences.likes.join(', ')}
-- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
-- Budget: $${preferences.preferences.budget} per day
-
-Return ONLY valid JSON with this structure:
+Structure:
 {
   "days": [
     {
       "day": 1,
       "meals": {
-        "breakfast": { meal_object },
-        "lunch": { meal_object },
-        "dinner": { meal_object }
+        "breakfast": {
+          "name": "short name",
+          "difficulty": "Easy|Medium|Hard",
+          "prepTime": "X min prep, Y min cook",
+          "ingredients": [{"name": "item", "amount": "qty", "notes": "brief"}],
+          "instructions": "steps separated by periods",
+          "plating": "brief plating guide"
+        },
+        "lunch": {...},
+        "dinner": {...}
       }
     }
   ]
 }
 
-Where meal_object is:
-{
-  "name": "Name of dish",
-  "difficulty": "Easy"|"Medium"|"Hard",
-  "prepTime": "XX min prep, YY min cooking",
-  "ingredients": [{"name": "Ingredient", "amount": "Amount", "notes": "Notes"}],
-  "instructions": "Detailed steps",
-  "plating": "Brief plating guide"
-}`;
+Requirements:
+- Keep all text fields under 100 characters
+- Use periods between steps, not numbers
+- Keep ingredient lists under 8 items
+- No line breaks in text fields
+- No special characters
+- ${totalDays} days total
+- Focus on: ${preferences.preferences.likes.join(', ')}
+- Cuisines: ${Object.entries(preferences.preferences.cuisinePreferences)
+    .filter(([_, value]) => value > 15)
+    .map(([cuisine]) => cuisine)
+    .join(', ')}
+- Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%`;
   }
 
   validateMeal(meal) {
