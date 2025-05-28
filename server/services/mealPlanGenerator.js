@@ -21,7 +21,7 @@ class MealPlanGenerator {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4.1-mini",
         messages: [
           {
             role: "system",
