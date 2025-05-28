@@ -41,25 +41,14 @@ class MealPlanGenerator {
       
       // Clean and validate JSON response
       try {
-        // Fix common JSON formatting issues
+        // Check for and fix common JSON issues
         responseContent = responseContent
-          // Remove newlines and extra spaces in strings, but keep JSON formatting
-          .replace(/:\s*"([^"]*?)\\n/g, ': "$1 ')
-          .replace(/\s+/g, ' ')
-          // Fix prep time format issues
-          .replace(/(\d+)\s*min\s*prep",\s*(\d+)\s*min\s*(\w+)"/g, '$1 min prep, $2 min $3"')
-          // Fix amount format issues
-          .replace(/"amount"\s*:\s*"(\d+)",\s*(\w+)"/g, '"amount": "$1 $2"')
-          // Fix notes format issues
-          .replace(/"notes"\s*:\s*"(\w+)",\s*(\w+)"/g, '"notes": "$1 $2"')
-          // Fix instruction format issues
-          .replace(/(\d+)\.\s*([^"]+)",\s*([^"]+)\."/g, '$1. $2. $3."')
-          // Remove any remaining invalid commas
-          .replace(/,(\s*[}\]])/g, '$1');
-
-        // Don't re-escape quotes that are already escaped
-        // .replace(/(?<!\\)"/g, '\\"')
-        // .replace(/\\\\/g, '\\');
+          // Ensure all strings are terminated
+          .replace(/:\s*"([^"]*?)(?=\s*[,}])/g, ':"$1"')
+          // Remove any trailing commas
+          .replace(/,(\s*[}\]])/g, '$1')
+          // Fix any malformed line breaks in strings
+          .replace(/(?<!\\)\n/g, '\\n');
 
         console.log('Cleaned response:', responseContent);
         
@@ -168,15 +157,7 @@ class MealPlanGenerator {
 5. No trailing commas
 6. No line breaks in strings
 
-Dietary Requirements:
-- Goals: ${preferences.preferences.dietGoals.join(', ')}
-- Likes: ${preferences.preferences.likes.join(', ')}
-- Dislikes: ${preferences.preferences.dislikes.join(', ')}
-- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
-- Budget: $${preferences.preferences.budget}
-- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
-  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
-- Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
+IMPORTANT: Each day MUST include breakfast, lunch, AND dinner meals. Missing meals will cause errors.
 
 Required Meal Structure:
 {
@@ -197,13 +178,25 @@ Required Meal Structure:
           ],
           "instructions": "Detailed steps with periods",
           "plating": "Brief plating guide"
-        }
+        },
+        "lunch": { /* Same structure as breakfast */ },
+        "dinner": { /* Same structure as breakfast */ }
       }
     }
   ]
 }
 
-Weekly Distribution:
+Dietary Requirements:
+- Goals: ${preferences.preferences.dietGoals.join(', ')}
+- Likes: ${preferences.preferences.likes.join(', ')}
+- Dislikes: ${preferences.preferences.dislikes.join(', ')}
+- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
+- Budget: $${preferences.preferences.budget}
+- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
+  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
+- Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
+
+Weekly Distribution (ALL REQUIRED):
 - Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
 - Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
 - Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
@@ -214,7 +207,8 @@ Requirements:
 3. Plating descriptions under 100 characters
 4. Include exactly ${totalDays} days
 5. All meals must be restaurant-quality
-6. Focus on preferred cuisines and ingredients`;
+6. Focus on preferred cuisines and ingredients
+7. EVERY day must have breakfast, lunch, and dinner`;
   }
 
   validateMeal(meal) {
