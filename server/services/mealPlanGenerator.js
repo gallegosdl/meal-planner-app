@@ -149,8 +149,57 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preferences, totalDays) {
-    return `As a Michelin-starred chef, create an innovative ${totalDays}-day meal plan that combines culinary excellence with nutritional balance. Each recipe must be detailed and creative while following the exact JSON structure required.
+    return `As a Michelin-starred chef, create a detailed and impressive ${totalDays}-day meal plan that combines culinary excellence with nutritional balance. All dietary and health goals as well as preferences are included in the prompt. Each recipe must be detailed and creative while following the exact JSON structure required.
 
+    Here is an example of the level of detail and format expected:
+
+🧑‍🍳 Stuffed Pepper Protein Skillet (Low-Carb Edition)
+Servings: 2–3
+Prep Time: 10 minutes
+Cook Time: 15–20 minutes
+Dietary: High-Protein, Low-Carb, Low-Fat
+
+Ingredients (on hand)
+- 1/2 lb lean ground beef (or ground chicken)
+- 1 chicken breast, diced small
+- 1 red bell pepper, diced
+- 1 green bell pepper, diced
+- 1 small yellow onion, diced
+- 1/4 cup cheddar cheese, shredded (reduced fat if available)
+- Salt, black pepper – to taste
+- 1/2 tsp smoked paprika
+- 1/2 tsp garlic powder
+- 1/4 tsp chili flakes (optional for heat)
+- 1/4 tsp cumin
+- 1/4 tsp oregano
+- Fresh parsley or green onion for garnish (optional)
+
+Instructions
+1. Sear the Chicken & Beef:
+   - In a nonstick skillet over medium-high heat, lightly spray with olive oil or cooking spray.
+   - Add ground beef and sear until browned (about 5–6 min). Remove and set aside.
+   - Add diced chicken to the same pan. Sear until cooked through and golden. Set aside with beef.
+
+2. Sauté Veggies:
+   - In the same skillet, add onions and bell peppers. Sauté until tender and lightly charred, ~5–6 min.
+   - Season with a pinch of salt and the spice mix: paprika, garlic powder, cumin, oregano, and chili flakes.
+
+3. Combine:
+   - Return cooked chicken and beef to the skillet. Stir to combine with veggies.
+   - Adjust salt and pepper to taste.
+
+4. Top with Cheese:
+   - Sprinkle cheddar cheese on top, cover with lid, and reduce heat to low for 2 minutes or until cheese is melted.
+
+5. Serve:
+   - Plate it hot, garnish with chopped parsley or green onion if desired.
+   - Optional: Serve with a dollop of Greek yogurt or a low-fat salsa for added moisture.
+
+💡 Chef Tips
+- Swap beef for 99% lean turkey for even less fat.
+- Add chopped spinach or zucchini for more fiber and micronutrients.
+- For meal prep: This dish reheats beautifully and can be stored up to 4 days in the fridge.
+   
 Dietary Requirements:
 - Goals: ${preferences.preferences.dietGoals.join(', ')}
 - Likes: ${preferences.preferences.likes.join(', ')}
