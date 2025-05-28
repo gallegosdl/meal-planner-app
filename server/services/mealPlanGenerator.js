@@ -149,48 +149,69 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preferences, totalDays) {
-    return `Create a ${totalDays}-day meal plan as a JSON object with these preferences:
+    const formattedIngredients = preferences.ingredients?.map(i => `- ${i.name} (${i.quantity})`).join('\n') || 'None provided';
+    const cuisinePrefs = Object.entries(preferences.preferences.cuisinePreferences || {})
+      .filter(([_, value]) => value > 0)
+      .map(([cuisine, value]) => `- ${cuisine}: ${value}%`).join('\n') || 'None';
 
-Diet Goals: ${preferences.preferences.dietGoals.join(', ')}
-Likes: ${preferences.preferences.likes.join(', ')}
-Dislikes: ${preferences.preferences.dislikes.join(', ')}
-Macro Split: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
-Weekly Budget: $${preferences.preferences.budget}
-Cuisine Preferences: ${Object.entries(preferences.preferences.cuisinePreferences)
-  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
-Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
+    const likes = (preferences.preferences.likes || []).join(', ') || 'None';
+    const dislikes = (preferences.preferences.dislikes || []).join(', ') || 'None';
+    const macros = preferences.preferences.macros || { protein: 30, carbs: 40, fat: 30 };
+    const mealsPerWeek = preferences.preferences.mealsPerWeek || { breakfast: 5, lunch: 5, dinner: 5 };
 
-Meals per week:
-- Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
-- Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
-- Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
+    return `As a Michelin-starred chef, create an innovative ${totalDays}-day meal plan that combines culinary excellence with nutritional balance. Each recipe should showcase creative flavor combinations, professional techniques, and elegant plating.
 
-IMPORTANT: Return ONLY valid JSON with this exact structure:
-{
-  "days": [
+Key Requirements:
+1. Every dish must feature at least one signature element (e.g., a unique sauce, spice blend, or cooking technique)
+2. Include contrasting textures and complementary flavors in each meal
+3. Incorporate seasonal ingredients and creative garnishes
+4. Balance nutrition with gourmet appeal
+
+For each meal, provide:
+- name: Creative, restaurant-worthy title
+- difficulty: "Easy", "Medium", or "Hard"
+- prepTime: Detailed timing (prep + cooking)
+- ingredients: [
     {
-      "day": 1,
-      "meals": {
-        "breakfast": {
-          "name": string,
-          "difficulty": "Easy"|"Medium"|"Hard",
-          "prepTime": string,
-          "ingredients": [{"name": string, "amount": string, "notes": string}],
-          "instructions": string,
-          "plating": string
-        },
-        "lunch": {same structure},
-        "dinner": {same structure}
-      }
+      name: Specific ingredient (e.g., "Fresh Atlantic Salmon" not just "Salmon"),
+      amount: Precise measurement,
+      notes: Preparation notes, substitutions, or quality indicators
     }
   ]
-}
+- instructions: Detailed, professional-grade steps (minimum 6 steps)
+- plating: Specific plating instructions with garnish details
+- techniques: List of culinary techniques used
+- pairings: Suggested accompaniments or wine pairings
 
-Rules:
-1. No comments or trailing commas
-2. All strings must be properly escaped
-3. Must include ALL ${totalDays} days
-4. Each meal must have all required fields`;
+Nutritional Guidelines:
+- Protein: ${macros.protein}% (focus on diverse protein sources)
+- Carbs: ${macros.carbs}% (emphasize complex carbohydrates)
+- Fats: ${macros.fat}% (incorporate healthy fats)
+
+Available Ingredients:
+${formattedIngredients}
+
+Cuisine Preferences (incorporate fusion elements):
+${cuisinePrefs}
+
+Dietary Preferences:
+- Likes: ${likes}
+- Dislikes: ${dislikes}
+
+Meal Distribution:
+- Breakfast: ${mealsPerWeek.breakfast} (include both quick and elaborate options)
+- Lunch: ${mealsPerWeek.lunch} (focus on balanced, energizing meals)
+- Dinner: ${mealsPerWeek.dinner} (showcase signature dishes)
+
+Special Instructions:
+1. Each dinner should include at least one "wow factor" element
+2. Breakfast should balance convenience with gourmet touches
+3. Lunches should be packable but impressive
+4. Include creative sauce pairings and garnishes
+5. Suggest texture contrasts in each dish
+6. Include chef's notes for advanced techniques
+
+Return as valid JSON with detailed, professional-grade instructions.`;
   }
 
   validateMeal(meal) {
