@@ -25,96 +25,48 @@ class MealPlanGenerator {
         messages: [
           {
             role: "system",
-            content: "You are a Michelin-starred chef specializing in creative, detailed recipes. Return ONLY valid JSON."
+            content: `You are a Michelin-starred chef specializing in creative, detailed recipes. 
+You MUST:
+- Return ONLY valid JSON
+- Follow the exact structure provided
+- Include all required fields
+- Never truncate or leave incomplete JSON
+- Never include extra fields
+- Never include comments or explanations
+- Ensure all JSON is properly formatted with no syntax errors`
           },
           {
-            role: "user",
+            role: "user", 
             content: this.buildPrompt(preferences, totalDays)
           }
         ],
         response_format: {
-          type: "json_object"
+          type: "json_object"  // Force JSON response
         },
-        temperature: 1,
-        max_completion_tokens: 2048,
-        top_p: 1,
-        frequency_penalty: 0,
-        presence_penalty: 0
+        temperature: 0.7,  // Lower temperature for more consistent formatting
+        max_tokens: 4096,  // Increase token limit to avoid truncation
+        presence_penalty: 0,
+        frequency_penalty: 0
       });
 
-      let responseContent = completion.choices[0].message.content;
-      
-      // Clean the response content
-      try {
-        // Remove any markdown code blocks if present
-        responseContent = responseContent.replace(/```json\n?|\n?```/g, '');
-        
-        // Fix malformed day structure - more specific pattern
-        responseContent = responseContent.replace(
-          /}, {"name":/g, 
-          '}, {"day": 2, "meals": {"breakfast": {"name":'
-        );
-        
-        // Also add a fix for subsequent days
-        responseContent = responseContent.replace(
-          /}, {"day": 2/g,
-          '}, {"day": 2'
-        ).replace(
-          /}, {"day": 3/g,
-          '}, {"day": 3'
-        ).replace(
-          /}, {"day": 4/g,
-          '}, {"day": 4'
-        ).replace(
-          /}, {"day": 5/g,
-          '}, {"day": 5'
-        );
-        
-        // Fix missing meal type markers
-        responseContent = responseContent.replace(/} {/g, '}, "lunch": {');
-        
-        // Fix truncated content
-        responseContent = responseContent.replace(/"plating": "[^"]*?$/, '"plating": "Serve as described."}}}]}');
-        
-        // Remove duplicate entries and fix nested structures
-        responseContent = responseContent.replace(/("ingredients":\s*\[[\s\S]*?\])\s*,\s*"ingredients":\s*\[[\s\S]*?\]/g, '$1');
-        
-        // Fix malformed ingredient entries
-        responseContent = responseContent.replace(/},\s*{[\s\S]*?"name":/g, '}, {"name":');
-        
-        // Remove any trailing commas
-        responseContent = responseContent.replace(/,(\s*[}\]])/g, '$1');
-        
-        // Fix any duplicate meal entries
-        responseContent = responseContent.replace(/("lunch":\s*{[\s\S]*?})\s*,\s*"lunch":/g, '$1');
-        
-        // Ensure all quotes are properly escaped
-        responseContent = responseContent.replace(/(?<!\\)\\(?!["\\/bfnrt])/g, '\\\\');
-        
-        console.log('Cleaned OpenAI response:', responseContent);
-        
-        const mealPlan = JSON.parse(responseContent);
+      const responseContent = completion.choices[0].message.content;
+      const mealPlan = JSON.parse(responseContent);  // Let it fail if JSON is invalid
 
-        if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
-          console.error('Invalid meal plan structure:', mealPlan);
-          return this.generateDefaultMealPlan(totalDays);
-        }
-
-        try {
-          await this.saveRecipesToDatabase(mealPlan);
-        } catch (dbError) {
-          console.error('Database Error:', dbError);
-          // Continue with meal plan even if saving fails
-        }
-
-        return mealPlan;
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        console.error('Failed Content:', responseContent);
+      if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
+        console.error('Invalid meal plan structure:', mealPlan);
         return this.generateDefaultMealPlan(totalDays);
       }
+
+      try {
+        await this.saveRecipesToDatabase(mealPlan);
+      } catch (dbError) {
+        console.error('Database Error:', dbError);
+        // Continue with meal plan even if saving fails
+      }
+
+      return mealPlan;
     } catch (error) {
-      console.error('OpenAI API Error:', error);
+      console.error('Failed to parse meal plan:', error);
       return this.generateDefaultMealPlan(totalDays);
     }
   }
