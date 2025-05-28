@@ -21,130 +21,75 @@ class MealPlanGenerator {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4.1-mini",
+        model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: `You are a chef creating meal plans. RULES:
-- Return ONLY valid JSON
-- Keep responses under 12000 characters
-- No line breaks in strings
-- No special characters
-- Keep descriptions brief
-- No comments or explanations`
+            content: "You are a Michelin-starred chef specializing in creative, detailed recipes. Return ONLY valid JSON."
           },
           {
-            role: "user", 
+            role: "user",
             content: this.buildPrompt(preferences, totalDays)
           }
         ],
-        response_format: { type: "json_object" },
         temperature: 0.7,
-        max_tokens: 2048,  // Reduced to prevent truncation
-        presence_penalty: 0,
-        frequency_penalty: 0
+        max_tokens: 4096,
+        response_format: { type: "json_object" }
       });
 
-      const MAX_CHARS = 12000;
-      const responseContent = completion.choices[0].message.content;
+      let responseContent = completion.choices[0].message.content;
       
-      if (responseContent.length > MAX_CHARS) {
-        console.error(`Response too long: ${responseContent.length} chars`);
-        return this.generateDefaultMealPlan(totalDays);
-      }
-
-      // Debug response
-      console.log('Raw response length:', responseContent.length);
-      console.log('First 500 chars:', responseContent.substring(0, 500));
-      console.log('Last 500 chars:', responseContent.substring(responseContent.length - 500));
-
-      // Check for common JSON issues
-      const issues = this.checkJSONIssues(responseContent);
-      if (issues.length > 0) {
-        console.error('JSON structure issues found:', issues);
-        return this.generateDefaultMealPlan(totalDays);
-      }
-
+      // Clean the response content
       try {
+        // Remove any markdown code blocks if present
+        responseContent = responseContent.replace(/```json\n?|\n?```/g, '');
+        
+        // Remove any trailing commas
+        responseContent = responseContent.replace(/,(\s*[}\]])/g, '$1');
+        
+        // Ensure all quotes are properly escaped
+        responseContent = responseContent.replace(/(?<!\\)\\(?!["\\/bfnrt])/g, '\\\\');
+        
+        console.log('Cleaned OpenAI response:', responseContent);
+        
         const mealPlan = JSON.parse(responseContent);
+
         if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
-          console.error('Invalid meal plan structure');
+          console.error('Invalid meal plan structure:', mealPlan);
           return this.generateDefaultMealPlan(totalDays);
         }
-        await this.saveRecipesToDatabase(mealPlan);
+
+        try {
+          await this.saveRecipesToDatabase(mealPlan);
+        } catch (dbError) {
+          console.error('Database Error:', dbError);
+          // Continue with meal plan even if saving fails
+        }
+
         return mealPlan;
       } catch (parseError) {
-        console.error('JSON Parse Error at position:', parseError.position);
-        console.error('Context around error:', 
-          responseContent.substring(Math.max(0, parseError.position - 100), 
-          Math.min(responseContent.length, parseError.position + 100))
-        );
+        console.error('JSON Parse Error:', parseError);
+        console.error('Failed Content:', responseContent);
         return this.generateDefaultMealPlan(totalDays);
       }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('OpenAI API Error:', error);
       return this.generateDefaultMealPlan(totalDays);
     }
   }
 
   validateMealPlanStructure(mealPlan, totalDays) {
-    const issues = [];
+    if (!mealPlan?.days || !Array.isArray(mealPlan.days)) return false;
+    if (mealPlan.days.length !== totalDays) return false;
 
-    // Basic structure checks
-    if (!mealPlan?.days || !Array.isArray(mealPlan.days)) {
-      issues.push('Invalid days array');
-      return false;
-    }
-
-    if (mealPlan.days.length !== totalDays) {
-      issues.push(`Expected ${totalDays} days, got ${mealPlan.days.length}`);
-      return false;
-    }
-
-    // Validate each day
-    mealPlan.days.forEach((day, index) => {
-      if (!day.day || day.day !== index + 1) {
-        issues.push(`Day ${index + 1}: Invalid day number`);
-      }
-
-      if (!day.meals) {
-        issues.push(`Day ${index + 1}: Missing meals object`);
-        return;
-      }
-
-      // Check each meal
-      ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
-        const meal = day.meals[mealType];
-        if (!meal) {
-          issues.push(`Day ${index + 1}: Missing ${mealType}`);
-          return;
-        }
-
-        // Validate meal structure
-        if (!meal.name) issues.push(`Day ${index + 1} ${mealType}: Missing name`);
-        if (!meal.difficulty) issues.push(`Day ${index + 1} ${mealType}: Missing difficulty`);
-        if (!meal.prepTime) issues.push(`Day ${index + 1} ${mealType}: Missing prepTime`);
-        if (!meal.instructions) issues.push(`Day ${index + 1} ${mealType}: Missing instructions`);
-        if (!meal.plating) issues.push(`Day ${index + 1} ${mealType}: Missing plating`);
-        
-        if (!Array.isArray(meal.ingredients)) {
-          issues.push(`Day ${index + 1} ${mealType}: Invalid ingredients array`);
-        } else {
-          meal.ingredients.forEach((ing, i) => {
-            if (!ing.name) issues.push(`Day ${index + 1} ${mealType} ingredient ${i}: Missing name`);
-            if (!ing.amount) issues.push(`Day ${index + 1} ${mealType} ingredient ${i}: Missing amount`);
-            if (!ing.notes) issues.push(`Day ${index + 1} ${mealType} ingredient ${i}: Missing notes`);
-          });
-        }
-      });
+    return mealPlan.days.every(day => {
+      return day?.meals?.breakfast 
+        && day?.meals?.lunch 
+        && day?.meals?.dinner
+        && this.validateMealStructure(day.meals.breakfast)
+        && this.validateMealStructure(day.meals.lunch)
+        && this.validateMealStructure(day.meals.dinner);
     });
-
-    if (issues.length > 0) {
-      console.error('Validation issues:', issues);
-      return false;
-    }
-
-    return true;
   }
 
   validateMealStructure(meal) {
@@ -204,42 +149,140 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preferences, totalDays) {
-    return `Create a ${totalDays}-day meal plan as a single JSON object. Keep descriptions brief and concise.
+    return `As a Michelin-starred chef, create a detailed ${totalDays}-day meal plan. Follow these JSON formatting rules strictly:
 
-Structure:
+    EXAMPLE RESPONSE:
+
+    Stuffed Pepper Protein Skillet (Low-Carb Edition)
+Servings: 2–3
+Prep Time: 10 minutes
+Cook Time: 15–20 minutes
+Dietary: High-Protein, Low-Carb, Low-Fat
+
+Ingredients (on hand)
+1/2 lb lean ground beef (or ground chicken)
+
+1 chicken breast, diced small
+
+1 red bell pepper, diced
+
+1 green bell pepper, diced
+
+1 small yellow onion, diced
+
+1/4 cup cheddar cheese, shredded (reduced fat if available)
+
+Salt, black pepper – to taste
+
+1/2 tsp smoked paprika
+
+1/2 tsp garlic powder
+
+1/4 tsp chili flakes (optional for heat)
+
+1/4 tsp cumin
+
+1/4 tsp oregano
+
+Fresh parsley or green onion for garnish (optional)
+
+Instructions
+Sear the Chicken & Beef:
+
+In a nonstick skillet over medium-high heat, lightly spray with olive oil or cooking spray.
+
+Add ground beef and sear until browned (about 5–6 min). Remove and set aside.
+
+Add diced chicken to the same pan. Sear until cooked through and golden. Set aside with beef.
+
+Sauté Veggies:
+
+In the same skillet, add onions and bell peppers. Sauté until tender and lightly charred, ~5–6 min.
+
+Season with a pinch of salt and the spice mix: paprika, garlic powder, cumin, oregano, and chili flakes.
+
+Combine:
+
+Return cooked chicken and beef to the skillet. Stir to combine with veggies.
+
+Adjust salt and pepper to taste.
+
+Top with Cheese:
+
+Sprinkle cheddar cheese on top, cover with lid, and reduce heat to low for 2 minutes or until cheese is melted.
+
+Serve:
+
+Plate it hot, garnish with chopped parsley or green onion if desired.
+
+Optional: Serve with a dollop of Greek yogurt or a low-fat salsa for added moisture.
+
+💡 Chef Tips
+Swap beef for 99% lean turkey for even less fat.
+
+Add chopped spinach or zucchini for more fiber and micronutrients.
+
+For meal prep: This dish reheats beautifully and can be stored up to 4 days in the fridge.
+
+1. All string values must use escaped quotes: \\"value\\"
+2. Time formats must be: "XX min prep, YY min cooking"
+3. Amounts must be single strings: "1 cup" not "1", "cup"
+4. Instructions must be single strings with periods
+5. No trailing commas
+6. No line breaks in strings
+
+IMPORTANT: Each day MUST include breakfast, lunch, AND dinner meals. Missing meals will cause errors.
+
+Required Meal Structure:
 {
   "days": [
     {
       "day": 1,
       "meals": {
         "breakfast": {
-          "name": "short name",
-          "difficulty": "Easy|Medium|Hard",
-          "prepTime": "X min prep, Y min cook",
-          "ingredients": [{"name": "item", "amount": "qty", "notes": "brief"}],
-          "instructions": "steps separated by periods",
-          "plating": "brief plating guide"
+          "name": "Creative name",
+          "difficulty": "Easy"|"Medium"|"Hard",
+          "prepTime": "XX min prep, YY min cooking",
+          "ingredients": [
+            {
+              "name": "Specific ingredient",
+              "amount": "Precise measurement",
+              "notes": "Quality indicators"
+            }
+          ],
+          "instructions": "Detailed steps with periods",
+          "plating": "Brief plating guide"
         },
-        "lunch": {...},
-        "dinner": {...}
+        "lunch": { /* Same structure as breakfast */ },
+        "dinner": { /* Same structure as breakfast */ }
       }
     }
   ]
 }
 
+Dietary Requirements:
+- Goals: ${preferences.preferences.dietGoals.join(', ')}
+- Likes: ${preferences.preferences.likes.join(', ')}
+- Dislikes: ${preferences.preferences.dislikes.join(', ')}
+- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
+- Budget: $${preferences.preferences.budget}
+- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
+  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
+- Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
+
+Weekly Distribution (ALL REQUIRED):
+- Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
+- Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
+- Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
+
 Requirements:
-- Keep all text fields under 100 characters
-- Use periods between steps, not numbers
-- Keep ingredient lists under 8 items
-- No line breaks in text fields
-- No special characters
-- ${totalDays} days total
-- Focus on: ${preferences.preferences.likes.join(', ')}
-- Cuisines: ${Object.entries(preferences.preferences.cuisinePreferences)
-    .filter(([_, value]) => value > 15)
-    .map(([cuisine]) => cuisine)
-    .join(', ')}
-- Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%`;
+1. Each meal must have at least 4 detailed steps
+2. Each ingredient needs specific measurements
+3. Plating descriptions under 100 characters
+4. Include exactly ${totalDays} days
+5. All meals must be restaurant-quality
+6. Focus on preferred cuisines and ingredients
+7. EVERY day must have breakfast, lunch, and dinner`;
   }
 
   validateMeal(meal) {
@@ -293,44 +336,6 @@ Requirements:
         dinner: this.validateMeal(meals.dinner) || defaultMeal
       }
     };
-  }
-
-  checkJSONIssues(content) {
-    const issues = [];
-    
-    // Check for unescaped quotes
-    const unescapedQuotes = content.match(/[^\\]"/g);
-    if (unescapedQuotes) {
-      issues.push('Found unescaped quotes');
-    }
-
-    // Check for unclosed braces/brackets
-    const openBraces = (content.match(/{/g) || []).length;
-    const closeBraces = (content.match(/}/g) || []).length;
-    if (openBraces !== closeBraces) {
-      issues.push(`Mismatched braces: ${openBraces} open vs ${closeBraces} closed`);
-    }
-
-    const openBrackets = (content.match(/\[/g) || []).length;
-    const closeBrackets = (content.match(/\]/g) || []).length;
-    if (openBrackets !== closeBrackets) {
-      issues.push(`Mismatched brackets: ${openBrackets} open vs ${closeBrackets} closed`);
-    }
-
-    // Check for truncation indicators
-    if (content.endsWith('...') || content.endsWith('…')) {
-      issues.push('Response appears truncated');
-    }
-
-    // Check basic structure
-    if (!content.startsWith('{"days":[{')) {
-      issues.push('Invalid starting structure');
-    }
-    if (!content.endsWith(']}')) {
-      issues.push('Invalid ending structure');
-    }
-
-    return issues;
   }
 }
 
