@@ -25,7 +25,7 @@ class MealPlanGenerator {
         messages: [
           {
             role: "system",
-            content: "You are a Michelin-starred chef specializing in creative, detailed recipes. Return ONLY valid JSON."
+            content: "You are a Michelin-starred chef. Create detailed recipes and ensure all JSON strings are properly terminated."
           },
           {
             role: "user",
@@ -39,24 +39,23 @@ class MealPlanGenerator {
 
       let responseContent = completion.choices[0].message.content;
       
-      // Clean the response content
+      // Add safety checks for JSON string termination
       try {
-        // Remove any markdown code blocks if present
-        responseContent = responseContent.replace(/```json\n?|\n?```/g, '');
+        // Check for and fix common JSON issues
+        responseContent = responseContent
+          // Ensure all strings are terminated
+          .replace(/:\s*"([^"]*?)(?=\s*[,}])/g, ':"$1"')
+          // Remove any trailing commas
+          .replace(/,(\s*[}\]])/g, '$1')
+          // Fix any malformed line breaks in strings
+          .replace(/(?<!\\)\n/g, '\\n');
         
-        // Remove any trailing commas
-        responseContent = responseContent.replace(/,(\s*[}\]])/g, '$1');
-        
-        // Ensure all quotes are properly escaped
-        responseContent = responseContent.replace(/(?<!\\)\\(?!["\\/bfnrt])/g, '\\\\');
-        
-        console.log('Cleaned OpenAI response:', responseContent);
+        console.log('Cleaned response:', responseContent);
         
         const mealPlan = JSON.parse(responseContent);
-
+        
         if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
-          console.error('Invalid meal plan structure:', mealPlan);
-          return this.generateDefaultMealPlan(totalDays);
+          throw new Error('Invalid meal plan structure');
         }
 
         try {
@@ -73,7 +72,7 @@ class MealPlanGenerator {
         return this.generateDefaultMealPlan(totalDays);
       }
     } catch (error) {
-      console.error('Meal Plan Generation Error:', error);
+      console.error('OpenAI API Error:', error);
       return this.generateDefaultMealPlan(totalDays);
     }
   }
@@ -254,14 +253,14 @@ Weekly Meal Distribution:
 STRICT REQUIREMENTS:
 1. Instructions MUST be detailed, professional steps (minimum 4 steps)
 2. Each ingredient MUST have specific measurements and notes
-3. Plating MUST include specific garnish and presentation details
+3. Plating descriptions MUST be under 100 characters
 4. NO comments or trailing commas in JSON
-5. ALL strings MUST be properly escaped
+5. ALL strings MUST be properly escaped and terminated
 6. MUST include exactly ${totalDays} days
 7. Each meal MUST have all required fields
 8. Each recipe name MUST be descriptive and appetizing
 
-Focus on creating restaurant-worthy dishes while maintaining the exact JSON structure.`;
+Focus on creating restaurant-worthy dishes while maintaining valid JSON structure.`;
   }
 
   validateMeal(meal) {
