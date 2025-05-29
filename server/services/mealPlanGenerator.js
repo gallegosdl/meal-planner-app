@@ -31,7 +31,7 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preparedData) {
-    return `Create a ONE day meal plan with 3 meals.
+    return `Create a ONE day meal plan with 3 meals. Ensure recipes are detailed and include all ingredients and instructions.
 
 Required Structure:
 {
@@ -76,7 +76,7 @@ Requirements:
         messages: [
           {
             role: "system",
-            content: "You are a chef. Return ONLY valid JSON for ONE day of meals."
+            content: "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for ONE day of meals."
           },
           {
             role: "user",
