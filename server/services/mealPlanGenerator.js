@@ -51,8 +51,7 @@ Where meal_object is:
   "difficulty": "Easy|Medium|Hard",
   "prepTime": "X min prep, Y min cook",
   "ingredients": [{"name": "item", "amount": "qty", "notes": "brief"}],
-  "instructions": "steps with periods",
-  "plating": "brief guide"
+  "instructions": "step"
 }
 
 Requirements:
@@ -61,8 +60,7 @@ Requirements:
 - Avoid: ${preparedData.dislikes}
 - Target: ${preparedData.macros.protein}% protein
 - Budget: $${preparedData.budget}
-- Max 5 ingredients per recipe
-- Brief instructions`;
+- Thorough instructions`;
   }
 
   async generateMealPlan(preferences) {
@@ -128,22 +126,20 @@ Requirements:
       && meal?.prepTime 
       && Array.isArray(meal?.ingredients)
       && meal?.instructions
-      && meal?.plating;
   }
 
   async saveRecipesToDatabase(mealPlan) {
     for (const day of mealPlan.days) {
       for (const [mealType, meal] of Object.entries(day.meals)) {
         await db.query(
-          `INSERT INTO recipes (name, difficulty, prep_time, ingredients, instructions, plating)
+          `INSERT INTO recipes (name, difficulty, prep_time, ingredients, instructions)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [
             meal.name,
             meal.difficulty,
             meal.prepTime,
             JSON.stringify(meal.ingredients),
-            meal.instructions,
-            meal.plating
+            meal.instructions
           ]
         );
       }
@@ -173,8 +169,7 @@ Requirements:
         { name: "Vegetables", amount: "200g", notes: "Mixed vegetables" },
         { name: "Grains", amount: "100g", notes: "Your choice of grains" }
       ],
-      instructions: "Prepare ingredients. Cook protein. Add vegetables. Serve with grains.",
-      plating: "Arrange on plate with garnish"
+      instructions: "Prepare ingredients. Cook protein. Add vegetables. Serve with grains."
     };
   }
 
