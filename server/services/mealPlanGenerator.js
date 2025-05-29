@@ -9,72 +9,102 @@ class MealPlanGenerator {
     });
   }
 
+  // Data preparation moved to separate method
+  preparePreferences(preferences) {
+    // Hard code to 1 day for testing
+    return {
+      totalDays: 1, // Fixed to 1 day
+      likes: (preferences.preferences.likes || []).slice(0, 3).join(', ') || 'None', // Limit to top 3
+      dislikes: (preferences.preferences.dislikes || []).slice(0, 2).join(', ') || 'None', // Limit to top 2
+      macros: preferences.preferences.macros || { protein: 30, carbs: 40, fat: 30 },
+      budget: preferences.preferences.budget || 75,
+      cuisinePreferences: this.getTopCuisines(preferences.preferences.cuisinePreferences || {})
+    };
+  }
+
+  getTopCuisines(cuisinePrefs) {
+    return Object.entries(cuisinePrefs)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3)
+      .map(([cuisine]) => cuisine)
+      .join(', ') || 'any';
+  }
+
+  buildPrompt(preparedData) {
+    return `Create a ONE day meal plan with 3 meals.
+
+Required Structure:
+{
+  "days": [{
+    "day": 1,
+    "meals": {
+      "breakfast": { meal_object },
+      "lunch": { meal_object },
+      "dinner": { meal_object }
+    }
+  }]
+}
+
+Where meal_object is:
+{
+  "name": "brief name",
+  "difficulty": "Easy|Medium|Hard",
+  "prepTime": "X min prep, Y min cook",
+  "ingredients": [{"name": "item", "amount": "qty", "notes": "brief"}],
+  "instructions": "steps with periods",
+  "plating": "brief guide"
+}
+
+Requirements:
+- Cuisine focus: ${preparedData.cuisinePreferences}
+- Use ingredients: ${preparedData.likes}
+- Avoid: ${preparedData.dislikes}
+- Target: ${preparedData.macros.protein}% protein
+- Budget: $${preparedData.budget}
+- Max 5 ingredients per recipe
+- Brief instructions`;
+  }
+
   async generateMealPlan(preferences) {
-    const totalDays = Math.max(
-      preferences.preferences.mealsPerWeek.breakfast || 0,
-      preferences.preferences.mealsPerWeek.lunch || 0,
-      preferences.preferences.mealsPerWeek.dinner || 0
-    );
-
-    console.log('Generating meal plan for days:', totalDays);
-    console.log('Preferences:', JSON.stringify(preferences, null, 2));
-
     try {
+      // Always use 1 day for testing
+      const preparedData = this.preparePreferences(preferences);
+      const prompt = this.buildPrompt(preparedData);
+
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4-mini",
         messages: [
           {
             role: "system",
-            content: "You are a Michelin-starred chef specializing in creative, detailed recipes. Return ONLY valid JSON."
+            content: "You are a chef. Return ONLY valid JSON for ONE day of meals."
           },
           {
             role: "user",
-            content: this.buildPrompt(preferences, totalDays)
+            content: prompt
           }
         ],
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 1024, // Reduced tokens since we only need 1 day
         response_format: { type: "json_object" }
       });
 
-      let responseContent = completion.choices[0].message.content;
-      
-      // Clean the response content
-      try {
-        // Remove any markdown code blocks if present
-        responseContent = responseContent.replace(/```json\n?|\n?```/g, '');
-        
-        // Remove any trailing commas
-        responseContent = responseContent.replace(/,(\s*[}\]])/g, '$1');
-        
-        // Ensure all quotes are properly escaped
-        responseContent = responseContent.replace(/(?<!\\)\\(?!["\\/bfnrt])/g, '\\\\');
-        
-        console.log('Cleaned OpenAI response:', responseContent);
-        
-        const mealPlan = JSON.parse(responseContent);
+      const mealPlan = JSON.parse(completion.choices[0].message.content);
 
-        if (!this.validateMealPlanStructure(mealPlan, totalDays)) {
-          console.error('Invalid meal plan structure:', mealPlan);
-          return this.generateDefaultMealPlan(totalDays);
-        }
-
-        try {
-          await this.saveRecipesToDatabase(mealPlan);
-        } catch (dbError) {
-          console.error('Database Error:', dbError);
-          // Continue with meal plan even if saving fails
-        }
-
-        return mealPlan;
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        console.error('Failed Content:', responseContent);
-        return this.generateDefaultMealPlan(totalDays);
+      if (!this.validateMealPlanStructure(mealPlan, 1)) { // Always validate for 1 day
+        return this.generateDefaultMealPlan(1);
       }
+
+      try {
+        await this.saveRecipesToDatabase(mealPlan);
+      } catch (dbError) {
+        console.error('Database Error:', dbError);
+      }
+
+      return mealPlan;
+
     } catch (error) {
-      console.error('OpenAI API Error:', error);
-      return this.generateDefaultMealPlan(totalDays);
+      console.error('Meal plan generation error:', error);
+      return this.generateDefaultMealPlan(1); // Default to 1 day
     }
   }
 
@@ -146,71 +176,6 @@ class MealPlanGenerator {
       instructions: "Prepare ingredients. Cook protein. Add vegetables. Serve with grains.",
       plating: "Arrange on plate with garnish"
     };
-  }
-
-  buildPrompt(preferences, totalDays) {
-    return `As a Michelin-starred chef, create a detailed ${totalDays}-day meal plan. Follow these JSON formatting rules strictly:
-
-
-1. All string values must use escaped quotes: \\"value\\"
-2. Time formats must be: "XX min prep, YY min cooking"
-3. Amounts must be single strings: "1 cup" not "1", "cup"
-4. Instructions must be single strings with periods
-5. No trailing commas
-6. No line breaks in strings
-
-IMPORTANT: Each day MUST include breakfast, lunch, AND dinner meals. Missing meals will cause errors.
-
-Required Meal Structure:
-{
-  "days": [
-    {
-      "day": 1,
-      "meals": {
-        "breakfast": {
-          "name": "Creative name",
-          "difficulty": "Easy"|"Medium"|"Hard",
-          "prepTime": "XX min prep, YY min cooking",
-          "ingredients": [
-            {
-              "name": "Specific ingredient",
-              "amount": "Precise measurement",
-              "notes": "Quality indicators"
-            }
-          ],
-          "instructions": "Detailed steps with periods",
-          "plating": "Brief plating guide"
-        },
-        "lunch": { /* Same structure as breakfast */ },
-        "dinner": { /* Same structure as breakfast */ }
-      }
-    }
-  ]
-}
-
-Dietary Requirements:
-- Goals: ${preferences.preferences.dietGoals.join(', ')}
-- Likes: ${preferences.preferences.likes.join(', ')}
-- Dislikes: ${preferences.preferences.dislikes.join(', ')}
-- Macros: Protein ${preferences.preferences.macros.protein}%, Carbs ${preferences.preferences.macros.carbs}%, Fat ${preferences.preferences.macros.fat}%
-- Budget: $${preferences.preferences.budget}
-- Cuisine Focus: ${Object.entries(preferences.preferences.cuisinePreferences)
-  .map(([cuisine, value]) => `${cuisine} (${value}%)`).join(', ')}
-- Available Ingredients: ${preferences.ingredients.map(item => item.name).join(', ')}
-
-Weekly Distribution (ALL REQUIRED):
-- Breakfast: ${preferences.preferences.mealsPerWeek.breakfast} days
-- Lunch: ${preferences.preferences.mealsPerWeek.lunch} days
-- Dinner: ${preferences.preferences.mealsPerWeek.dinner} days
-
-Requirements:
-1. Each meal must have at least 4 detailed steps
-2. Each ingredient needs specific measurements
-3. Plating descriptions under 100 characters
-4. Include exactly ${totalDays} days
-5. All meals must be restaurant-quality
-6. Focus on preferred cuisines and ingredients
-7. EVERY day must have breakfast, lunch, and dinner`;
   }
 
   validateMeal(meal) {
