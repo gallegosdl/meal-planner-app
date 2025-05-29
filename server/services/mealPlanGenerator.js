@@ -1,6 +1,7 @@
 const OpenAI = require('openai');
 require('dotenv').config();
 const db = require('../services/database');
+const { jsonrepair } = require('jsonrepair');
 
 class MealPlanGenerator {
   constructor(apiKey) {
@@ -33,25 +34,26 @@ class MealPlanGenerator {
   buildPrompt(preparedData) {
     return `Create a ONE day meal plan with 3 meals. Ensure recipes are detailed and include all ingredients and instructions.
 
-Required Structure:
+Return ONLY valid JSON matching this EXACT structure:
 {
-  "days": [{
-    "day": 1,
-    "meals": {
-      "breakfast": { meal_object },
-      "lunch": { meal_object },
-      "dinner": { meal_object }
+  "days": [
+    {
+      "day": 1,
+      "meals": {
+        "breakfast": {
+          "name": "name",
+          "difficulty": "Easy",
+          "prepTime": "X min prep, Y min cook",
+          "ingredients": [
+            {"name": "item", "amount": "qty", "notes": "brief"}
+          ],
+          "instructions": "steps"
+        },
+        "lunch": {...},
+        "dinner": {...}
+      }
     }
-  }]
-}
-
-Where meal_object is:
-{
-  "name": "brief name",
-  "difficulty": "Easy|Medium|Hard",
-  "prepTime": "X min prep, Y min cook",
-  "ingredients": [{"name": "item", "amount": "qty", "notes": "brief"}],
-  "instructions": "step"
+  ]
 }
 
 Requirements:
@@ -60,12 +62,12 @@ Requirements:
 - Avoid: ${preparedData.dislikes}
 - Target: ${preparedData.macros.protein}% protein
 - Budget: $${preparedData.budget}
-- Thorough instructions`;
+- Keep all text fields under 200 characters
+- No line breaks in text fields`;
   }
 
   async generateMealPlan(preferences) {
     try {
-      // Always use 1 day for testing
       const preparedData = this.preparePreferences(preferences);
       const prompt = this.buildPrompt(preparedData);
 
@@ -82,27 +84,41 @@ Requirements:
           }
         ],
         temperature: 0.7,
-        max_tokens: 1024, // Reduced tokens since we only need 1 day
+        max_tokens: 1024,
         response_format: { type: "json_object" }
       });
 
-      const mealPlan = JSON.parse(completion.choices[0].message.content);
-
-      if (!this.validateMealPlanStructure(mealPlan, 1)) { // Always validate for 1 day
-        return this.generateDefaultMealPlan(1);
-      }
+      let responseContent = completion.choices[0].message.content;
+      
+      // Debug logging
+      console.log('Raw response:', responseContent);
 
       try {
-        await this.saveRecipesToDatabase(mealPlan);
-      } catch (dbError) {
-        console.error('Database Error:', dbError);
+        // Try parsing the raw response
+        return JSON.parse(responseContent);
+      } catch (parseError) {
+        console.log('Initial parse failed, attempting repair');
+        try {
+          // Try to repair malformed JSON
+          const repairedJson = jsonrepair(responseContent);
+          console.log('Repaired JSON:', repairedJson);
+          
+          const mealPlan = JSON.parse(repairedJson);
+          
+          if (!this.validateMealPlanStructure(mealPlan, 1)) {
+            console.error('Invalid structure after repair');
+            return this.generateDefaultMealPlan(1);
+          }
+          
+          return mealPlan;
+        } catch (repairError) {
+          console.error('JSON repair failed:', repairError);
+          return this.generateDefaultMealPlan(1);
+        }
       }
-
-      return mealPlan;
-
     } catch (error) {
       console.error('Meal plan generation error:', error);
-      return this.generateDefaultMealPlan(1); // Default to 1 day
+      return this.generateDefaultMealPlan(1);
     }
   }
 
