@@ -2,6 +2,7 @@ const OpenAI = require('openai');
 require('dotenv').config();
 const db = require('../services/database');
 const { jsonrepair } = require('jsonrepair');
+const { encode } = require('gpt-3-encoder');
 
 class MealPlanGenerator {
   constructor(apiKey) {
@@ -79,6 +80,10 @@ Requirements:
       const preparedData = this.preparePreferences(preferences);
       const prompt = this.buildPrompt(preparedData);
 
+      // Count tokens in prompt
+      const promptTokens = encode(prompt).length;
+      console.log('Prompt tokens:', promptTokens);
+
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
@@ -92,17 +97,26 @@ Requirements:
           }
         ],
         temperature: 0.7,
-        max_tokens: 2048, // Increased for 2 days
+        max_tokens: 2048,
         response_format: { type: "json_object" }
       });
 
       let responseContent = completion.choices[0].message.content;
       
-      // Debug logging
-      console.log('Raw response:', responseContent);
+      // Count tokens in response
+      const responseTokens = encode(responseContent).length;
+      
+      // Log token usage
+      console.log('Token Usage:', {
+        promptTokens,
+        responseTokens,
+        totalTokens: promptTokens + responseTokens,
+        completionTokens: completion.usage?.completion_tokens,
+        promptTokensFromAPI: completion.usage?.prompt_tokens,
+        totalTokensFromAPI: completion.usage?.total_tokens
+      });
 
       try {
-        // Try parsing the raw response
         return JSON.parse(responseContent);
       } catch (parseError) {
         console.log('Initial parse failed, attempting repair');
