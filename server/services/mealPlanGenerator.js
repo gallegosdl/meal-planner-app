@@ -72,7 +72,7 @@ Requirements:
       const prompt = this.buildPrompt(preparedData);
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4-mini",
+        model: "gpt-4.1-mini",
         messages: [
           {
             role: "system",
