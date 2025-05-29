@@ -12,11 +12,10 @@ class MealPlanGenerator {
 
   // Data preparation moved to separate method
   preparePreferences(preferences) {
-    // Hard code to 1 day for testing
     return {
-      totalDays: 1, // Fixed to 1 day
-      likes: (preferences.preferences.likes || []).slice(0, 3).join(', ') || 'None', // Limit to top 3
-      dislikes: (preferences.preferences.dislikes || []).slice(0, 2).join(', ') || 'None', // Limit to top 2
+      totalDays: 2, // Changed to 2 days
+      likes: (preferences.preferences.likes || []).slice(0, 3).join(', ') || 'None',
+      dislikes: (preferences.preferences.dislikes || []).slice(0, 2).join(', ') || 'None',
       macros: preferences.preferences.macros || { protein: 30, carbs: 40, fat: 30 },
       budget: preferences.preferences.budget || 75,
       cuisinePreferences: this.getTopCuisines(preferences.preferences.cuisinePreferences || {})
@@ -32,7 +31,7 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preparedData) {
-    return `Create a ONE day meal plan with 3 meals. Ensure recipes are detailed and include all ingredients and instructions.
+    return `Create a TWO day meal plan with 3 meals per day. Ensure recipes are detailed and include all ingredients and instructions.
 
 Return ONLY valid JSON matching this EXACT structure:
 {
@@ -52,6 +51,14 @@ Return ONLY valid JSON matching this EXACT structure:
         "lunch": {...},
         "dinner": {...}
       }
+    },
+    {
+      "day": 2,
+      "meals": {
+        "breakfast": {...},
+        "lunch": {...},
+        "dinner": {...}
+      }
     }
   ]
 }
@@ -61,9 +68,10 @@ Requirements:
 - Use ingredients: ${preparedData.likes}
 - Avoid: ${preparedData.dislikes}
 - Target: ${preparedData.macros.protein}% protein
-- Budget: $${preparedData.budget}
+- Budget: $${preparedData.budget} per day
 - Keep all text fields under 200 characters
-- No line breaks in text fields`;
+- No line breaks in text fields
+- Vary meals between days`;
   }
 
   async generateMealPlan(preferences) {
@@ -76,7 +84,7 @@ Requirements:
         messages: [
           {
             role: "system",
-            content: "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for ONE day of meals."
+            content: "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for TWO days of meals. Ensure variety between days."
           },
           {
             role: "user",
@@ -84,7 +92,7 @@ Requirements:
           }
         ],
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 2048, // Increased for 2 days
         response_format: { type: "json_object" }
       });
 
@@ -105,20 +113,20 @@ Requirements:
           
           const mealPlan = JSON.parse(repairedJson);
           
-          if (!this.validateMealPlanStructure(mealPlan, 1)) {
+          if (!this.validateMealPlanStructure(mealPlan, 2)) {
             console.error('Invalid structure after repair');
-            return this.generateDefaultMealPlan(1);
+            return this.generateDefaultMealPlan(2);
           }
           
           return mealPlan;
         } catch (repairError) {
           console.error('JSON repair failed:', repairError);
-          return this.generateDefaultMealPlan(1);
+          return this.generateDefaultMealPlan(2);
         }
       }
     } catch (error) {
       console.error('Meal plan generation error:', error);
-      return this.generateDefaultMealPlan(1);
+      return this.generateDefaultMealPlan(2);
     }
   }
 
