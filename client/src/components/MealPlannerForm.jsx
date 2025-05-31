@@ -18,6 +18,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import SendToInstacartButton from './SendToInstacartButton';
 import RecipeList from './RecipeList';
 import { toast } from 'react-hot-toast';
+import StoreComparison from './StoreComparison';
 
 // Register ChartJS components
 ChartJS.register(
@@ -92,6 +93,9 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
   });
 
   const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
+
+  const [storeComparison, setStoreComparison] = useState(null);
+  const [isComparingStores, setIsComparingStores] = useState(false);
 
   const dietOptions = {
     'Diet Types': [
@@ -340,6 +344,23 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
     }
   };
 
+  const compareStores = async (mealPlanData) => {
+    setIsComparingStores(true);
+    try {
+      const response = await api.post('/api/instacart/compare-prices', {
+        shoppingListUrl: mealPlanData.shoppingListUrl,
+        stores: ['Smith\'s', 'Albertsons', 'Walmart']
+      });
+      setStoreComparison(response.data.data);
+      toast.success(response.data.recommendation);
+    } catch (error) {
+      toast.error('Failed to compare store prices');
+      console.error('Store comparison error:', error);
+    } finally {
+      setIsComparingStores(false);
+    }
+  };
+
   const handleGenerateMealPlan = async () => {
     try {
       setIsLoading(true);
@@ -371,10 +392,15 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       const response = await api.post('/api/generate-meal-plan', payload);
       console.log('Server response:', response.data);
       setMealPlan(response.data);
-      setIsLoading(false);
+      
+      // After meal plan is generated, compare stores
+      if (response.shoppingListUrl) {
+        await compareStores(response);
+      }
     } catch (error) {
       console.error('Error details:', error.response?.data);
       setError(error.response?.data?.message || 'Failed to generate meal plan');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -916,7 +942,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
         </button>
 
         {mealPlan && (
-          <div className="mt-8">
+          <div className="mt-8 space-y-6">
             {/* Header and buttons container - stack on mobile */}
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-6">
               <h2 className="text-2xl font-bold">Your Meal Plan</h2>
@@ -1056,6 +1082,12 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
               {viewMode === 'tiles' && <DraggableMealPlan mealPlan={mealPlan} />}
               {viewMode === 'calendar' && <CalendarMealPlan mealPlan={mealPlan} />}
             </GoogleOAuthProvider>
+
+            {/* Add store comparison */}
+            <StoreComparison 
+              comparisonData={storeComparison}
+              isLoading={isComparingStores}
+            />
           </div>
         )}
       </div>

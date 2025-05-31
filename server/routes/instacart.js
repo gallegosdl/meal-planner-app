@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
+const InstacartScraper = require('../services/instacartScraper');
 
 //const INSTACART_API = 'https://connect.instacart.com/idp/v1/products/products_link'; // PRODUCTION
 const INSTACART_API = 'https://connect.dev.instacart.tools/idp/v1/products/products_link'; // DEV
@@ -97,5 +98,25 @@ const createShoppingList = async (mealPlan) => {
 
   return response.json();
 };
+
+router.post('/compare-prices', async (req, res) => {
+  const { shoppingListUrl, stores } = req.body;
+  
+  try {
+    const scraper = new InstacartScraper();
+    const results = await scraper.scrapePrices(shoppingListUrl, stores);
+    
+    res.json({
+      success: true,
+      data: results,
+      recommendation: `Best value found at ${results.bestValue.name} with ${results.bestValue.availability}% availability at $${results.bestValue.totalPrice}`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 module.exports = router;
