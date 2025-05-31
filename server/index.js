@@ -7,6 +7,7 @@ const MealPlanGenerator = require('./services/mealPlanGenerator');
 const crypto = require('crypto');
 const instacartRoutes = require('./routes/instacart');
 const recipesRouter = require('./routes/recipes');
+const OpenAI = require('openai');
 require('dotenv').config();
 
 const app = express();
@@ -159,15 +160,33 @@ app.post('/api/generate-meal-plan', async (req, res) => {
   }
 });
 
-app.post('/api/auth', (req, res) => {
-  const { apiKey } = req.body;  // Change back to just apiKey
-  const sessionToken = crypto.randomUUID();
-  sessions.set(sessionToken, {
-    apiKey,  // Only store the OpenAI key
-    createdAt: Date.now()
-  });
+app.post('/api/auth', async (req, res) => {
+  const { apiKey } = req.body;
   
-  res.json({ sessionToken });
+  try {
+    // Test the API key with a simple OpenAI request
+    const openai = new OpenAI({ apiKey });
+    await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "system", content: "Test" }],
+      max_tokens: 1
+    });
+
+    // If we get here, the key is valid
+    const sessionToken = crypto.randomUUID();
+    sessions.set(sessionToken, {
+      apiKey,
+      createdAt: Date.now()
+    });
+    
+    res.json({ sessionToken });
+  } catch (error) {
+    console.error('Auth error:', error);
+    res.status(401).json({ 
+      error: 'Invalid API key',
+      details: error.message 
+    });
+  }
 });
 
 app.use('/api/instacart', instacartRoutes);

@@ -17,6 +17,7 @@ import CalendarMealPlan from './CalendarMealPlan';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import SendToInstacartButton from './SendToInstacartButton';
 import RecipeList from './RecipeList';
+import { toast } from 'react-hot-toast';
 
 // Register ChartJS components
 ChartJS.register(
@@ -76,6 +77,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
   const [mealPlan, setMealPlan] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const [cuisinePreferences, setCuisinePreferences] = useState({
     cajun: 0,
@@ -378,17 +380,27 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
   };
 
   const handleApiKeyChange = async (value) => {
-    console.log('Setting API key:', value ? 'Key provided' : 'No key');
     setApiKey(value);
+    setError(null); // Clear previous errors
     
     if (value) {
+      setIsAuthenticating(true);
       try {
-        // Change back to original authentication
         await authenticate(value);
-        console.log('Authentication successful');
+        // Success notification
+        toast.success('API key validated successfully');
       } catch (error) {
-        console.error('Authentication failed:', error);
-        alert('Failed to authenticate API key');
+        // Handle specific error cases
+        if (error.response?.status === 401) {
+          setError('Invalid API key. Please check your key and try again.');
+        } else if (error.response?.status === 429) {
+          setError('Too many attempts. Please wait a moment and try again.');
+        } else {
+          setError('Failed to validate API key. Please try again later.');
+        }
+        console.error('Authentication error:', error);
+      } finally {
+        setIsAuthenticating(false);
       }
     } else {
       sessionStorage.removeItem('session_token');
@@ -806,24 +818,52 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
           <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h3 className="text-sm text-gray-400 mb-4">OpenAI API Key</h3>
-            <div className="flex gap-4">
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => handleApiKeyChange(e.target.value)}
-                placeholder="Enter your OpenAI API key"
-                className="flex-1 px-4 py-2 bg-[#2A3142] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={() => handleApiKeyChange('')}
-                className="px-4 py-2 bg-[#2A3142] text-gray-400 rounded-lg hover:bg-[#313748]"
-              >
-                Clear
-              </button>
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-4">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
+                  placeholder="Enter your OpenAI API key"
+                  className={`flex-1 px-4 py-2 bg-[#2A3142] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 ${
+                    error ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
+                  disabled={isAuthenticating}
+                />
+                <button
+                  onClick={() => handleApiKeyChange('')}
+                  className="px-4 py-2 bg-[#2A3142] text-gray-400 rounded-lg hover:bg-[#313748]"
+                  disabled={isAuthenticating}
+                >
+                  Clear
+                </button>
+              </div>
+              
+              {/* Error message */}
+              {error && (
+                <div className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg flex items-start gap-2">
+                  <svg className="w-5 h-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+
+              {/* Loading state */}
+              {isAuthenticating && (
+                <div className="text-sm text-blue-400 bg-blue-400/10 p-3 rounded-lg flex items-center gap-2">
+                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Validating API key...
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500">
+                Your API key is stored locally and never sent to our servers
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Your API key is stored locally and never sent to our servers
-            </p>
           </div>
 
           <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">

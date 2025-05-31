@@ -37,9 +37,22 @@ api.interceptors.request.use((config) => {
 // Centralized auth management
 export const authenticate = async (apiKey) => {
   try {
-    const response = await api.post('/api/auth', { apiKey });
-    setSession(response.data.sessionToken);
-    return response.data;
+    // Remove any cached tokens first
+    clearSession();
+    
+    // Make the auth request
+    const response = await api.post('/api/auth', { 
+      apiKey,
+      // Add timestamp to prevent caching
+      timestamp: Date.now() 
+    });
+
+    if (response.data?.sessionToken) {
+      setSession(response.data.sessionToken);
+      return response.data;
+    } else {
+      throw new Error('Invalid authentication response');
+    }
   } catch (error) {
     clearSession();
     throw error;
