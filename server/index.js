@@ -71,6 +71,15 @@ console.log('Server starting with env vars:', {
   NODE_ENV: process.env.NODE_ENV
 });
 
+// Add deployment logging
+console.log('Starting server with environment:', {
+  NODE_ENV: process.env.NODE_ENV,
+  PORT: process.env.PORT,
+  CORS_ORIGIN: process.env.NODE_ENV === 'production' 
+    ? 'https://meal-planner-frontend-woan.onrender.com'
+    : 'http://localhost:3000'
+});
+
 // Receipt parsing endpoint
 app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
   const apiKey = getApiKey(req);
@@ -199,12 +208,26 @@ app.post('/api/auth', async (req, res) => {
   }
 });
 
+// Add route logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
+
 app.use('/api/instacart', instacartRoutes);
 app.use('/api/recipes', recipesRouter);
 
 // Add near the top of your routes
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ 
+    status: 'ok',
+    routes: {
+      instacart: {
+        create_link: 'POST /api/instacart/create-link',
+        scrape_prices: 'POST /api/instacart/scrape-prices'
+      }
+    }
+  });
 });
 
 // Add preflight handler for multipart/form-data
