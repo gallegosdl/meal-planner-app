@@ -1,5 +1,8 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { setTimeout } = require('timers/promises');
+
+puppeteer.use(StealthPlugin());
 
 // Constants for configuration
 const SCRAPER_CONFIG = {
@@ -22,8 +25,11 @@ class InstacartScraper {
   async initialize() {
     console.log('Scraper: Initializing browser');
     this.browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ]
     });
     this.page = await this.browser.newPage();
 
