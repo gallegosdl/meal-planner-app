@@ -23,25 +23,46 @@ class InstacartScraper {
    * @private
    */
   async initialize() {
-    console.log('Scraper: Initializing browser');
-    this.browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox'
-      ]
-    });
-    this.page = await this.browser.newPage();
+    try {
+      console.log('Scraper: Starting browser initialization');
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',  // Add this for Windows
+          '--disable-gpu'             // Add this for Windows
+        ],
+        ignoreDefaultArgs: ['--disable-extensions']
+      });
+      console.log('Scraper: Browser launched successfully');
 
-    // Add request interception for performance
-    await this.page.setRequestInterception(true);
-    this.page.on('request', (req) => {
-      if (req.resourceType() === 'image' || req.resourceType() === 'stylesheet') {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
+      this.browser = browser;
+      this.page = await browser.newPage();
+      console.log('Scraper: New page created');
+
+      // Add request interception for performance
+      await this.page.setRequestInterception(true);
+      this.page.on('request', (req) => {
+        if (req.resourceType() === 'image' || req.resourceType() === 'stylesheet') {
+          req.abort();
+        } else {
+          req.continue();
+        }
+      });
+      console.log('Scraper: Request interception configured');
+
+      return true;
+    } catch (error) {
+      console.error('Scraper: Browser initialization failed:', {
+        error: error.message,
+        stack: error.stack,
+        browserPath: (await puppeteer.executablePath()),
+        platform: process.platform,
+        arch: process.arch
+      });
+      throw error;
+    }
   }
 
   /**
