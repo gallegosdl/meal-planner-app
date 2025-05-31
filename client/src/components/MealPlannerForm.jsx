@@ -870,15 +870,19 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
         {mealPlan && (
           <div className="mt-8">
-            <div className="flex justify-between items-center mb-6">
+            {/* Header and buttons container - stack on mobile */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-6">
               <h2 className="text-2xl font-bold">Your Meal Plan</h2>
-              <SendToInstacartButton mealPlan={mealPlan} />
-              {/* View Toggle Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
-                <div className="flex gap-2">
+              
+              {/* Controls container - stack and wrap buttons on mobile */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <SendToInstacartButton mealPlan={mealPlan} />
+                
+                {/* View Toggle Buttons - wrap on mobile */}
+                <div className="grid grid-cols-2 sm:flex gap-2">
                   <button
                     onClick={() => setViewMode('tabs')}
-                    className={`px-4 py-2 rounded-lg ${
+                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
                       viewMode === 'tabs' 
                         ? 'bg-blue-500 text-white' 
                         : 'bg-[#2A3142] text-gray-400'
@@ -888,7 +892,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                   </button>
                   <button
                     onClick={() => setViewMode('recipes')}
-                    className={`px-4 py-2 rounded-lg ${
+                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
                       viewMode === 'recipes' 
                         ? 'bg-blue-500 text-white' 
                         : 'bg-[#2A3142] text-gray-400'
@@ -898,7 +902,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                   </button>
                   <button
                     onClick={() => setViewMode('tiles')}
-                    className={`px-4 py-2 rounded-lg ${
+                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
                       viewMode === 'tiles' 
                         ? 'bg-blue-500 text-white' 
                         : 'bg-[#2A3142] text-gray-400'
@@ -908,7 +912,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                   </button>
                   <button
                     onClick={() => setViewMode('calendar')}
-                    className={`px-4 py-2 rounded-lg ${
+                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
                       viewMode === 'calendar' 
                         ? 'bg-blue-500 text-white' 
                         : 'bg-[#2A3142] text-gray-400'
