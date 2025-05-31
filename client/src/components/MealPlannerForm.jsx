@@ -381,29 +381,36 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
   const handleApiKeyChange = async (value) => {
     setApiKey(value);
-    setError(null); // Clear previous errors
+    setError(null); // Reset error state on new attempt
     
     if (value) {
-      setIsAuthenticating(true);
+      setIsAuthenticating(true); // Show loading state
       try {
+        // Attempt to authenticate with the API key
         await authenticate(value);
-        // Success notification
+        // Show success message using toast
         toast.success('API key validated successfully');
+        
       } catch (error) {
-        // Handle specific error cases
+        // Handle different error scenarios with specific messages
         if (error.response?.status === 401) {
+          // 401: Unauthorized - Invalid API key
           setError('Invalid API key. Please check your key and try again.');
         } else if (error.response?.status === 429) {
+          // 429: Too Many Requests - Rate limiting
           setError('Too many attempts. Please wait a moment and try again.');
         } else {
+          // Generic error for other cases
           setError('Failed to validate API key. Please try again later.');
         }
         console.error('Authentication error:', error);
       } finally {
+        // Always reset loading state
         setIsAuthenticating(false);
       }
     } else {
-      sessionStorage.removeItem('session_token');
+      // If value is empty, clear the session
+      clearSession();
     }
   };
 

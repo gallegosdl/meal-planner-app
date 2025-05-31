@@ -160,12 +160,16 @@ app.post('/api/generate-meal-plan', async (req, res) => {
   }
 });
 
+// Authentication endpoint with OpenAI validation
 app.post('/api/auth', async (req, res) => {
   const { apiKey } = req.body;
   
   try {
-    // Test the API key with a simple OpenAI request
+    // Create an OpenAI instance with the provided key
     const openai = new OpenAI({ apiKey });
+    
+    // Test the API key with a minimal API call
+    // This verifies the key is valid without consuming much quota
     await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [{ role: "system", content: "Test" }],
@@ -173,14 +177,20 @@ app.post('/api/auth', async (req, res) => {
     });
 
     // If we get here, the key is valid
+    // Generate a unique session token
     const sessionToken = crypto.randomUUID();
+    
+    // Store the session with the API key and timestamp
     sessions.set(sessionToken, {
       apiKey,
       createdAt: Date.now()
     });
     
+    // Return only the session token to the client
     res.json({ sessionToken });
+    
   } catch (error) {
+    // Log error for debugging but send limited info to client
     console.error('Auth error:', error);
     res.status(401).json({ 
       error: 'Invalid API key',

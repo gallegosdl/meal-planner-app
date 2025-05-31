@@ -79,17 +79,24 @@ Requirements:
     try {
       const preparedData = this.preparePreferences(preferences);
       const prompt = this.buildPrompt(preparedData);
+      const systemMessage = "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for TWO days of meals. Ensure variety between days.";
 
-      // Count tokens in prompt
+      // Detailed token counting
       const promptTokens = encode(prompt).length;
-      console.log('Prompt tokens:', promptTokens);
+      const systemTokens = encode(systemMessage).length;
+
+      console.log('Token Breakdown:', {
+        systemMessage: systemTokens,
+        userPrompt: promptTokens,
+        total: systemTokens + promptTokens
+      });
 
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
           {
             role: "system",
-            content: "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for TWO days of meals. Ensure variety between days."
+            content: systemMessage
           },
           {
             role: "user",
@@ -114,6 +121,14 @@ Requirements:
         completionTokens: completion.usage?.completion_tokens,
         promptTokensFromAPI: completion.usage?.prompt_tokens,
         totalTokensFromAPI: completion.usage?.total_tokens
+      });
+
+      console.log('Token Limits:', {
+        maxResponseTokens: 2048,
+        actualResponseTokens: completion.usage?.completion_tokens,
+        isWithinLimit: completion.usage?.completion_tokens <= 2048,
+        promptTokens: completion.usage?.prompt_tokens,
+        totalTokens: completion.usage?.total_tokens
       });
 
       try {

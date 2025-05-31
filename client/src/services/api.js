@@ -34,28 +34,32 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Centralized auth management
+// Centralized auth management with error handling and session management
 export const authenticate = async (apiKey) => {
   try {
-    // Remove any cached tokens first
+    // Clear any existing session before attempting new auth
+    // This prevents stale token issues
     clearSession();
     
-    // Make the auth request
+    // Make the auth request with timestamp to prevent caching
+    // Some browsers/networks might cache POST requests
     const response = await api.post('/api/auth', { 
       apiKey,
-      // Add timestamp to prevent caching
       timestamp: Date.now() 
     });
 
+    // Validate the response has the expected data structure
     if (response.data?.sessionToken) {
+      // Store the session token for future requests
       setSession(response.data.sessionToken);
       return response.data;
     } else {
       throw new Error('Invalid authentication response');
     }
   } catch (error) {
+    // Always clear session on auth failure
     clearSession();
-    throw error;
+    throw error; // Re-throw to be handled by the component
   }
 };
 
