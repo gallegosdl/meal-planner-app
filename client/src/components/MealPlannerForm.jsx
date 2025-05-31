@@ -404,9 +404,9 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Household Container */}
-          <div className="col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h2 className="text-xl font-semibold text-white mb-4">Household</h2>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -497,7 +497,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Cuisine Preferences Container */}
-          <div className="col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h2 className="text-xl font-semibold text-white mb-4">Cuisine Preferences</h2>
             <p className="text-sm text-gray-400 mb-4">
               Adjust the sliders to set your cuisine preferences (total cannot exceed 100%)
@@ -577,7 +577,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Macronutrient Split Container */}
-          <div className="col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h2 className="text-xl font-semibold text-white mb-4">Macronutrient Split</h2>
             <div className="h-48 mb-6">
               <Doughnut 
@@ -650,7 +650,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Dietary Goals */}
-          <div className="col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h3 className="text-sm text-gray-400 mb-4">Dietary Goals</h3>
             {Object.entries(dietOptions).map(([category, options]) => (
               <div key={category} className="mb-4">
@@ -675,7 +675,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Calories Card */}
-          <div className="col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-sm text-gray-400">Daily Calories</h3>
               <select 
@@ -727,7 +727,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Middle Row */}
-          <div className="col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h3 className="text-sm text-gray-400 mb-4">Meals Per Week</h3>
             <div className="space-y-3">
               {['breakfast', 'lunch', 'dinner'].map(meal => (
@@ -744,7 +744,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Meal Preferences Row */}
-          <div className="col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h2 className="text-xl font-semibold text-white mb-4">Meal Preferences</h2>
             <div className="space-y-6">
               <div>
@@ -771,7 +771,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Preferred Foods Display */}
-          <div className="col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h2 className="text-xl font-semibold text-white mb-4">Preferred Foods</h2>
             <div className="bg-[#2A3142] rounded-lg p-4 min-h-[200px]">
               {formData.likes.split(',').map((item, index) => (
@@ -788,7 +788,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
 
           {/* Avoided Foods Display */}
-          <div className="col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h2 className="text-xl font-semibold text-white mb-4">Avoided Foods</h2>
             <div className="bg-[#2A3142] rounded-lg p-4 min-h-[200px]">
               {formData.dislikes.split(',').map((item, index) => (
@@ -804,7 +804,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
             </div>
           </div>
 
-          <div className="col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h3 className="text-sm text-gray-400 mb-4">OpenAI API Key</h3>
             <div className="flex gap-4">
               <input
@@ -826,7 +826,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
             </p>
           </div>
 
-          <div className="col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h3 className="text-sm text-gray-400 mb-4">Upload Receipt</h3>
             <div className="flex items-center gap-4">
               <input
@@ -874,47 +874,49 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
               <h2 className="text-2xl font-bold">Your Meal Plan</h2>
               <SendToInstacartButton mealPlan={mealPlan} />
               {/* View Toggle Buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setViewMode('tabs')}
-                  className={`px-4 py-2 rounded-lg ${
-                    viewMode === 'tabs' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-[#2A3142] text-gray-400'
-                  }`}
-                >
-                  Detailed View
-                </button>
-                <button
-                  onClick={() => setViewMode('recipes')}
-                  className={`px-4 py-2 rounded-lg ${
-                    viewMode === 'recipes' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-[#2A3142] text-gray-400'
-                  }`}
-                >
-                  Recipe Library
-                </button>
-                <button
-                  onClick={() => setViewMode('tiles')}
-                  className={`px-4 py-2 rounded-lg ${
-                    viewMode === 'tiles' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-[#2A3142] text-gray-400'
-                  }`}
-                >
-                  Draggable Tiles
-                </button>
-                <button
-                  onClick={() => setViewMode('calendar')}
-                  className={`px-4 py-2 rounded-lg ${
-                    viewMode === 'calendar' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-[#2A3142] text-gray-400'
-                  }`}
-                >
-                  Calendar View
-                </button>
+              <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode('tabs')}
+                    className={`px-4 py-2 rounded-lg ${
+                      viewMode === 'tabs' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-[#2A3142] text-gray-400'
+                    }`}
+                  >
+                    Detailed View
+                  </button>
+                  <button
+                    onClick={() => setViewMode('recipes')}
+                    className={`px-4 py-2 rounded-lg ${
+                      viewMode === 'recipes' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-[#2A3142] text-gray-400'
+                    }`}
+                  >
+                    Recipe Library
+                  </button>
+                  <button
+                    onClick={() => setViewMode('tiles')}
+                    className={`px-4 py-2 rounded-lg ${
+                      viewMode === 'tiles' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-[#2A3142] text-gray-400'
+                    }`}
+                  >
+                    Draggable Tiles
+                  </button>
+                  <button
+                    onClick={() => setViewMode('calendar')}
+                    className={`px-4 py-2 rounded-lg ${
+                      viewMode === 'calendar' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-[#2A3142] text-gray-400'
+                    }`}
+                  >
+                    Calendar View
+                  </button>
+                </div>
               </div>
             </div>
 
