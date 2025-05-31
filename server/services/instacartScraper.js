@@ -20,9 +20,9 @@ class InstacartScraper {
    * @private
    */
   async initialize() {
+    console.log('Scraper: Initializing browser');
     this.browser = await puppeteer.launch({
       headless: 'new',
-      defaultViewport: { width: 1280, height: 800 },
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     this.page = await this.browser.newPage();
@@ -121,20 +121,16 @@ class InstacartScraper {
    * @private
    */
   async switchStore(storeName) {
-    await this.page.waitForSelector(
-      '[data-testid="store-selector-dropdown"], [data-testid*="store-option"]',
-      { timeout: SCRAPER_CONFIG.TIMEOUT }
-    );
-
-    await this.page.evaluate((name) => {
-      const buttons = Array.from(document.querySelectorAll(
-        '[data-testid*="store-option"], button, div'
-      ));
-      const target = buttons.find(btn => btn.innerText.includes(name));
-      if (target) target.click();
-    }, storeName);
-
-    await setTimeout(SCRAPER_CONFIG.STORE_SWITCH_DELAY);
+    await this.page.waitForSelector('[data-testid="store-selector"]');
+    await this.page.click('[data-testid="store-selector"]');
+    
+    const storeOption = await this.page.$(`[data-testid="store-option-${storeName}"]`);
+    if (!storeOption) {
+      throw new Error(`Store ${storeName} not found`);
+    }
+    
+    await storeOption.click();
+    await this.page.waitForNavigation({ waitUntil: 'networkidle0' });
   }
 
   /**
@@ -195,6 +191,7 @@ class InstacartScraper {
    */
   async cleanup() {
     if (this.browser) {
+      console.log('Scraper: Cleaning up browser');
       await this.browser.close();
     }
   }

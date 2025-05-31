@@ -119,4 +119,29 @@ router.post('/compare-prices', async (req, res) => {
   }
 });
 
+// Add new scraping endpoint
+router.post('/scrape-prices', async (req, res) => {
+  const { listUrl, store } = req.body;
+  console.log('Server: Starting price scrape for:', { store, listUrl });
+
+  try {
+    const scraper = new InstacartScraper();
+    const priceData = await scraper.scrapePrices(listUrl, store);
+    
+    console.log('Server: Scrape completed:', {
+      store,
+      totalItems: priceData.items.length,
+      total: priceData.totalPrice
+    });
+
+    res.json(priceData);
+  } catch (error) {
+    console.error('Server: Scrape failed:', error);
+    res.status(500).json({
+      error: 'Failed to scrape prices',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
