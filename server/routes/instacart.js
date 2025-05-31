@@ -124,13 +124,21 @@ router.post('/scrape-prices', async (req, res) => {
   const { listUrl, store } = req.body;
   console.log('Server: Starting price scrape for:', { store, listUrl });
 
+  // Validate required fields
+  if (!listUrl || !store) {
+    return res.status(400).json({
+      error: 'Missing required fields',
+      details: 'Both listUrl and store are required'
+    });
+  }
+
   try {
     const scraper = new InstacartScraper();
     const priceData = await scraper.scrapePrices(listUrl, store);
     
     console.log('Server: Scrape completed:', {
       store,
-      totalItems: priceData.items.length,
+      totalItems: priceData.items?.length || 0,
       total: priceData.totalPrice
     });
 
