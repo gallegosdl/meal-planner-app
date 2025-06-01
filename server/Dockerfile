@@ -41,9 +41,10 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with Chromium
-RUN npm ci && \
-    npx puppeteer browsers install chrome && \
+# Install dependencies and Chromium
+RUN npm install -g npm@latest && \
+    npm ci --quiet && \
+    node node_modules/puppeteer/install.js && \
     chown -R pptruser:pptruser /usr/src/app
 
 # Copy rest of application
