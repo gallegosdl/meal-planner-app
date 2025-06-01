@@ -99,44 +99,54 @@ const createShoppingList = async (mealPlan) => {
   return response.json();
 };
 
-// Single store price scraping
-router.post('/scrape-prices', async (req, res) => {
+router.post('/compare-prices', async (req, res) => {
+  const { shoppingListUrl, stores } = req.body;
+  
   try {
-    const { listUrl, store } = req.body;
-    
-    const scraper = new InstacartScraper();
-    const result = await scraper.scrapeItems();
-    
-    res.json({
-      success: true,
-      data: scraper.formatStoreData(result)
-    });
-  } catch (error) {
-    console.error('Price scraping failed:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to scrape prices' 
-    });
-  }
-});
-
-// Multiple store comparison
-router.post('/compare-stores', async (req, res) => {
-  try {
-    const { shoppingListUrl, stores } = req.body;
-    
     const scraper = new InstacartScraper();
     const results = await scraper.scrapePrices(shoppingListUrl, stores);
     
     res.json({
       success: true,
-      data: results
+      data: results,
+      recommendation: `Best value found at ${results.bestValue.name} with ${results.bestValue.availability}% availability at $${results.bestValue.totalPrice}`
     });
   } catch (error) {
-    console.error('Store comparison failed:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to compare stores' 
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Add scraping endpoint
+router.post('/scrape-prices', async (req, res) => {
+  const { listUrl, store } = req.body;
+  console.log('Server: Starting price scrape:', { store, listUrl });
+
+  if (!listUrl || !store) {
+    return res.status(400).json({
+      error: 'Missing required fields',
+      details: 'Both listUrl and store are required'
+    });
+  }
+
+  try {
+    const scraper = new InstacartScraper();
+    const priceData = await scraper.scrapePrices(listUrl, store);
+    
+    console.log('Server: Scrape completed:', {
+      store,
+      totalItems: priceData.items?.length || 0,
+      total: priceData.totalPrice
+    });
+
+    res.json(priceData);
+  } catch (error) {
+    console.error('Server: Scrape failed:', error);
+    res.status(500).json({
+      error: 'Failed to scrape prices',
+      details: error.message
     });
   }
 });
