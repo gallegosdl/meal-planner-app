@@ -31,7 +31,8 @@ class InstacartScraper {
           '--disable-setuid-sandbox',
           '--window-size=1920x1080'
         ],
-        defaultViewport: null
+        defaultViewport: null,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null // Use system Chromium if specified
       });
 
       this.page = await this.browser.newPage();
@@ -74,14 +75,18 @@ class InstacartScraper {
       };
 
       for (const storeName of targetStores) {
-        console.log(`🔄 Processing ${storeName}...`);
-        const storeResult = await this.scrapeItems();
-        results.stores[storeName] = this.formatStoreData(storeResult);
+        try {
+          console.log(`🔄 Processing ${storeName}...`);
+          await this.switchStore(storeName); // Switch to each store
+          const storeResult = await this.scrapeItems();
+          results.stores[storeName] = this.formatStoreData(storeResult);
+        } catch (error) {
+          console.error(`Failed to process ${storeName}:`, error);
+          // Continue with next store if one fails
+        }
       }
 
-      // Determine best value store
       results.bestValue = this.analyzeBestValue(results.stores);
-
       return results;
     } catch (error) {
       console.error('Scraping failed:', error);
@@ -130,19 +135,33 @@ class InstacartScraper {
    * @private
    */
   async switchStore(storeName) {
-    console.log(`Switching to ${storeName}...`);
-    
-    // Click the store selector
-    const storeSelector = await this.page.waitForSelector('[data-testid="store-selector-button"]');
-    await storeSelector.click();
-    
-    // Wait for store list and find Albertsons
-    await this.page.waitForSelector('[data-testid="store-albertsons"]');
-    await this.page.click('[data-testid="store-albertsons"]');
-    
-    // Wait for navigation and price updates
-    await this.page.waitForNavigation({ waitUntil: 'networkidle0' });
-    console.log('Store switched successfully');
+    try {
+      console.log(`Switching to ${storeName}...`);
+      
+      // Wait for and click the store selector modal button
+      await this.page.waitForSelector('[aria-label="show retailer chooser modal"]');
+      await this.page.click('[aria-label="show retailer chooser modal"]');
+      
+      // Wait for store list to appear and find our store
+      await this.page.waitForTimeout(1000); // Give modal time to open
+      
+      // Click the store name - using a more flexible selector
+      const storeButton = await this.page.$x(`//button[contains(., '${storeName}')]`);
+      if (storeButton.length > 0) {
+        await storeButton[0].click();
+      } else {
+        throw new Error(`Could not find store: ${storeName}`);
+      }
+      
+      // Wait for navigation and content to load
+      await this.page.waitForNavigation({ waitUntil: 'networkidle2' });
+      await this.page.waitForTimeout(2000); // Give prices time to load
+      
+      console.log(`Successfully switched to ${storeName}`);
+    } catch (error) {
+      console.error(`Failed to switch to ${storeName}:`, error);
+      throw error;
+    }
   }
 
   /**
