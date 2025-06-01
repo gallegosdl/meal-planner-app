@@ -1,5 +1,8 @@
 FROM ghcr.io/puppeteer/puppeteer:latest
 
+# Switch to root to install dependencies
+USER root
+
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false \
     NODE_ENV=production
@@ -24,7 +27,8 @@ RUN apt-get update && apt-get install -y \
     libxfixes3 \
     libxrandr2 \
     xdg-utils \
-    --no-install-recommends
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -37,6 +41,9 @@ RUN npm ci
 
 # Copy rest of application
 COPY . .
+
+# Switch back to non-root user
+USER pptruser
 
 # Expose the port
 EXPOSE 3001
