@@ -8,20 +8,16 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 # Set working directory
 WORKDIR /usr/src/app
 
-# Copy package files first for better caching
+# Copy package files
 COPY package*.json ./
 
-# Install with verbose logging
-RUN npm install --verbose
+# Install dependencies
+RUN npm ci
 
 # Copy rest of application
 COPY . .
 
-# Add startup logging
-RUN echo "Container starting..." > startup.log
+# Expose the port
+EXPOSE 3001
 
-# Start with additional logging
-CMD echo "Starting server..." && \
-    node -v && \
-    npm -v && \
-    npm start 
+CMD ["npm", "start"] 
