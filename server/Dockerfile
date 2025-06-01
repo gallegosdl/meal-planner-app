@@ -5,7 +5,12 @@ USER root
 
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false \
-    NODE_ENV=production
+    NODE_ENV=production \
+    PUPPETEER_CACHE_DIR=/usr/src/app/.cache/puppeteer
+
+# Create and set permissions for Puppeteer cache directory
+RUN mkdir -p /usr/src/app/.cache/puppeteer && \
+    chown -R pptruser:pptruser /usr/src/app/.cache/puppeteer
 
 # Install Chrome dependencies
 RUN apt-get update && apt-get install -y \
@@ -36,8 +41,10 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with Chromium
+RUN npm ci && \
+    npx puppeteer browsers install chrome && \
+    chown -R pptruser:pptruser /usr/src/app
 
 # Copy rest of application
 COPY . .
