@@ -36,14 +36,8 @@ const SendToInstacartButton = ({ mealPlan }) => {
       totalItems: ingredients.length
     });
 
-    const res = await api.post('/api/instacart/create-link', {
-      title: 'Weekly Meal Plan Ingredients',
-      link_type: 'shopping_list',
-      expires_in: 7,
-      line_items: ingredients,
-      landing_page_configuration: {
-        partner_linkback_url: window.location.origin
-      }
+    const res = await api.post('/api/instacart/create-list', {
+      items: ingredients
     }, {
       headers: {
         'x-session-token': sessionToken

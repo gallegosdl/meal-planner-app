@@ -1,27 +1,59 @@
 const InstacartScraper = require('../services/instacartScraper');
+require('dotenv').config();
 
 async function testScraper() {
-  const scraper = new InstacartScraper();
+  let scraper = null;
   
   try {
-    // Test product search with deals
-    console.log('Searching for chicken breast with deals...');
-    const products = await scraper.searchProducts('chicken breast');
-    console.log('Found products with deals:', JSON.stringify(products, null, 2));
+    console.log('Starting scraper test...');
+    
+    const listUrl = 'https://customers.dev.instacart.tools/store/shopping_lists/5895574';
+    console.log('List URL:', listUrl);
 
-    // Test getting all available deals
-    console.log('\nGetting all available deals...');
-    const deals = await scraper.getAvailableDeals();
-    console.log('Found deals:', JSON.stringify(deals, null, 2));
+    scraper = new InstacartScraper();
+    await scraper.initialize();
+    
+    const page = scraper.page;
+    console.log('Navigating to page...');
 
-    // Test getting deals by category
-    console.log('\nGetting categorized deals...');
-    const categorizedDeals = await scraper.getCategorizedDeals();
-    console.log('Deals by category:', JSON.stringify(categorizedDeals, null, 2));
+    // Simple navigation with longer timeout
+    await page.goto(listUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 90000 // 90 seconds
+    });
+
+    // Wait for content to stabilize
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    console.log('Page loaded, current URL:', page.url());
+
+    const result = await scraper.scrapeItems();
+    
+    if (!result.items || result.items.length === 0) {
+      console.log('\nNo items found');
+    } else {
+      console.log('\nFound Items:', result.items.length);
+      console.log('Store:', result.store.name);
+      
+      let total = 0;
+      result.items.forEach(item => {
+        if (item.name && item.price > 0) {
+          console.log(`${item.name}: $${item.price.toFixed(2)} x ${item.quantity}`);
+          total += item.price * item.quantity;
+        }
+      });
+      console.log('\nTotal: $' + total.toFixed(2));
+    }
 
   } catch (error) {
     console.error('Test failed:', error);
+    if (scraper?.page) {
+      await scraper.page.screenshot({ path: 'error.png' });
+    }
+    throw error;
+  } finally {
+    if (scraper) await scraper.cleanup();
   }
 }
 
-testScraper(); 
+testScraper().catch(console.error); 

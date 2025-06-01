@@ -344,18 +344,23 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
     }
   };
 
-  const compareStores = async (mealPlanData) => {
-    setIsComparingStores(true);
+  const handleCompareStores = async () => {
     try {
-      const response = await api.post('/api/instacart/compare-prices', {
-        shoppingListUrl: mealPlanData.shoppingListUrl,
-        stores: ['Smith\'s', 'Albertsons', 'Walmart']
+      setIsComparingStores(true);
+      
+      const response = await api.post('/api/instacart/compare-stores', {
+        shoppingListUrl: listUrl,
+        stores: ['Smart & Final', 'Albertsons', 'Ralphs']
       });
-      setStoreComparison(response.data.data);
-      toast.success(response.data.recommendation);
+
+      if (response.data.success) {
+        setStoreComparison(response.data.data);
+      } else {
+        throw new Error('Failed to compare stores');
+      }
     } catch (error) {
+      console.error('Store comparison failed:', error);
       toast.error('Failed to compare store prices');
-      console.error('Store comparison error:', error);
     } finally {
       setIsComparingStores(false);
     }
@@ -395,7 +400,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       
       // After meal plan is generated, compare stores
       if (response.shoppingListUrl) {
-        await compareStores(response);
+        await handleCompareStores();
       }
     } catch (error) {
       console.error('Error details:', error.response?.data);

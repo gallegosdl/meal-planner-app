@@ -1,12 +1,11 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { setTimeout } = require('timers/promises');
 
 puppeteer.use(StealthPlugin());
 
 // Constants for configuration
 const SCRAPER_CONFIG = {
-  TIMEOUT: 10000,
+  TIMEOUT: 30000,
   STORE_SWITCH_DELAY: 3000,
   SCROLL_INTERVAL: 1000,
   MAX_RETRIES: 3
@@ -25,42 +24,31 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('Scraper: Starting browser initialization');
-      const browser = await puppeteer.launch({
-        headless: true,
+      this.browser = await puppeteer.launch({
+        headless: 'new',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',  // Add this for Windows
-          '--disable-gpu'             // Add this for Windows
+          '--window-size=1920x1080'
         ],
-        ignoreDefaultArgs: ['--disable-extensions']
+        defaultViewport: null
       });
-      console.log('Scraper: Browser launched successfully');
 
-      this.browser = browser;
-      this.page = await browser.newPage();
-      console.log('Scraper: New page created');
-
-      // Add request interception for performance
+      this.page = await this.browser.newPage();
+      
+      // Block images only
       await this.page.setRequestInterception(true);
       this.page.on('request', (req) => {
-        if (req.resourceType() === 'image' || req.resourceType() === 'stylesheet') {
+        if (req.resourceType() === 'image') {
           req.abort();
         } else {
           req.continue();
         }
       });
-      console.log('Scraper: Request interception configured');
 
       return true;
     } catch (error) {
-      console.error('Scraper: Browser initialization failed:', {
-        error: error.message,
-        stack: error.stack,
-        browserPath: (await puppeteer.executablePath()),
-        platform: process.platform,
-        arch: process.arch
-      });
+      console.error('Scraper initialization failed:', error);
       throw error;
     }
   }
@@ -87,8 +75,8 @@ class InstacartScraper {
 
       for (const storeName of targetStores) {
         console.log(`🔄 Processing ${storeName}...`);
-        const storeData = await this.scrapeStore(storeName);
-        results.stores[storeName] = storeData;
+        const storeResult = await this.scrapeItems();
+        results.stores[storeName] = this.formatStoreData(storeResult);
       }
 
       // Determine best value store
@@ -114,15 +102,8 @@ class InstacartScraper {
         await this.switchStore(storeName);
         await this.scrollToBottom();
 
-        const items = await this.page.evaluate(() => {
-          return Array.from(document.querySelectorAll('[data-testid="item"]')).map(row => ({
-            name: row.querySelector('[data-testid="item-name"]')?.innerText || 'Unknown',
-            price: parseFloat(row.querySelector('[data-testid="price"]')?.innerText.replace(/[^0-9.]/g, '')) || 0,
-            unit: row.querySelector('[data-testid="unit-price"]')?.innerText || '',
-            available: !row.querySelector('[data-testid="out-of-stock"]'),
-            organic: row.innerText.toLowerCase().includes('organic')
-          }));
-        });
+        // Updated selectors based on the actual page
+        const items = await this.scrapeItems();
 
         const unavailableItems = items.filter(item => !item.available);
         const total = items.reduce((acc, item) => acc + (item.available ? item.price : 0), 0);
@@ -136,9 +117,10 @@ class InstacartScraper {
           items
         };
       } catch (error) {
+        console.log('Scraping attempt failed:', error.message);
         retries++;
         if (retries === SCRAPER_CONFIG.MAX_RETRIES) throw error;
-        await setTimeout(1000); // Wait before retry
+        await new Promise(resolve => global.setTimeout(resolve, 1000));
       }
     }
   }
@@ -148,16 +130,19 @@ class InstacartScraper {
    * @private
    */
   async switchStore(storeName) {
-    await this.page.waitForSelector('[data-testid="store-selector"]');
-    await this.page.click('[data-testid="store-selector"]');
+    console.log(`Switching to ${storeName}...`);
     
-    const storeOption = await this.page.$(`[data-testid="store-option-${storeName}"]`);
-    if (!storeOption) {
-      throw new Error(`Store ${storeName} not found`);
-    }
+    // Click the store selector
+    const storeSelector = await this.page.waitForSelector('[data-testid="store-selector-button"]');
+    await storeSelector.click();
     
-    await storeOption.click();
+    // Wait for store list and find Albertsons
+    await this.page.waitForSelector('[data-testid="store-albertsons"]');
+    await this.page.click('[data-testid="store-albertsons"]');
+    
+    // Wait for navigation and price updates
     await this.page.waitForNavigation({ waitUntil: 'networkidle0' });
+    console.log('Store switched successfully');
   }
 
   /**
@@ -178,6 +163,143 @@ class InstacartScraper {
         }, delay);
       });
     }, SCRAPER_CONFIG.SCROLL_INTERVAL);
+  }
+
+  /**
+   * Scrape items from the current page
+   * @private
+   */
+  async scrapeItems() {
+    try {
+      // Wait for any content to load
+      await this.page.waitForSelector('body', { timeout: 10000 });
+      await new Promise(r => setTimeout(r, 5000));
+
+      // First get store info
+      const storeInfo = await this.page.evaluate(() => {
+        // Look for store name in the retailer chooser or modal
+        const storeNameSelectors = [
+          // Direct store name in span
+          'span[class="e-1mk109q"]',
+          // Modal button text
+          'div[aria-label="show retailer chooser modal"] span',
+          // Fallbacks
+          '.store-header__store-name',
+          '.store-name',
+          '.retailer-name',
+          'h1[class*="store"]',
+          'div[class*="store-name"]'
+        ];
+
+        let storeName = 'Unknown Store';
+        for (const selector of storeNameSelectors) {
+          const el = document.querySelector(selector);
+          if (el) {
+            const text = el.textContent.trim();
+            if (text && text !== 'Unknown Store') {
+              storeName = text;
+              break;
+            }
+          }
+        }
+
+        // Add debug logging
+        console.log('Store selectors found:', 
+          storeNameSelectors.map(s => ({
+            selector: s,
+            found: !!document.querySelector(s),
+            text: document.querySelector(s)?.textContent?.trim()
+          }))
+        );
+
+        return {
+          name: storeName,
+          url: window.location.href,
+          originalUrl: window.location.href // Keep track of initial URL
+        };
+      });
+
+      // Log store info for debugging
+      console.log('Found store info:', storeInfo);
+
+      // Now get items with the working logic
+      const items = await this.page.evaluate(() => {
+        const results = [];
+        const itemElements = document.querySelectorAll('ul.e-19tvapz > li');
+        
+        itemElements.forEach((item, index) => {
+          try {
+            const nameEl = item.querySelector('.e-10y4wp7');
+            const name = nameEl?.textContent?.trim() || '';
+
+            // Get price
+            const allPriceElements = item.querySelectorAll('span[class^="e-"]');
+            let priceText = '';
+            for (const el of allPriceElements) {
+              const text = el.textContent.trim();
+              if (text.includes('$') || /^\d+$/.test(text)) {
+                priceText = text;
+                break;
+              }
+            }
+
+            // Parse price - handle numbers without decimal point
+            let price = 0;
+            if (priceText) {
+              const cleanPrice = priceText.replace(/[^\d]/g, '');
+              if (cleanPrice.length > 0) {
+                const cents = cleanPrice.slice(-2);
+                const dollars = cleanPrice.slice(0, -2) || '0';
+                price = parseFloat(`${dollars}.${cents}`);
+              }
+            }
+
+            // Get quantity
+            const quantityText = item.querySelector('.e-1nljhj5')?.textContent?.trim() || '1';
+            const quantity = parseInt(quantityText) || 1;
+
+            results.push({
+              name,
+              price,
+              quantity,
+              rawPrice: priceText
+            });
+          } catch (err) {
+            console.error(`Error parsing item ${index}:`, err);
+          }
+        });
+
+        return results;
+      });
+
+      // Calculate total
+      let total = 0;
+      items.forEach(item => {
+        total += item.price * item.quantity;
+      });
+
+      // Combine store info and items into result object
+      const result = {
+        store: storeInfo,
+        items: items,
+        total: total
+      };
+
+      // Log results
+      console.log('\nStore:', result.store.name);
+      console.log('\nDetailed item results:');
+      items.forEach((item, i) => {
+        console.log(`Item ${i + 1}: ${item.name} - $${item.price.toFixed(2)} x ${item.quantity} (Raw: ${item.rawPrice})`);
+      });
+      console.log(`\nTotal: $${total.toFixed(2)}`);
+
+      return result;
+
+    } catch (error) {
+      console.error('Failed to scrape items:', error);
+      await this.page.screenshot({ path: 'error-state.png', fullPage: true });
+      throw error;
+    }
   }
 
   /**
@@ -221,6 +343,19 @@ class InstacartScraper {
       console.log('Scraper: Cleaning up browser');
       await this.browser.close();
     }
+  }
+
+  // Add method to format data for frontend
+  formatStoreData(result) {
+    return {
+      totalPrice: result.total.toFixed(2),
+      itemCount: result.items.length,
+      availableItems: result.items.filter(item => item.price > 0),
+      unavailableItems: result.items.filter(item => item.price === 0),
+      availability: (
+        (result.items.filter(item => item.price > 0).length / result.items.length) * 100
+      ).toFixed(0)
+    };
   }
 }
 
