@@ -10,7 +10,8 @@
     "test": "node test/mealPrep.test.js",
     "test:scraper": "node test/scraper.test.js",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "postinstall": "puppeteer install"
   },
   "keywords": [],
   "author": "",
