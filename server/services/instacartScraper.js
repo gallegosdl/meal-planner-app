@@ -31,10 +31,7 @@ class InstacartScraper {
           '--disable-setuid-sandbox',
           '--window-size=1920x1080'
         ],
-        defaultViewport: null,
-        executablePath: process.env.NODE_ENV === 'production' 
-          ? '/usr/bin/chromium-browser'  // Use system Chromium in production
-          : null                         // Use bundled Chromium in development
+        defaultViewport: null
       });
 
       this.page = await this.browser.newPage();
