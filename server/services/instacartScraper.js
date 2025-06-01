@@ -26,15 +26,14 @@ class InstacartScraper {
       console.log('Scraper: Starting browser initialization');
       this.browser = await puppeteer.launch({
         headless: 'new',
-        executablePath: process.env.CHROMIUM_PATH || undefined, // For future external pathing
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--single-process',
-          '--no-zygote'
+          '--window-size=1920x1080'
         ],
-        defaultViewport: null
+        defaultViewport: null,
+        // Use cache directory from env var
+        userDataDir: process.env.PUPPETEER_CACHE_DIR || '/tmp/.puppeteer'
       });
 
       this.page = await this.browser.newPage();
