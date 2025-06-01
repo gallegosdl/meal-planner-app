@@ -11,7 +11,7 @@
     "test:scraper": "node test/scraper.test.js",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "postinstall": "mkdir -p /tmp/.puppeteer && node node_modules/puppeteer/install.js"
+    "postinstall": "node -e \"try { require('puppeteer').createBrowserFetcher().download() } catch(e) {}\""
   },
   "keywords": [],
   "author": "",

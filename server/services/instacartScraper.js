@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
+// Add stealth plugin and initialize
 puppeteer.use(StealthPlugin());
 
 // Constants for configuration
@@ -29,11 +30,10 @@ class InstacartScraper {
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--window-size=1920x1080'
+          '--window-size=1920x1080',
+          '--disable-dev-shm-usage'
         ],
-        defaultViewport: null,
-        // Use cache directory from env var
-        userDataDir: process.env.PUPPETEER_CACHE_DIR || '/tmp/.puppeteer'
+        defaultViewport: null
       });
 
       this.page = await this.browser.newPage();
