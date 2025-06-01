@@ -101,9 +101,11 @@ const createShoppingList = async (mealPlan) => {
 
 router.post('/compare-prices', async (req, res) => {
   const { shoppingListUrl, stores } = req.body;
+  let scraper = null;
   
   try {
-    const scraper = new InstacartScraper();
+    scraper = new InstacartScraper();
+    await scraper.initialize();
     const results = await scraper.scrapePrices(shoppingListUrl, stores);
     
     res.json({
@@ -112,16 +114,22 @@ router.post('/compare-prices', async (req, res) => {
       recommendation: `Best value found at ${results.bestValue.name} with ${results.bestValue.availability}% availability at $${results.bestValue.totalPrice}`
     });
   } catch (error) {
+    console.error('Compare prices failed:', error);
     res.status(500).json({
       success: false,
       error: error.message
     });
+  } finally {
+    if (scraper) {
+      await scraper.cleanup();
+    }
   }
 });
 
-// Add scraping endpoint
 router.post('/scrape-prices', async (req, res) => {
   const { listUrl, store } = req.body;
+  let scraper = null;
+  
   console.log('Server: Starting price scrape:', { store, listUrl });
 
   if (!listUrl || !store) {
@@ -132,7 +140,8 @@ router.post('/scrape-prices', async (req, res) => {
   }
 
   try {
-    const scraper = new InstacartScraper();
+    scraper = new InstacartScraper();
+    await scraper.initialize();
     const priceData = await scraper.scrapePrices(listUrl, store);
     
     console.log('Server: Scrape completed:', {
@@ -148,6 +157,10 @@ router.post('/scrape-prices', async (req, res) => {
       error: 'Failed to scrape prices',
       details: error.message
     });
+  } finally {
+    if (scraper) {
+      await scraper.cleanup();
+    }
   }
 });
 
