@@ -3,21 +3,23 @@ const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 
-// ✅ Use Puppeteer's path reliably
-const CHROME_PATH = puppeteer.executablePath();
-console.log('✅ Puppeteer default Chrome path:', CHROME_PATH);
+// Chrome path used by Docker Puppeteer cache
+const DEFAULT_CHROME_PATH = '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
 
-// ✅ Confirm it exists before launching
-if (!fs.existsSync(CHROME_PATH)) {
-  console.error('❌ Chrome not found at:', CHROME_PATH);
-  throw new Error('Chrome not found');
+let executablePath;
+if (fs.existsSync(DEFAULT_CHROME_PATH)) {
+  console.log('✅ Chrome binary found at:', DEFAULT_CHROME_PATH);
+  executablePath = DEFAULT_CHROME_PATH;
+} else {
+  console.warn('⚠️ Chrome binary not found at expected path. Falling back to Puppeteer default.');
+  executablePath = puppeteer.executablePath();
 }
 
-// ✅ Enable stealth mode
+// Inject stealth
 puppeteerExtra.use(StealthPlugin());
 puppeteerExtra.puppeteer = puppeteer;
 
-// Configs
+// Config
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
   STORE_SWITCH_DELAY: 3000,
@@ -36,7 +38,7 @@ class InstacartScraper {
       console.log('🚀 Initializing Puppeteer...');
       this.browser = await puppeteerExtra.launch({
         headless: true,
-        executablePath: CHROME_PATH,
+        executablePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
