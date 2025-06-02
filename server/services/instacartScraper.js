@@ -1,11 +1,11 @@
 const puppeteerExtra = require('puppeteer-extra');
-const puppeteer = require('puppeteer');
+// const puppeteer = require('puppeteer'); // No longer strictly needed for direct import
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 
 // Add stealth plugin and configure puppeteer-extra
 puppeteerExtra.use(StealthPlugin());
-puppeteerExtra.puppeteer = puppeteer;
+// puppeteerExtra.puppeteer = puppeteer; // This line is not necessary when using puppeteerExtra for launch
 
 // Config
 const SCRAPER_CONFIG = {
@@ -25,14 +25,14 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
 
-      // Get Chrome path from Puppeteer
-      const CHROME_PATH = puppeteer.executablePath();
-      console.log('✅ Puppeteer resolved Chrome path:', CHROME_PATH);
+      // Puppeteer Extra handles its own executable path resolution
+      // const CHROME_PATH = puppeteer.executablePath(); // This is good for debugging but not strictly needed for launch args
+      // console.log('✅ Puppeteer resolved Chrome path:', CHROME_PATH);
 
-      if (!fs.existsSync(CHROME_PATH)) {
-        console.error('❌ Chrome not found at:', CHROME_PATH);
-        throw new Error('Chrome not found');
-      }
+      // if (!fs.existsSync(CHROME_PATH)) {
+      //   console.error('❌ Chrome not found at:', CHROME_PATH);
+      //   throw new Error('Chrome not found');
+      // }
 
       this.browser = await puppeteerExtra.launch({
         headless: true,
@@ -40,7 +40,8 @@ class InstacartScraper {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--single-process' // Often helpful in constrained environments like Docker
         ]
       });
 
@@ -68,6 +69,7 @@ class InstacartScraper {
     }
   }
 
+  // ... rest of your InstacartScraper class (no changes needed here unless further issues arise)
   async scrapePrices(shoppingUrl, targetStores) {
     try {
       await this.initialize();

@@ -24,17 +24,22 @@ RUN apt-get update && apt-get install -y \
   xdg-utils \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user and switch to it
+RUN adduser --disabled-password --gecos "" appuser
+USER appuser
+
 WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
 
-# Install and bake Chrome into the exact path Puppeteer expects
-RUN npm install && \
-    npx puppeteer browsers install chrome && \
+# Install npm dependencies and bake Chrome into the exact path Puppeteer expects
+# Run this as the non-root user
+RUN npm install --omit=dev && \
+    PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome && \
     chmod -R 777 /opt/render/.cache/puppeteer
 
-# Copy application files
+# Copy application files (after dependencies are installed)
 COPY . .
 
 # Set environment variables
@@ -43,5 +48,5 @@ ENV NODE_ENV=production
 # Expose port
 EXPOSE 10000
 
-# Start application
+# Start application as the non-root user
 CMD ["node", "index.js"]
