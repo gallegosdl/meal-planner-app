@@ -1,14 +1,11 @@
+const puppeteerExtra = require('puppeteer-extra');
 const puppeteer = require('puppeteer');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 
-// Define possible Chrome paths
-const CHROME_PATHS = [
-  '/usr/bin/google-chrome-stable',  // System Chrome
-  '/usr/bin/google-chrome',         // Alternative system path
-  '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome', // Render path
-  process.env.CHROME_PATH,          // Environment override
-  process.env.PUPPETEER_EXECUTABLE_PATH // Puppeteer override
-].filter(Boolean); // Remove undefined entries
+// Add stealth plugin and configure puppeteer-extra
+puppeteerExtra.use(StealthPlugin());
+puppeteerExtra.puppeteer = puppeteer;
 
 // Config
 const SCRAPER_CONFIG = {
@@ -24,26 +21,21 @@ class InstacartScraper {
     this.page = null;
   }
 
-  findChromePath() {
-    for (const path of CHROME_PATHS) {
-      if (fs.existsSync(path)) {
-        console.log('✅ Found Chrome at:', path);
-        return path;
-      }
-    }
-    console.warn('⚠️ No Chrome installation found in known locations, falling back to Puppeteer default');
-    return puppeteer.executablePath();
-  }
-
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
-      console.log('Chrome path:', process.env.PUPPETEER_EXECUTABLE_PATH);
-      console.log('Cache dir:', process.env.PUPPETEER_CACHE_DIR);
-      
-      this.browser = await puppeteer.launch({
+
+      // Get Chrome path from Puppeteer
+      const CHROME_PATH = puppeteer.executablePath();
+      console.log('✅ Puppeteer resolved Chrome path:', CHROME_PATH);
+
+      if (!fs.existsSync(CHROME_PATH)) {
+        console.error('❌ Chrome not found at:', CHROME_PATH);
+        throw new Error('Chrome not found');
+      }
+
+      this.browser = await puppeteerExtra.launch({
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -53,12 +45,10 @@ class InstacartScraper {
       });
 
       console.log('✅ Browser launched successfully');
+      console.log('Browser version:', await this.browser.version());
+
       this.page = await this.browser.newPage();
-      
-      await this.page.setViewport({
-        width: 1280,
-        height: 800
-      });
+      await this.page.setViewport({ width: 1280, height: 800 });
 
       await this.page.setRequestInterception(true);
       this.page.on('request', (req) => {
@@ -72,11 +62,8 @@ class InstacartScraper {
       return true;
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
-      console.error('Environment:', {
-        PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH,
-        PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
-        cwd: process.cwd()
-      });
+      console.error('Current directory:', process.cwd());
+      console.error('Cache directory:', process.env.PUPPETEER_CACHE_DIR);
       throw error;
     }
   }
