@@ -1,6 +1,7 @@
 const puppeteerExtra = require('puppeteer-extra');
 const puppeteer = require('puppeteer'); // ✅ Full version that downloads Chromium
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const fs = require('fs');
 
 const CHROME_PATH = '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
 
