@@ -10,7 +10,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
-    'Authorization',
     'x-session-token',
     'Access-Control-Allow-Headers',
     'Access-Control-Allow-Origin',
