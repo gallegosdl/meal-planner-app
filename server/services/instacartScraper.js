@@ -3,22 +3,23 @@ const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 
-// Chrome path used by Docker Puppeteer cache
-//const DEFAULT_CHROME_PATH = '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
-const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH;
+// ✅ Use env path with fallback (matches Dockerfile)
+const DEFAULT_CHROME_PATH = '/usr/local/share/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
+const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || DEFAULT_CHROME_PATH;
 
+console.log('✅ Using Chrome path:', CHROME_PATH);
+
+// 🔐 Validate Chrome path exists
 if (!fs.existsSync(CHROME_PATH)) {
   console.error('❌ Chrome not found at:', CHROME_PATH);
   throw new Error('Chrome not found');
 }
 
-console.log('Using Chrome path:', CHROME_PATH);
-
-// Inject stealth
+// ✅ Enable stealth mode
 puppeteerExtra.use(StealthPlugin());
 puppeteerExtra.puppeteer = puppeteer;
 
-// Config
+// Configs
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
   STORE_SWITCH_DELAY: 3000,
