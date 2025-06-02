@@ -386,13 +386,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
   const handleGenerateMealPlan = async () => {
     try {
       setIsLoading(true);
-      const apiKey = localStorage.getItem('openai_api_key');
-      
-      if (!apiKey) {
-        toast.error('Please enter your OpenAI API key first');
-        return;
-      }
-
       const payload = {
         preferences: {
           cuisinePreferences: Object.fromEntries(
@@ -418,16 +411,11 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
       console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
-      const response = await api.post('/api/generate-meal-plan', payload, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const response = await api.post('/api/generate-meal-plan', payload);
       console.log('Server response:', response.data);
       setMealPlan(response.data);
       
+      // Add success toast notification
       toast.success('Meal Plan Available! Scroll down to view your Personalized Plan.', {
         duration: 4000,
         icon: '📋',
@@ -438,6 +426,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
         },
       });
       
+      // After meal plan is generated, compare stores
       if (response.shoppingListUrl) {
         await handleCompareStores();
       }
@@ -445,6 +434,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       console.error('Error details:', error.response?.data);
       setError(error.response?.data?.message || 'Failed to generate meal plan');
       
+      // Add error toast notification
       toast.error('Failed to generate meal plan. Please try again.', {
         duration: 4000,
         style: {
@@ -458,36 +448,37 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
     }
   };
 
-  const clearSession = () => {
-    localStorage.removeItem('openai_api_key');
-    setApiKey('');
-    setError(null);
-  };
-
   const handleApiKeyChange = async (value) => {
     setApiKey(value);
-    setError(null);
+    setError(null); // Reset error state on new attempt
     
     if (value) {
-      setIsAuthenticating(true);
+      setIsAuthenticating(true); // Show loading state
       try {
+        // Attempt to authenticate with the API key
         await authenticate(value);
-        localStorage.setItem('openai_api_key', value); // Save valid key
+        // Show success message using toast
         toast.success('API key validated successfully');
+        
       } catch (error) {
+        // Handle different error scenarios with specific messages
         if (error.response?.status === 401) {
+          // 401: Unauthorized - Invalid API key
           setError('Invalid API key. Please check your key and try again.');
         } else if (error.response?.status === 429) {
+          // 429: Too Many Requests - Rate limiting
           setError('Too many attempts. Please wait a moment and try again.');
         } else {
+          // Generic error for other cases
           setError('Failed to validate API key. Please try again later.');
         }
         console.error('Authentication error:', error);
-        clearSession(); // Clear invalid key
       } finally {
+        // Always reset loading state
         setIsAuthenticating(false);
       }
     } else {
+      // If value is empty, clear the session
       clearSession();
     }
   };
