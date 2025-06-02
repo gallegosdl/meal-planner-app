@@ -80,6 +80,40 @@ console.log('Starting server with environment:', {
     : 'http://localhost:3000'
 });
 
+// Add to server/index.js
+const SESSION_TIMEOUT = 4 * 60 * 60 * 1000; // 4 hours
+
+// Cleanup function
+const cleanupSessions = () => {
+  const now = Date.now();
+  for (const [token, session] of sessions.entries()) {
+    if (now - session.createdAt > SESSION_TIMEOUT) {
+      sessions.delete(token);  // Remove expired sessions
+    }
+  }
+};
+
+// Run cleanup periodically
+setInterval(cleanupSessions, 60 * 60 * 1000); // Every hour
+
+// Add timeout check to auth middleware
+const validateSession = (req, res, next) => {
+  const token = req.headers['x-session-token'];
+  const session = sessions.get(token);
+  
+  if (!session) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
+  
+  if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+    sessions.delete(token);
+    return res.status(401).json({ error: 'Session expired' });
+  }
+  
+  req.apiKey = session.apiKey;
+  next();
+};
+
 // Receipt parsing endpoint
 app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
   const apiKey = getApiKey(req);
