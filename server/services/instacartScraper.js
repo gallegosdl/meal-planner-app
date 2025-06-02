@@ -24,24 +24,17 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
+      
+      // Log environment for debugging
+      console.log('Environment:', {
+        PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
+        cwd: process.cwd()
+      });
 
-      // Get Chrome path from Puppeteer
-      const CHROME_PATH = puppeteer.executablePath();
-      console.log('✅ Puppeteer resolved Chrome path:', CHROME_PATH);
-
-      if (!fs.existsSync(CHROME_PATH)) {
-        console.error('❌ Chrome not found at:', CHROME_PATH);
-        throw new Error('Chrome not found');
-      }
-
-      this.browser = await puppeteerExtra.launch({
+      this.browser = await puppeteer.launch({
         headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu'
-        ]
+        args: ['--no-sandbox'],
+        // Don't check for Chrome - let Puppeteer handle it
       });
 
       console.log('✅ Browser launched successfully');
@@ -62,8 +55,6 @@ class InstacartScraper {
       return true;
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
-      console.error('Current directory:', process.cwd());
-      console.error('Cache directory:', process.env.PUPPETEER_CACHE_DIR);
       throw error;
     }
   }

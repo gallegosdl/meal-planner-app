@@ -1,9 +1,10 @@
 FROM node:20-slim
 
-# Puppeteer cache dir must match runtime path
-ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+# Set cache dir first so all commands use it
+ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer \
+    NODE_ENV=production
 
-# Install dependencies for Chromium
+# Install Chrome dependencies
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -24,21 +25,21 @@ RUN apt-get update && apt-get install -y \
   xdg-utils \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
+# Create cache directory with proper permissions
+RUN mkdir -p /opt/render/.cache/puppeteer && \
+    chmod -R 777 /opt/render/.cache/puppeteer
+
 WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
 
-# Install and bake Chrome into the exact path Puppeteer expects
+# Install dependencies and Chrome
 RUN npm install && \
-    npx puppeteer browsers install chrome && \
-    chmod -R 777 /opt/render/.cache/puppeteer
+    npx puppeteer browsers install chrome
 
 # Copy application files
 COPY . .
-
-# Set environment variables
-ENV NODE_ENV=production
 
 # Expose port
 EXPOSE 10000
