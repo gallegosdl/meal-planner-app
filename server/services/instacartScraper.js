@@ -1,5 +1,19 @@
+const puppeteerExtra = require('puppeteer-extra');
 const puppeteer = require('puppeteer');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
+
+// Add stealth plugin and configure puppeteer-extra
+puppeteerExtra.use(StealthPlugin());
+puppeteerExtra.puppeteer = puppeteer;
+
+// Config
+const SCRAPER_CONFIG = {
+  TIMEOUT: 30000,
+  STORE_SWITCH_DELAY: 3000,
+  SCROLL_INTERVAL: 1000,
+  MAX_RETRIES: 3
+};
 
 class InstacartScraper {
   constructor() {
@@ -10,18 +24,46 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
-      
-      this.browser = await puppeteer.launch({
+
+      // Get Chrome path from Puppeteer
+      const CHROME_PATH = puppeteer.executablePath();
+      console.log('✅ Puppeteer resolved Chrome path:', CHROME_PATH);
+
+      if (!fs.existsSync(CHROME_PATH)) {
+        console.error('❌ Chrome not found at:', CHROME_PATH);
+        throw new Error('Chrome not found');
+      }
+
+      this.browser = await puppeteerExtra.launch({
         headless: true,
-        args: ['--no-sandbox']
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+        ]
       });
+
+      console.log('✅ Browser launched successfully');
+      console.log('Browser version:', await this.browser.version());
 
       this.page = await this.browser.newPage();
       await this.page.setViewport({ width: 1280, height: 800 });
 
+      await this.page.setRequestInterception(true);
+      this.page.on('request', (req) => {
+        if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
+          req.abort();
+        } else {
+          req.continue();
+        }
+      });
+
       return true;
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
+      console.error('Current directory:', process.cwd());
+      console.error('Cache directory:', process.env.PUPPETEER_CACHE_DIR);
       throw error;
     }
   }
@@ -31,7 +73,7 @@ class InstacartScraper {
       await this.initialize();
       await this.page.goto(shoppingUrl, {
         waitUntil: 'networkidle2',
-        timeout: 30000
+        timeout: SCRAPER_CONFIG.TIMEOUT
       });
 
       const results = {
@@ -97,7 +139,7 @@ class InstacartScraper {
           }
         }, delay);
       });
-    }, 1000);
+    }, SCRAPER_CONFIG.SCROLL_INTERVAL);
   }
 
   async scrapeItems() {
