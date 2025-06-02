@@ -26,7 +26,7 @@ const getSession = () => {
 
 // Clear session token from sessionStorage
 // Used during logout or when auth fails
-const clearSession = () => {
+export const clearSession = () => {
   sessionStorage.removeItem('session_token');
 };
 
