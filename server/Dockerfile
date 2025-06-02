@@ -1,9 +1,6 @@
 FROM node:20-slim
 
-# Ensure Puppeteer installs Chrome to this location
-ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
-
-# Install required dependencies for headless Chrome
+# Install dependencies for Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -24,18 +21,26 @@ RUN apt-get update && apt-get install -y \
   xdg-utils \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /usr/src/app
 
-# Copy package files
+# Copy package.json and install all dependencies
 COPY package*.json ./
+RUN npm install
 
-# Install and download Chrome
-RUN npm install && \
-    npx puppeteer browsers install chrome
+# Install Chrome into the container permanently using Puppeteer's tool
+RUN npx puppeteer browsers install chrome \
+  && cp -r /root/.cache/puppeteer /usr/local/share/puppeteer
 
 # Copy app code
 COPY . .
 
+# Expose your app port
 EXPOSE 10000
 
+# Use NODE_ENV at runtime
+ENV NODE_ENV=production
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/local/share/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome
+
+# Start the app
 CMD ["node", "index.js"]
