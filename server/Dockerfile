@@ -22,17 +22,10 @@ RUN npm install
 # Copy application files
 COPY . .
 
-# Create both possible Chrome cache directories
-RUN mkdir -p /opt/render/.cache/puppeteer/chrome \
-    && mkdir -p /chrome \
-    && chmod -R 777 /opt/render/.cache/puppeteer \
-    && chmod -R 777 /chrome
-
-# Set environment variables for both Docker and non-Docker environments
-ENV CHROME_PATH=/usr/bin/google-chrome-stable
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+# Set environment variables
 ENV NODE_ENV=production
+ENV DOCKER_CONTAINER=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Expose port
 EXPOSE 10000
