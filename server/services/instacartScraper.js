@@ -3,6 +3,7 @@ const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 // Add stealth plugin
 puppeteerExtra.use(StealthPlugin());
@@ -24,18 +25,39 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
-      // Let Puppeteer find Chrome automatically
+      // Get Chrome path
       const executablePath = await puppeteer.executablePath();
-      console.log('📍 Found Chrome at:', executablePath);
+      console.log('📍 Puppeteer suggests Chrome at:', executablePath);
 
+      // Verify file exists
+      const exists = fs.existsSync(executablePath);
+      console.log('📂 Chrome file exists:', exists);
+
+      // Check file permissions if it exists
+      if (exists) {
+        const stats = fs.statSync(executablePath);
+        console.log('📄 Chrome file permissions:', stats.mode);
+        console.log('📄 Chrome file owner:', stats.uid);
+      }
+
+      // Try to list Chrome versions
+      try {
+        const versions = execSync('ls -la /usr/bin/google-chrome*').toString();
+        console.log('🔍 Chrome versions found:', versions);
+      } catch (error) {
+        console.log('❌ No Chrome versions found:', error.message);
+      }
+
+      // Try launching with default Chrome
       this.browser = await puppeteerExtra.launch({
         headless: true,
-        executablePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage'
-        ]
+        ],
+        // Let's try without executablePath first
+        dumpio: true // This will log browser stdout/stderr
       });
 
       console.log('✅ Browser launched successfully');
