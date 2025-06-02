@@ -1,8 +1,10 @@
-const puppeteer = require('puppeteer-extra');
+const puppeteerExtra = require('puppeteer-extra');
+const puppeteer = require('puppeteer'); // ✅ Full version that downloads Chromium
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
-// Add stealth plugin and initialize
-puppeteer.use(StealthPlugin());
+// Inject puppeteer into puppeteer-extra
+puppeteerExtra.use(StealthPlugin());
+puppeteerExtra.puppeteer = puppeteer; // ✅ THIS is required to force full puppeteer
 
 // Constants for configuration
 const SCRAPER_CONFIG = {
@@ -26,7 +28,7 @@ class InstacartScraper {
     try {
       console.log('Scraper: Starting browser initialization');
       console.log('Chromium path used by Puppeteer:', puppeteer.executablePath());
-      this.browser = await puppeteer.launch({
+      this.browser = await puppeteerExtra.launch({
         headless: true,
         args: [
           '--no-sandbox',
