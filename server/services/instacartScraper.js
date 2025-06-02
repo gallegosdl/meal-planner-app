@@ -36,29 +36,62 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
+      
+      // Get Chrome path based on environment
+      const chromePath = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable';
+      console.log('Using Chrome path:', chromePath);
+
+      // Launch browser with Render-compatible configuration
       this.browser = await puppeteerExtra.launch({
         headless: true,
-        executablePath,
+        executablePath: chromePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--disable-extensions',
           '--single-process',
-          '--no-zygote'
-        ]
+          '--no-zygote',
+          '--remote-debugging-port=9222'
+        ],
+        ignoreHTTPSErrors: true,
+        pipe: true // Use pipe instead of WebSocket
       });
 
       this.page = await this.browser.newPage();
-
-      await this.page.setRequestInterception(true);
-      this.page.on('request', (req) => {
-        req.resourceType() === 'image' ? req.abort() : req.continue();
+      
+      // Set viewport
+      await this.page.setViewport({
+        width: 1280,
+        height: 800
       });
 
+      // Block unnecessary resources
+      await this.page.setRequestInterception(true);
+      this.page.on('request', (req) => {
+        if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
+          req.abort();
+        } else {
+          req.continue();
+        }
+      });
+
+      // Add error handling for navigation
+      this.page.on('error', err => {
+        console.error('Page error:', err);
+      });
+
+      console.log('✅ Browser initialized successfully');
       return true;
+
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
+      if (error.message.includes('executable path')) {
+        console.error('Chrome path attempted:', process.env.CHROME_PATH);
+        console.error('Puppeteer path attempted:', process.env.PUPPETEER_EXECUTABLE_PATH);
+      }
       throw error;
     }
   }
@@ -266,9 +299,15 @@ class InstacartScraper {
   }
 
   async cleanup() {
-    if (this.browser) {
-      console.log('🧹 Closing browser...');
-      await this.browser.close();
+    try {
+      if (this.browser) {
+        console.log('🧹 Closing browser...');
+        await this.browser.close();
+        this.browser = null;
+        this.page = null;
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
     }
   }
 

@@ -1,46 +1,41 @@
 FROM node:20-slim
 
-# Install OS dependencies for Chromium
-RUN apt-get update && apt-get install -y \
-  wget \
-  ca-certificates \
-  fonts-liberation \
-  libappindicator3-1 \
-  libasound2 \
-  libatk-bridge2.0-0 \
-  libatk1.0-0 \
-  libcups2 \
-  libdbus-1-3 \
-  libgdk-pixbuf2.0-0 \
-  libnspr4 \
-  libnss3 \
-  libx11-xcb1 \
-  libxcomposite1 \
-  libxdamage1 \
-  libxrandr2 \
-  xdg-utils \
-  --no-install-recommends && rm -rf /var/lib/apt/lists/*
+# Install Chrome dependencies and Chrome itself
+RUN apt-get update \
+    && apt-get install -y wget gnupg \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && apt-get install -y fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /chrome
 
 # Set working directory
 WORKDIR /usr/src/app
 
-# Copy package files and install dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
-
-# ✅ Install Chromium with Puppeteer's built-in installer
-RUN npx puppeteer browsers install chrome
-
-# ✅ Make sure Puppeteer knows where the browser is
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Copy application files
 COPY . .
 
+# Create Chrome cache directory and set permissions
+RUN mkdir -p /opt/render/.cache/puppeteer/chrome \
+    && chmod -R 777 /opt/render/.cache/puppeteer
+
+# Set environment variables for Render
+ENV CHROME_PATH=/usr/bin/google-chrome-stable
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+
 # Expose port
 EXPOSE 10000
 
-# Runtime environment
+# Set production environment
 ENV NODE_ENV=production
 
 # Start application
