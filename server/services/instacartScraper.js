@@ -2,6 +2,14 @@ const puppeteerExtra = require('puppeteer-extra');
 const puppeteer = require('puppeteer'); // ✅ Full version that downloads Chromium
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
+const CHROME_PATH = '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
+
+if (!fs.existsSync(CHROME_PATH)) {
+  console.error('❌ Chrome not found at:', CHROME_PATH);
+} else {
+  console.log('✅ Chrome binary exists at:', CHROME_PATH);
+}
+
 // Inject puppeteer into puppeteer-extra
 puppeteerExtra.use(StealthPlugin());
 puppeteerExtra.puppeteer = puppeteer; // ✅ THIS is required to force full puppeteer
@@ -30,6 +38,7 @@ class InstacartScraper {
       console.log('Chromium path used by Puppeteer:', puppeteer.executablePath());
       this.browser = await puppeteerExtra.launch({
         headless: true,
+        executablePath: CHROME_PATH,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
