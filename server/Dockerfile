@@ -1,21 +1,45 @@
-FROM ghcr.io/puppeteer/puppeteer:19.7.2
+FROM node:20-slim
 
-ENV NODE_ENV=production \
-    PUPPETEER_CACHE_DIR=/tmp/.puppeteer \
-    PUPPETEER_SKIP_DOWNLOAD=false
+# Install system dependencies needed for Chromium to run
+RUN apt-get update && apt-get install -y \
+  wget \
+  ca-certificates \
+  fonts-liberation \
+  libappindicator3-1 \
+  libasound2 \
+  libatk-bridge2.0-0 \
+  libatk1.0-0 \
+  libcups2 \
+  libdbus-1-3 \
+  libgdk-pixbuf2.0-0 \
+  libnspr4 \
+  libnss3 \
+  libx11-xcb1 \
+  libxcomposite1 \
+  libxdamage1 \
+  libxrandr2 \
+  xdg-utils \
+  --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /usr/src/app
 
-# Verify Chrome installation and cache directory
-RUN echo "Chrome paths:" && \
-    which google-chrome || echo "google-chrome not found" && \
-    which google-chrome-stable || echo "google-chrome-stable not found" && \
-    mkdir -p /tmp/.puppeteer && \
-    chmod -R 777 /tmp/.puppeteer
-
+# Copy package.json and install Node.js dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install
+
+# Install Chrome using Puppeteer's browser installer
+RUN npx puppeteer browsers install chrome && \
+  cp -r /root/.cache/puppeteer /usr/local/share/puppeteer
+
+# Copy application files
 COPY . .
 
+# Set Puppeteer's expected executable path
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/local/share/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome
+
+# Application port
 EXPOSE 10000
+
+# Start the app
 CMD ["node", "index.js"]

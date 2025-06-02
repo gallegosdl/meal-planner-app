@@ -1,13 +1,12 @@
-const puppeteer = require('puppeteer');
 const puppeteerExtra = require('puppeteer-extra');
+const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { execSync } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
-// Add stealth plugin and configure puppeteer-extra
+// Add stealth plugin
 puppeteerExtra.use(StealthPlugin());
 
-// Config
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
   STORE_SWITCH_DELAY: 3000,
@@ -24,58 +23,31 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
-      
-      // Log environment and paths
-      console.log('Environment:', {
-        NODE_ENV: process.env.NODE_ENV,
-        PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH,
-        CHROME_PATH: process.env.CHROME_PATH,
-        PWD: process.cwd()
-      });
+      const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
 
-      // Check Chrome installation
-      try {
-        const chromeVersion = execSync('google-chrome --version').toString();
-        console.log('Chrome version:', chromeVersion);
-      } catch (error) {
-        console.log('Failed to get Chrome version:', error.message);
+      console.log('📍 Configured Chrome path:', executablePath);
+      if (!fs.existsSync(executablePath)) {
+        console.error('❌ Chrome not found at:', executablePath);
+        throw new Error('Chrome not found');
       }
 
-      // Check executable paths
-      const paths = [
-        '/usr/bin/google-chrome',
-        '/usr/bin/google-chrome-stable',
-        '/usr/bin/chromium',
-        '/usr/bin/chromium-browser'
-      ];
-
-      paths.forEach(path => {
-        console.log(`Checking ${path}:`, fs.existsSync(path));
-        if (fs.existsSync(path)) {
-          try {
-            const stats = fs.statSync(path);
-            console.log(`${path} permissions:`, stats.mode);
-          } catch (error) {
-            console.log(`Failed to check ${path} permissions:`, error.message);
-          }
-        }
-      });
-
-      this.browser = await puppeteer.launch({
+      this.browser = await puppeteerExtra.launch({
+        headless: true,
         args: [
-          "--disable-setuid-sandbox",
           "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--disable-software-rasterizer",
+          "--disable-extensions",
           "--single-process",
-          "--no-zygote",
+          "--no-zygote"
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-        // Log launch config
+        executablePath,
         dumpio: true
       });
 
       console.log('✅ Browser launched successfully');
-      console.log('Browser version:', await this.browser.version());
-
       this.page = await this.browser.newPage();
       await this.page.setViewport({ width: 1280, height: 800 });
 
@@ -262,7 +234,6 @@ class InstacartScraper {
         items,
         total
       };
-
     } catch (error) {
       console.error('Failed to scrape items:', error);
       await this.page.screenshot({ path: 'error-state.png', fullPage: true });
