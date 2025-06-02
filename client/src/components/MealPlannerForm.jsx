@@ -415,6 +415,17 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       console.log('Server response:', response.data);
       setMealPlan(response.data);
       
+      // Add success toast notification
+      toast.success('Meal Plan Available! Scroll down to view your Personalized Plan.', {
+        duration: 4000,
+        icon: '📋',
+        style: {
+          background: '#1a1f2b',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.1)',
+        },
+      });
+      
       // After meal plan is generated, compare stores
       if (response.shoppingListUrl) {
         await handleCompareStores();
@@ -422,6 +433,16 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
     } catch (error) {
       console.error('Error details:', error.response?.data);
       setError(error.response?.data?.message || 'Failed to generate meal plan');
+      
+      // Add error toast notification
+      toast.error('Failed to generate meal plan. Please try again.', {
+        duration: 4000,
+        style: {
+          background: '#1a1f2b',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.1)',
+        },
+      });
     } finally {
       setIsLoading(false);
     }
