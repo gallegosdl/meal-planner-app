@@ -32,11 +32,9 @@ class InstacartScraper {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
-          '--single-process'
-        ],
-        executablePath: '/usr/bin/google-chrome-stable',
-        defaultViewport: null,
-        userDataDir: '/tmp/puppeteer'
+          '--single-process',
+          '--no-zygote'
+        ]
       });
 
       this.page = await this.browser.newPage();
