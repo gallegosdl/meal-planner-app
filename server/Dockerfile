@@ -25,18 +25,16 @@ RUN apt-get update && apt-get install -y \
   xdg-utils \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Create cache directory with proper permissions
-RUN mkdir -p /opt/render/.cache/puppeteer && \
-    chmod -R 777 /opt/render/.cache/puppeteer
-
 WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies and Chrome
-RUN npm install && \
-    npx puppeteer browsers install chrome
+# Install dependencies and ensure Chrome is installed in the correct location
+RUN mkdir -p /opt/render/.cache/puppeteer && \
+    npm install && \
+    PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome && \
+    chmod -R 777 /opt/render/.cache/puppeteer
 
 # Copy application files
 COPY . .
