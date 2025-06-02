@@ -1,10 +1,5 @@
-const puppeteerExtra = require('puppeteer-extra');
 const puppeteer = require('puppeteer');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
-
-// Add stealth plugin
-puppeteerExtra.use(StealthPlugin());
 
 // Define possible Chrome paths
 const CHROME_PATHS = [
@@ -43,35 +38,28 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
+      console.log('Chrome path:', process.env.PUPPETEER_EXECUTABLE_PATH);
+      console.log('Cache dir:', process.env.PUPPETEER_CACHE_DIR);
       
-      const options = {
+      this.browser = await puppeteer.launch({
         headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-software-rasterizer',
-          '--disable-extensions',
-          '--single-process',
-          '--no-zygote'
+          '--disable-gpu'
         ]
-      };
+      });
 
-      console.log('Launching browser with options:', JSON.stringify(options, null, 2));
-      
-      this.browser = await puppeteerExtra.launch(options);
       console.log('✅ Browser launched successfully');
-
       this.page = await this.browser.newPage();
       
-      // Set viewport
       await this.page.setViewport({
         width: 1280,
         height: 800
       });
 
-      // Block unnecessary resources
       await this.page.setRequestInterception(true);
       this.page.on('request', (req) => {
         if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
@@ -81,22 +69,14 @@ class InstacartScraper {
         }
       });
 
-      // Add error handling for navigation
-      this.page.on('error', err => {
-        console.error('Page error:', err);
-      });
-
-      console.log('✅ Browser initialized successfully');
       return true;
-
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
-      // Add detailed error logging
-      if (error.message.includes('Could not find Chrome')) {
-        console.error('Chrome installation status:');
-        console.error(`PUPPETEER_CACHE_DIR: ${process.env.PUPPETEER_CACHE_DIR}`);
-        console.error(`Current working directory: ${process.cwd()}`);
-      }
+      console.error('Environment:', {
+        PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH,
+        PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
+        cwd: process.cwd()
+      });
       throw error;
     }
   }
