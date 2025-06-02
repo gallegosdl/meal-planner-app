@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -19,6 +19,7 @@ import SendToInstacartButton from './SendToInstacartButton';
 import RecipeList from './RecipeList';
 import { toast } from 'react-hot-toast';
 import StoreComparison from './StoreComparison';
+import WelcomeModal from './WelcomeModal';
 
 // Register ChartJS components
 ChartJS.register(
@@ -97,6 +98,8 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
   const [storeComparison, setStoreComparison] = useState(null);
   const [isComparingStores, setIsComparingStores] = useState(false);
 
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
   const dietOptions = {
     'Diet Types': [
       'High-Protein',
@@ -125,6 +128,20 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
   const [activeTab, setActiveTab] = useState(1);
   const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', 'calendar', or 'recipes'
+
+  useEffect(() => {
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (!hasSeenWelcome) {
+      setShowWelcomeModal(true);
+    }
+  }, []);
+
+  const handleCloseWelcomeModal = (dontShowAgain) => {
+    if (dontShowAgain) {
+      localStorage.setItem('hasSeenWelcome', 'true');
+    }
+    setShowWelcomeModal(false);
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -447,6 +464,9 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
+      {showWelcomeModal && (
+        <WelcomeModal onClose={handleCloseWelcomeModal} />
+      )}
       <div className="max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="mb-8">
