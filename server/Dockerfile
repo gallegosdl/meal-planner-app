@@ -1,9 +1,9 @@
 FROM node:20-slim
 
-# Set Puppeteer install path
+# Ensure Puppeteer installs Chrome to this location
 ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
 
-# Install system dependencies required by Chrome
+# Install required dependencies for headless Chrome
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -22,23 +22,20 @@ RUN apt-get update && apt-get install -y \
   libxdamage1 \
   libxrandr2 \
   xdg-utils \
-  --no-install-recommends \
-  && rm -rf /var/lib/apt/lists/*
+  --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /usr/src/app
 
-# Copy package.json and install dependencies
+# Copy package files
 COPY package*.json ./
 
-# 🔥 Explicitly install Chrome with correct cache location
+# Install and download Chrome
 RUN npm install && \
-    PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome
+    npx puppeteer browsers install chrome
 
-# Copy app source
+# Copy app code
 COPY . .
 
-# Expose app port
 EXPOSE 10000
 
 CMD ["node", "index.js"]

@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: meal-planner-server
+    env: docker
+    region: oregon
+    plan: free
+    dockerfilePath: server/Dockerfile
+    buildCommand: ""     # Don't run build scripts
+    startCommand: ""     # Use CMD from Dockerfile
