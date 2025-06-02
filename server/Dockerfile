@@ -11,7 +11,13 @@ RUN apt-get update && apt-get install -y wget gnupg2 && \
     libcups2 libdbus-1-3 libgdk-pixbuf2.0-0 libnspr4 libnss3 \
     libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 xdg-utils \
     --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    # Verify Chrome installation and symlinks
+    google-chrome --version && \
+    ls -la /usr/bin/google-chrome && \
+    ls -la /etc/alternatives/google-chrome && \
+    # Create direct symlink to actual binary
+    ln -sf $(readlink -f /usr/bin/google-chrome) /usr/bin/chrome
 
 # Set working dir
 WORKDIR /app
@@ -22,9 +28,8 @@ RUN npm ci
 
 COPY . .
 
-# Verify Chrome installation
-RUN google-chrome --version && \
-    ls -la $(which google-chrome)
+# Set Chrome path to our direct symlink
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chrome
 
 # Expose and start
 EXPOSE 3000
