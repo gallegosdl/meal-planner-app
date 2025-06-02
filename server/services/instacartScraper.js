@@ -1,5 +1,5 @@
 const puppeteerExtra = require('puppeteer-extra');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 
@@ -33,8 +33,8 @@ class InstacartScraper {
 
       this.browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox'],
-        // Don't check for Chrome - let Puppeteer handle it
+        executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
+        args: ['--no-sandbox']
       });
 
       console.log('✅ Browser launched successfully');
