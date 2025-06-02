@@ -32,6 +32,8 @@ WORKDIR /usr/src/app
 # Copy dependency files
 COPY package*.json ./
 
+ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+
 # Install dependencies (including puppeteer, which downloads Chromium here)
 RUN npm install
 
