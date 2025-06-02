@@ -6,11 +6,12 @@ USER root
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false \
     NODE_ENV=production \
-    PUPPETEER_CACHE_DIR=/usr/src/app/.cache/puppeteer
+    PUPPETEER_CACHE_DIR=/tmp/puppeteer
 
-# Create and set permissions for Puppeteer cache directory
-RUN mkdir -p /usr/src/app/.cache/puppeteer && \
-    chown -R pptruser:pptruser /usr/src/app/.cache/puppeteer
+# Create cache directory with correct permissions
+RUN mkdir -p /tmp/puppeteer && \
+    chown -R pptruser:pptruser /tmp/puppeteer && \
+    chmod -R 777 /tmp/puppeteer
 
 # Install Chrome dependencies
 RUN apt-get update && apt-get install -y \
@@ -41,14 +42,13 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies and Chromium
-RUN npm install -g npm@latest && \
-    npm ci --quiet && \
-    node node_modules/puppeteer/install.js && \
+# Install dependencies with proper permissions
+RUN npm ci --quiet && \
     chown -R pptruser:pptruser /usr/src/app
 
 # Copy rest of application
 COPY . .
+RUN chown -R pptruser:pptruser .
 
 # Switch back to non-root user
 USER pptruser
