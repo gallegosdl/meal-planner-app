@@ -1,7 +1,9 @@
-# Use slim Node base image
 FROM node:20-slim
 
-# Install required system dependencies for Chromium to run in headless mode
+# Set Puppeteer install path
+ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+
+# Install system dependencies required by Chrome
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -23,25 +25,20 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
-# Set environment variable to ensure Chromium is downloaded
-ENV PUPPETEER_SKIP_DOWNLOAD=false
-
-# Set work directory
+# Set working directory
 WORKDIR /usr/src/app
 
-# Copy dependency files
+# Copy package.json and install dependencies
 COPY package*.json ./
 
-ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+# 🔥 Explicitly install Chrome with correct cache location
+RUN npm install && \
+    PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome
 
-# Install dependencies (including puppeteer, which downloads Chromium here)
-RUN npm install
-
-# Copy application source
+# Copy app source
 COPY . .
 
-# Expose the desired port
-EXPOSE 3001
+# Expose app port
+EXPOSE 10000
 
-# Start the app
-CMD ["npm", "start"]
+CMD ["node", "index.js"]
