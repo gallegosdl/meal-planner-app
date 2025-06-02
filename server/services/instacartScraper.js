@@ -24,15 +24,14 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
-      // Log environment for debugging
-      console.log('Environment:', {
-        PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
-        cwd: process.cwd()
-      });
-
       this.browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox']
+        args: [
+          "--disable-setuid-sandbox",
+          "--no-sandbox",
+          "--single-process",
+          "--no-zygote",
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH
       });
 
       console.log('✅ Browser launched successfully');
