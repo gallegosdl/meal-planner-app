@@ -22,9 +22,11 @@ app.use(cors({
   allowedHeaders: [
     'Content-Type', 
     'x-openai-key',
-    'x-session-token'
+    'x-session-token',
+    'Authorization',
+    'Access-Control-Allow-Origin'
   ],
-  exposedHeaders: ['Content-Type'],
+  exposedHeaders: ['Access-Control-Allow-Origin'],
   optionsSuccessStatus: 200
 }));
 app.use(express.json());
