@@ -37,29 +37,15 @@ api.interceptors.request.use((config) => {
 // Centralized auth management with error handling and session management
 export const authenticate = async (apiKey) => {
   try {
-    // Clear any existing session before attempting new auth
-    // This prevents stale token issues
-    clearSession();
-    
-    // Make the auth request with timestamp to prevent caching
-    // Some browsers/networks might cache POST requests
-    const response = await api.post('/api/auth', { 
-      apiKey,
-      timestamp: Date.now() 
+    const response = await api.post('/api/auth', { apiKey }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
     });
-
-    // Validate the response has the expected data structure
-    if (response.data?.sessionToken) {
-      // Store the session token for future requests
-      setSession(response.data.sessionToken);
-      return response.data;
-    } else {
-      throw new Error('Invalid authentication response');
-    }
+    return response.data;
   } catch (error) {
-    // Always clear session on auth failure
-    clearSession();
-    throw error; // Re-throw to be handled by the component
+    throw error;
   }
 };
 
