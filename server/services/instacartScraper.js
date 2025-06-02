@@ -34,7 +34,10 @@ class InstacartScraper {
           '--disable-gpu',
           '--single-process',
           '--no-zygote'
-        ]
+        ],
+        // Let Puppeteer handle the executable path
+        executablePath: undefined,
+        defaultViewport: null
       });
 
       this.page = await this.browser.newPage();

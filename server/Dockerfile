@@ -1,4 +1,6 @@
-FROM node:18-slim
+FROM ghcr.io/puppeteer/puppeteer:21.5.0
+
+USER root
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -23,29 +25,18 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Create cache directory with correct permissions
-RUN mkdir -p /tmp/.puppeteer && chmod -R 777 /tmp/.puppeteer
-
-# Set environment variables
-ENV PUPPETEER_SKIP_DOWNLOAD=false \
-    PUPPETEER_CACHE_DIR=/tmp/.puppeteer
-
 WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
 
-# Install app dependencies
+# Install dependencies
 RUN npm ci
 
 # Copy app source
 COPY . .
 
-# Add user
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
-    && chown -R pptruser:pptruser /usr/src/app \
-    && chown -R pptruser:pptruser /tmp/.puppeteer
-
+# Switch to non-root user
 USER pptruser
 
 EXPOSE 3001
