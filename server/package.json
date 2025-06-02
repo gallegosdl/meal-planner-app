@@ -10,9 +10,9 @@
     "test": "node test/mealPrep.test.js",
     "test:scraper": "node test/scraper.test.js",
     "start": "node index.js",
-    "build": "npm ci && puppeteer browsers install chrome",
+    "build": "npm ci",
     "dev": "nodemon index.js",
-    "postinstall": "puppeteer browsers install chrome"
+    "postinstall": "node node_modules/puppeteer/install.js"
   },
   "keywords": [],
   "author": "",
@@ -31,7 +31,7 @@
     "openai": "^4.100.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.0",
-    "puppeteer": "21.5.0",
+    "puppeteer": "19.0.0",
     "puppeteer-extra": "3.3.6",
     "puppeteer-extra-plugin-recaptcha": "^3.6.8",
     "puppeteer-extra-plugin-stealth": "2.11.2",

@@ -26,18 +26,14 @@ class InstacartScraper {
     try {
       console.log('Scraper: Starting browser initialization');
       this.browser = await puppeteer.launch({
-        headless: 'new',
+        headless: true,  // Use true instead of 'new' for Puppeteer 19
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--single-process',
-          '--no-zygote'
+          '--disable-gpu'
         ],
-        // Let Puppeteer handle the executable path
-        executablePath: undefined,
-        defaultViewport: null
+        executablePath: '/usr/bin/google-chrome-stable'
       });
 
       this.page = await this.browser.newPage();
