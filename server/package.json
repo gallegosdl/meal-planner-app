@@ -12,7 +12,6 @@
     "start": "node index.js",
     "build": "npm ci",
     "dev": "nodemon index.js"
-    // "postinstall": "PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome" // Removed
   },
   "keywords": [],
   "author": "",
