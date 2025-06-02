@@ -8,8 +8,7 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
     && apt-get install -y fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
-    && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /chrome
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -23,20 +22,20 @@ RUN npm install
 # Copy application files
 COPY . .
 
-# Create Chrome cache directory and set permissions
+# Create both possible Chrome cache directories
 RUN mkdir -p /opt/render/.cache/puppeteer/chrome \
-    && chmod -R 777 /opt/render/.cache/puppeteer
+    && mkdir -p /chrome \
+    && chmod -R 777 /opt/render/.cache/puppeteer \
+    && chmod -R 777 /chrome
 
-# Set environment variables for Render
+# Set environment variables for both Docker and non-Docker environments
 ENV CHROME_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+ENV NODE_ENV=production
 
 # Expose port
 EXPOSE 10000
-
-# Set production environment
-ENV NODE_ENV=production
 
 # Start application
 CMD ["node", "index.js"]

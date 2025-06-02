@@ -3,21 +3,17 @@ const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 
-// Chrome path used by Docker Puppeteer cache
-const DEFAULT_CHROME_PATH = '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
-
-let executablePath;
-if (fs.existsSync(DEFAULT_CHROME_PATH)) {
-  console.log('✅ Chrome binary found at:', DEFAULT_CHROME_PATH);
-  executablePath = DEFAULT_CHROME_PATH;
-} else {
-  console.warn('⚠️ Chrome binary not found at expected path. Falling back to Puppeteer default.');
-  executablePath = puppeteer.executablePath();
-}
-
-// Inject stealth
+// Add stealth plugin
 puppeteerExtra.use(StealthPlugin());
-puppeteerExtra.puppeteer = puppeteer;
+
+// Define possible Chrome paths
+const CHROME_PATHS = [
+  '/usr/bin/google-chrome-stable',  // System Chrome
+  '/usr/bin/google-chrome',         // Alternative system path
+  '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome', // Render path
+  process.env.CHROME_PATH,          // Environment override
+  process.env.PUPPETEER_EXECUTABLE_PATH // Puppeteer override
+].filter(Boolean); // Remove undefined entries
 
 // Config
 const SCRAPER_CONFIG = {
@@ -33,12 +29,23 @@ class InstacartScraper {
     this.page = null;
   }
 
+  findChromePath() {
+    for (const path of CHROME_PATHS) {
+      if (fs.existsSync(path)) {
+        console.log('✅ Found Chrome at:', path);
+        return path;
+      }
+    }
+    console.warn('⚠️ No Chrome installation found in known locations, falling back to Puppeteer default');
+    return puppeteer.executablePath();
+  }
+
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
-      // Get Chrome path based on environment
-      const chromePath = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable';
+      // Get Chrome path
+      const chromePath = this.findChromePath();
       console.log('Using Chrome path:', chromePath);
 
       // Launch browser with Render-compatible configuration
@@ -88,9 +95,12 @@ class InstacartScraper {
 
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
+      console.error('Attempted Chrome paths:', CHROME_PATHS);
       if (error.message.includes('executable path')) {
-        console.error('Chrome path attempted:', process.env.CHROME_PATH);
-        console.error('Puppeteer path attempted:', process.env.PUPPETEER_EXECUTABLE_PATH);
+        console.error('Chrome installation details:');
+        CHROME_PATHS.forEach(path => {
+          console.error(`- ${path}: ${fs.existsSync(path) ? 'EXISTS' : 'NOT FOUND'}`);
+        });
       }
       throw error;
     }
