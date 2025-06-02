@@ -34,8 +34,8 @@ class InstacartScraper {
           '--disable-gpu'
         ],
         defaultViewport: null,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
-        userDataDir: process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer'
+        // Use the cache directory we set in Dockerfile
+        userDataDir: process.env.PUPPETEER_CACHE_DIR || '/usr/src/app/.cache/puppeteer'
       });
 
       this.page = await this.browser.newPage();
