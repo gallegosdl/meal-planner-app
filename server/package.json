@@ -12,7 +12,7 @@
     "start": "node index.js",
     "build": "npm ci",
     "dev": "nodemon index.js",
-    "postinstall": "puppeteer install"
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "keywords": [],
   "author": "",
