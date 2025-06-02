@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { execSync } = require('child_process');
 const fs = require('fs');
 
 // Add stealth plugin and configure puppeteer-extra
@@ -24,6 +25,42 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
+      // Log environment and paths
+      console.log('Environment:', {
+        NODE_ENV: process.env.NODE_ENV,
+        PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH,
+        CHROME_PATH: process.env.CHROME_PATH,
+        PWD: process.cwd()
+      });
+
+      // Check Chrome installation
+      try {
+        const chromeVersion = execSync('google-chrome --version').toString();
+        console.log('Chrome version:', chromeVersion);
+      } catch (error) {
+        console.log('Failed to get Chrome version:', error.message);
+      }
+
+      // Check executable paths
+      const paths = [
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser'
+      ];
+
+      paths.forEach(path => {
+        console.log(`Checking ${path}:`, fs.existsSync(path));
+        if (fs.existsSync(path)) {
+          try {
+            const stats = fs.statSync(path);
+            console.log(`${path} permissions:`, stats.mode);
+          } catch (error) {
+            console.log(`Failed to check ${path} permissions:`, error.message);
+          }
+        }
+      });
+
       this.browser = await puppeteer.launch({
         args: [
           "--disable-setuid-sandbox",
@@ -31,7 +68,9 @@ class InstacartScraper {
           "--single-process",
           "--no-zygote",
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+        // Log launch config
+        dumpio: true
       });
 
       console.log('✅ Browser launched successfully');
