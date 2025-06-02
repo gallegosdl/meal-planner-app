@@ -7,9 +7,12 @@ const CHROME_PATH = '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.94/chr
 
 if (!fs.existsSync(CHROME_PATH)) {
   console.error('❌ Chrome not found at:', CHROME_PATH);
-} else {
-  console.log('✅ Chrome binary exists at:', CHROME_PATH);
+  throw new Error('Chrome not found');
 }
+
+fs.accessSync(CHROME_PATH, fs.constants.X_OK); // Ensure it's executable
+
+console.log('✅ Chrome binary exists and is executable at:', CHROME_PATH);
 
 // Inject puppeteer into puppeteer-extra
 puppeteerExtra.use(StealthPlugin());
