@@ -3,10 +3,11 @@ FROM node:20-slim
 ENV NODE_ENV=production \
     PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
 
-# Create app directory and set permissions
+# Create directories and set permissions
 WORKDIR /usr/src/app
 RUN mkdir -p /opt/render/.cache/puppeteer && \
-    chown -R node:node /usr/src/app /opt/render/.cache/puppeteer
+    mkdir -p /opt/render/project/src/.cache/puppeteer/chrome && \
+    chown -R node:node /usr/src/app /opt/render/.cache /opt/render/project
 
 # Copy package files with correct ownership
 COPY --chown=node:node package*.json ./
