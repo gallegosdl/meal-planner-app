@@ -25,14 +25,17 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('Scraper: Starting browser initialization');
+      console.log('Chromium path used by Puppeteer:', puppeteer.executablePath());
       this.browser = await puppeteer.launch({
         headless: true,
         args: [
           '--no-sandbox',
-          '--disable-setuid-sandbox'
-        ],
-        // Let Puppeteer find Chrome in the container
-        executablePath: undefined
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--single-process',
+          '--no-zygote'
+        ]
       });
 
       this.page = await this.browser.newPage();
