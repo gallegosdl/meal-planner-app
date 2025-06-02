@@ -1,24 +1,45 @@
-FROM ghcr.io/puppeteer/puppeteer:19.0.0
+# Use slim Node base image
+FROM node:20-slim
 
-USER root
+# Install required system dependencies for Chromium to run in headless mode
+RUN apt-get update && apt-get install -y \
+  wget \
+  ca-certificates \
+  fonts-liberation \
+  libappindicator3-1 \
+  libasound2 \
+  libatk-bridge2.0-0 \
+  libatk1.0-0 \
+  libcups2 \
+  libdbus-1-3 \
+  libgdk-pixbuf2.0-0 \
+  libnspr4 \
+  libnss3 \
+  libx11-xcb1 \
+  libxcomposite1 \
+  libxdamage1 \
+  libxrandr2 \
+  xdg-utils \
+  --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
 
+# Set environment variable to ensure Chromium is downloaded
+ENV PUPPETEER_SKIP_DOWNLOAD=false
+
+# Set work directory
 WORKDIR /usr/src/app
 
-# Copy package files
+# Copy dependency files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies (including puppeteer, which downloads Chromium here)
 RUN npm install
 
-# Copy app source
+# Copy application source
 COPY . .
 
-# Grant permissions
-RUN chown -R pptruser:pptruser /usr/src/app
-
-# Use built-in puppeteer user
-USER pptruser
-
+# Expose the desired port
 EXPOSE 3001
 
-CMD ["npm", "start"] 
+# Start the app
+CMD ["npm", "start"]
