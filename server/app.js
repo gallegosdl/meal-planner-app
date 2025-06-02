@@ -11,7 +11,6 @@ app.use(cors({
   allowedHeaders: [
     'Content-Type', 
     'Authorization',
-    'authorization',
     'x-session-token',
     'Access-Control-Allow-Headers',
     'Access-Control-Allow-Origin',
