@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Install dependencies for Chromium
+# Install OS dependencies for Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -24,23 +24,24 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /usr/src/app
 
-# Copy package.json and install all dependencies
+# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Install Chrome into the container permanently using Puppeteer's tool
-RUN npx puppeteer browsers install chrome \
-  && cp -r /root/.cache/puppeteer /usr/local/share/puppeteer
+# ✅ Install Chromium with Puppeteer's built-in installer
+RUN npx puppeteer browsers install chrome
 
-# Copy app code
+# ✅ Make sure Puppeteer knows where the browser is
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# Copy application files
 COPY . .
 
-# Expose your app port
+# Expose port
 EXPOSE 10000
 
-# Use NODE_ENV at runtime
+# Runtime environment
 ENV NODE_ENV=production
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/local/share/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome
 
-# Start the app
+# Start application
 CMD ["node", "index.js"]

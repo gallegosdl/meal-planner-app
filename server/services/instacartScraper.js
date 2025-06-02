@@ -3,13 +3,11 @@ const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 
-// ✅ Use env path with fallback (matches Dockerfile)
-const DEFAULT_CHROME_PATH = '/usr/local/share/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
-const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || DEFAULT_CHROME_PATH;
+// ✅ Use Puppeteer's path reliably
+const CHROME_PATH = puppeteer.executablePath();
+console.log('✅ Puppeteer default Chrome path:', CHROME_PATH);
 
-console.log('✅ Using Chrome path:', CHROME_PATH);
-
-// 🔐 Validate Chrome path exists
+// ✅ Confirm it exists before launching
 if (!fs.existsSync(CHROME_PATH)) {
   console.error('❌ Chrome not found at:', CHROME_PATH);
   throw new Error('Chrome not found');
