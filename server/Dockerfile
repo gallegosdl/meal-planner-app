@@ -5,10 +5,15 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
+# Copy package files and set correct ownership
+COPY --chown=pptruser:pptruser package*.json ./
+
+# Install as pptruser
+USER pptruser
 RUN npm install
 
-COPY . .
+# Copy rest of the files with correct ownership
+COPY --chown=pptruser:pptruser . .
 
 EXPOSE 10000
 
