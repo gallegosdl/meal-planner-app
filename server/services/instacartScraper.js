@@ -31,11 +31,12 @@ class InstacartScraper {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--single-process'
         ],
+        executablePath: '/usr/bin/google-chrome-stable',
         defaultViewport: null,
-        // Use the cache directory we set in Dockerfile
-        userDataDir: process.env.PUPPETEER_CACHE_DIR || '/usr/src/app/.cache/puppeteer'
+        userDataDir: '/tmp/puppeteer'
       });
 
       this.page = await this.browser.newPage();
