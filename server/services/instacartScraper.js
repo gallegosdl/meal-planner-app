@@ -44,7 +44,6 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
-      // For Render Web Service, let Puppeteer handle Chromium
       const options = {
         headless: true,
         args: [
@@ -55,17 +54,9 @@ class InstacartScraper {
           '--disable-software-rasterizer',
           '--disable-extensions',
           '--single-process',
-          '--no-zygote',
-          '--remote-debugging-port=9222'
-        ],
-        ignoreHTTPSErrors: true,
-        pipe: true
+          '--no-zygote'
+        ]
       };
-
-      // Only set executablePath if we're in Docker
-      if (process.env.DOCKER_CONTAINER) {
-        options.executablePath = '/usr/bin/google-chrome-stable';
-      }
 
       console.log('Launching browser with options:', JSON.stringify(options, null, 2));
       
@@ -100,6 +91,12 @@ class InstacartScraper {
 
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
+      // Add detailed error logging
+      if (error.message.includes('Could not find Chrome')) {
+        console.error('Chrome installation status:');
+        console.error(`PUPPETEER_CACHE_DIR: ${process.env.PUPPETEER_CACHE_DIR}`);
+        console.error(`Current working directory: ${process.cwd()}`);
+      }
       throw error;
     }
   }

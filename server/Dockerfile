@@ -19,13 +19,18 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
+# Install Chromium using Puppeteer's browser installer
+RUN mkdir -p /opt/render/.cache/puppeteer \
+    && chmod -R 777 /opt/render/.cache/puppeteer \
+    && npx puppeteer browsers install chrome \
+    && chmod -R 777 /opt/render/.cache/puppeteer
+
 # Copy application files
 COPY . .
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV DOCKER_CONTAINER=true
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
 
 # Expose port
 EXPOSE 10000
