@@ -1,22 +1,26 @@
-FROM ghcr.io/puppeteer/puppeteer:21.5.0
+FROM node:20-slim
 
-# Set environment variables
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
 
+# Create app directory and set permissions
 WORKDIR /usr/src/app
+RUN mkdir -p /opt/render/.cache/puppeteer && \
+    chown -R node:node /usr/src/app /opt/render/.cache/puppeteer
 
-# Copy package files
-COPY package*.json ./
+# Copy package files with correct ownership
+COPY --chown=node:node package*.json ./
+COPY --chown=node:node render-build.sh ./
 
-# Install as pptruser
-USER pptruser
-RUN npm install
+# Switch to non-root user
+USER node
 
-# Copy rest of the files
-COPY --chown=pptruser:pptruser . .
+# Run build script
+RUN chmod +x render-build.sh && \
+    ./render-build.sh
 
-# Expose port
+# Copy app files with correct ownership
+COPY --chown=node:node . .
+
 EXPOSE 10000
-
-# Start application
 CMD ["node", "index.js"]
