@@ -1,32 +1,13 @@
-FROM node:20-slim
-
-# Install required dependencies for Puppeteer
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    fonts-liberation \
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libgdk-pixbuf2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    wget \
-    xdg-utils \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+FROM ghcr.io/puppeteer/puppeteer:latest
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm install --omit=dev
 
 COPY . .
 
 EXPOSE 10000
-CMD ["node", "index.js"]
+
+# Start dbus and then run our app
+CMD service dbus start && node index.js
