@@ -12,22 +12,20 @@ require('dotenv').config();
 
 const app = express();
 
+// Near the top of server/index.js
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://meal-planner-frontend-woan.onrender.com';
+
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? 'https://meal-planner-frontend-woan.onrender.com'  // Frontend URL that will make requests
-    : 'http://localhost:3000',
-  methods: ['GET', 'POST', 'OPTIONS'],  // Add OPTIONS
+  origin: CORS_ORIGIN,
+  methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
   allowedHeaders: [
     'Content-Type', 
     'x-openai-key',
     'x-session-token',
-    'Authorization',
-    'Access-Control-Allow-Origin'
-  ],
-  exposedHeaders: ['Access-Control-Allow-Origin'],
-  optionsSuccessStatus: 200
+    'Authorization'
+  ]
 }));
 app.use(express.json());
 
