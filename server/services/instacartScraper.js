@@ -5,11 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// 👇 This works and avoids usePuppeteer (which does NOT exist)
 puppeteerExtra.use(StealthPlugin());
 
-// 👇 Monkey patch the underlying launcher so it uses full Puppeteer instead of core
-puppeteerExtra._launcher = puppeteer;
+puppeteerExtra._launcher = vanillaPuppeteer;
 
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
@@ -45,11 +43,10 @@ class InstacartScraper {
       }
 
       console.log('Using Chromium from:', vanillaPuppeteer.executablePath());
-      this.browser = await puppeteer.launch({
+      this.browser = await puppeteerExtra.launch({
         headless: true,
-        args: [
-          '--no-sandbox'
-        ]
+        executablePath: vanillaPuppeteer.executablePath(),
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
 
       console.log('✅ Browser launched successfully');
