@@ -1,20 +1,31 @@
-# Use Puppeteer's Chromium-ready base image
 FROM ghcr.io/puppeteer/puppeteer:latest
 
-# Set working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and lock file for dependency installation
+# Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Use root temporarily to install dependencies
+USER root
 
-# Copy the rest of your application files
+# Fix permissions so the non-root user can work
+RUN chown -R pptruser:pptruser /app
+
+# Now install dependencies safely as root (package-lock.json needs write)
+RUN npm install --omit=dev
+
+# Copy source files
 COPY . .
 
-# Expose a port if you're running a web server (optional)
-# EXPOSE 3000
+# Ensure app is owned by pptruser
+RUN chown -R pptruser:pptruser /app
 
-# Start the application
+# Switch to safe user for runtime
+USER pptruser
+
+# Expose the port (if needed)
+EXPOSE 10000
+
+# Start the app
 CMD ["node", "index.js"]
