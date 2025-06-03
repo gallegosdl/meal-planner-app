@@ -26,7 +26,7 @@ class InstacartScraper {
       console.log('🚀 Initializing Puppeteer...');
       
       // Use the actual Chrome path from the build logs
-      const executablePath = '/root/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
+      const executablePath = '/home/pptruser/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome';
       console.log('📍 Using Chrome at:', executablePath);
 
       // Verify the binary
