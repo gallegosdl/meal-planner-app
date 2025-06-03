@@ -41,8 +41,7 @@ class InstacartScraper {
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox'
-        ],
-        executablePath: '/usr/bin/google-chrome-stable'
+        ]
       });
 
       console.log('✅ Browser launched successfully');
