@@ -45,7 +45,7 @@ class InstacartScraper {
   
       this.browser = await puppeteerExtra.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
   
       console.log('✅ Browser launched successfully');
