@@ -1,11 +1,9 @@
 const puppeteerExtra = require('puppeteer-extra');
-const vanillaPuppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
 puppeteerExtra.use(StealthPlugin());
-puppeteerExtra._launcher = vanillaPuppeteer;
 
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
