@@ -26,7 +26,7 @@ class InstacartScraper {
       console.log('🚀 Initializing Puppeteer...');
       
       // Use runtime path
-      const chromePath = '/opt/render/project/src/server/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome';
+      const chromePath = '/opt/render/project/src/server/node_modules/puppeteer/.local-chromium/linux-136.0.7103.94/chrome-linux64/chrome';
       console.log('📍 Using Chrome at:', chromePath);
 
       this.browser = await puppeteerExtra.launch({
