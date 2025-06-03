@@ -1,4 +1,3 @@
-# Use Puppeteer's official Docker image with Chromium pre-installed
 FROM ghcr.io/puppeteer/puppeteer:latest
 
 # Set working directory
@@ -7,17 +6,26 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies as root (to avoid EACCES)
+# Use root temporarily to install dependencies
+USER root
+
+# Fix permissions so the non-root user can work
+RUN chown -R pptruser:pptruser /app
+
+# Now install dependencies safely as root (package-lock.json needs write)
 RUN npm install --omit=dev
 
-# Copy application source
+# Copy source files
 COPY . .
 
-# Use non-root user for runtime (safer)
+# Ensure app is owned by pptruser
+RUN chown -R pptruser:pptruser /app
+
+# Switch to safe user for runtime
 USER pptruser
 
-# Expose app port (adjust as needed)
+# Expose the port (if needed)
 EXPOSE 10000
 
-# Start your app
+# Start the app
 CMD ["node", "index.js"]
