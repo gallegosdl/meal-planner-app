@@ -1,10 +1,6 @@
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-
-// Only add the stealth plugin once!
-puppeteer.use(StealthPlugin());
 
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
@@ -41,8 +37,6 @@ class InstacartScraper {
     this.browser = null;
     this.page = null;
   }
-
-  // Trigger redeploy: 2025-06-03
 
   async initialize() {
     try {
