@@ -9,32 +9,16 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Create app directory and user
-RUN mkdir -p /app && \
-    groupadd -r pptruser && \
-    useradd -r -g pptruser -G audio,video pptruser && \
-    mkdir -p /home/pptruser && \
-    chown -R pptruser:pptruser /home/pptruser && \
-    chown -R pptruser:pptruser /app
-
 WORKDIR /app
-
-# Switch to user
-USER pptruser
-
-# Create and set permissions for Chrome cache dir
-RUN mkdir -p /home/pptruser/.cache/puppeteer && \
-    chmod -R 777 /home/pptruser/.cache/puppeteer
 
 # Copy files and install deps
 COPY package*.json ./
-RUN npm ci && \
-    npx puppeteer browsers install chrome
+RUN npm ci
 
 COPY . .
 
-# Set Chrome path for runtime
-ENV PUPPETEER_EXECUTABLE_PATH=/home/pptruser/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome
+# Let Puppeteer handle Chrome
+ENV PUPPETEER_SKIP_DOWNLOAD=false
 
 EXPOSE 10000
 CMD ["node", "index.js"]
