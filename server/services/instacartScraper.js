@@ -2,11 +2,9 @@ const puppeteerExtra = require('puppeteer-extra');
 const vanillaPuppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
-const path = require('path');
 const { execSync } = require('child_process');
 
 puppeteerExtra.use(StealthPlugin());
-
 puppeteerExtra._launcher = vanillaPuppeteer;
 
 const SCRAPER_CONFIG = {
@@ -25,27 +23,8 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
-      
-      // Debug: List contents of /usr/bin to find Chrome
-      try {
-        const binContents = execSync('ls -l /usr/bin/google*').toString();
-        console.log('Contents of /usr/bin/google*:', binContents);
-      } catch (err) {
-        console.error('Error listing /usr/bin:', err.message);
-      }
-
-      // Debug: Try which command
-      try {
-        const whichOutput = execSync('which google-chrome-stable').toString();
-        console.log('which google-chrome-stable:', whichOutput);
-      } catch (err) {
-        console.error('Error running which:', err.message);
-      }
-
-      console.log('Using Chromium from:', vanillaPuppeteer.executablePath());
       this.browser = await puppeteerExtra.launch({
         headless: true,
-        executablePath: vanillaPuppeteer.executablePath(),
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
 
