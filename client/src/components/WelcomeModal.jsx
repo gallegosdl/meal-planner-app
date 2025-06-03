@@ -5,19 +5,19 @@ const WelcomeModal = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#252B3B] rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-[#ffffff1a]">
+      <div className="bg-[#252B3B] rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-[#ffffff1a] max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+        <div className="mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
             Welcome to Meal Planner AI
           </h2>
-          <p className="text-gray-400 mt-2">
+          <p className="text-gray-400 mt-2 text-sm sm:text-base">
             Your personal AI-powered nutrition assistant
           </p>
         </div>
 
-        {/* Content */}
-        <div className="space-y-4 text-gray-300">
+        {/* Scrollable Content */}
+        <div className="space-y-4 text-gray-300 overflow-y-auto flex-1 text-sm sm:text-base">
           <section>
             <h3 className="text-lg font-semibold text-white mb-2">About Meal Planner</h3>
             <p>
@@ -58,9 +58,9 @@ const WelcomeModal = ({ onClose }) => {
           </section>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <label className="flex items-center gap-2 text-gray-400">
+        {/* Footer - Fixed at bottom */}
+        <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <label className="flex items-center gap-2 text-gray-400 text-sm">
             <input
               type="checkbox"
               checked={dontShowAgain}
@@ -72,7 +72,7 @@ const WelcomeModal = ({ onClose }) => {
           
           <button
             onClick={() => onClose(dontShowAgain)}
-            className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-indigo-600 transition-colors"
+            className="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-indigo-600 transition-colors"
           >
             Get Started
           </button>
