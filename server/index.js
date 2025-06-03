@@ -1,13 +1,3 @@
-// HACK: Force puppeteer-extra to use puppeteer (not puppeteer-core)
-require('puppeteer-extra/lib/puppeteer-loader').default = () => require('puppeteer');
-
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteer.use(StealthPlugin());
-
-const InstacartScraper = require('./services/instacartScraper');
-
-
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
