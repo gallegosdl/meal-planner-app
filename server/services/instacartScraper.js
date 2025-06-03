@@ -1,12 +1,7 @@
-const puppeteerExtra = require('puppeteer-extra');
 const puppeteer = require('puppeteer');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-
-// Add stealth plugin
-puppeteerExtra.use(StealthPlugin());
 
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
@@ -25,7 +20,7 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
-      this.browser = await puppeteerExtra.launch({
+      this.browser = await puppeteer.launch({
         headless: true,
         args: [
           '--no-sandbox',
