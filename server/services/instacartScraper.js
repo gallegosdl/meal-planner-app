@@ -43,7 +43,10 @@ class InstacartScraper {
         console.log('No Chrome path found, letting Puppeteer use default.');
       }
   
-      this.browser = await puppeteerExtra.launch(launchOptions);
+      this.browser = await puppeteerExtra.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
   
       console.log('✅ Browser launched successfully');
       this.page = await this.browser.newPage();
