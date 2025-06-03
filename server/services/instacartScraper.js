@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
-// Add stealth plugin
+// Only add the stealth plugin once!
 puppeteer.use(StealthPlugin());
 
 const SCRAPER_CONFIG = {
@@ -26,7 +26,7 @@ class InstacartScraper {
       this.browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
-        // No executablePath for puppeteer@19.x.x, let it use its bundled Chromium!
+        // Do NOT set executablePath for puppeteer@19.x.x, let it use its bundled Chromium!
       });
 
       console.log('✅ Browser launched successfully');
