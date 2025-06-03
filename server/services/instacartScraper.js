@@ -20,9 +20,39 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
+      // Find Chrome location
+      const chromeLocations = [
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/opt/google/chrome/chrome'
+      ];
+
+      let chromePath;
+      for (const loc of chromeLocations) {
+        try {
+          if (fs.existsSync(loc)) {
+            chromePath = loc;
+            console.log('📍 Found Chrome at:', chromePath);
+            break;
+          }
+        } catch (err) {
+          console.log('❌ Chrome not found at:', loc);
+        }
+      }
+
+      if (!chromePath) {
+        // Try to find Chrome using which
+        try {
+          chromePath = execSync('which google-chrome').toString().trim();
+          console.log('📍 Found Chrome using which:', chromePath);
+        } catch (err) {
+          console.error('❌ Could not find Chrome using which');
+        }
+      }
+
       this.browser = await puppeteer.launch({
         headless: true,
-        executablePath: '/usr/bin/google-chrome-stable',
+        executablePath: chromePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
