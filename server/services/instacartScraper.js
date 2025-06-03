@@ -23,11 +23,27 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
+      const glob = require("glob");
+      const possibleChromes = glob.sync("/opt/render/.cache/puppeteer/chrome/linux-*/chrome");
+      console.log("Possible Chrome binary locations:", possibleChromes);
   
-      this.browser = await puppeteerExtra.launch({
+      // Use environment variable if set, otherwise let Puppeteer decide
+      const launchOptions = {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      };
+  
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+        console.log('Using PUPPETEER_EXECUTABLE_PATH:', launchOptions.executablePath);
+      } else if (possibleChromes.length > 0) {
+        launchOptions.executablePath = possibleChromes[0];
+        console.log('Using detected Chrome path:', launchOptions.executablePath);
+      } else {
+        console.log('No Chrome path found, letting Puppeteer use default.');
+      }
+  
+      this.browser = await puppeteerExtra.launch(launchOptions);
   
       console.log('✅ Browser launched successfully');
       this.page = await this.browser.newPage();
