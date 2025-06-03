@@ -1,7 +1,7 @@
 {
   "name": "instacart-scraper",
   "version": "1.0.0",
-  "description": "",
+  "description": "Instacart scraper!", 
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

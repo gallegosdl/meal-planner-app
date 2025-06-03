@@ -18,6 +18,8 @@ class InstacartScraper {
     this.page = null;
   }
 
+  // Trigger redeploy: 2025-06-03
+
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
