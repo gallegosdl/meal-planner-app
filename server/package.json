@@ -1,7 +1,7 @@
 {
   "name": "instacart-scraper",
   "version": "1.0.0",
-  "description": "Instacart scraper!", 
+  "description": "Instacart scraper!",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -20,7 +20,7 @@
     "openai": "^4.100.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.0",
-    "puppeteer": "^24.10.0",
+    "puppeteer": "^19.11.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "sharp": "^0.32.1",

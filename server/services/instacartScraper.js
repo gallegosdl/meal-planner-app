@@ -1,9 +1,8 @@
-const puppeteerExtra = require('puppeteer-extra');
+const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const fs = require('fs');
-const { execSync } = require('child_process');
 
-puppeteerExtra.use(StealthPlugin());
+// Add stealth plugin
+puppeteer.use(StealthPlugin());
 
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
@@ -23,35 +22,17 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
-      const glob = require("glob");
-      const possibleChromes = glob.sync("/opt/render/.cache/puppeteer/chrome/linux-*/chrome");
-      console.log("Possible Chrome binary locations:", possibleChromes);
-  
-      // Use environment variable if set, otherwise let Puppeteer decide
-      const launchOptions = {
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      };
-  
-      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-        console.log('Using PUPPETEER_EXECUTABLE_PATH:', launchOptions.executablePath);
-      } else if (possibleChromes.length > 0) {
-        launchOptions.executablePath = possibleChromes[0];
-        console.log('Using detected Chrome path:', launchOptions.executablePath);
-      } else {
-        console.log('No Chrome path found, letting Puppeteer use default.');
-      }
-  
-      this.browser = await puppeteerExtra.launch({
+
+      this.browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
+        // No executablePath for puppeteer@19.x.x, let it use its bundled Chromium!
       });
-  
+
       console.log('✅ Browser launched successfully');
       this.page = await this.browser.newPage();
       await this.page.setViewport({ width: 1280, height: 800 });
-  
+
       await this.page.setRequestInterception(true);
       this.page.on('request', (req) => {
         if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
@@ -60,7 +41,7 @@ class InstacartScraper {
           req.continue();
         }
       });
-  
+
       return true;
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
