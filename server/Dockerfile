@@ -27,15 +27,16 @@ USER pptruser
 RUN mkdir -p /home/pptruser/.cache/puppeteer && \
     chmod -R 777 /home/pptruser/.cache/puppeteer
 
-# Copy files and install deps
-COPY --chown=pptruser:pptruser package*.json ./
-RUN npm ci
+# Copy files first
+COPY package*.json ./
+RUN npm ci && \
+    npx puppeteer browsers install chrome && \
+    ls -la $(npm root)/puppeteer/.local-chromium/linux-*/chrome-linux/chrome
 
-COPY --chown=pptruser:pptruser . .
+COPY . .
 
-# Point to Chrome in user's home directory
-ENV PUPPETEER_CACHE_DIR=/home/pptruser/.cache/puppeteer \
-    PUPPETEER_EXECUTABLE_PATH=/home/pptruser/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome
+# Set Chrome path to installed location
+ENV PUPPETEER_EXECUTABLE_PATH=$(npm root)/puppeteer/.local-chromium/linux-*/chrome-linux/chrome
 
 # Expose port
 EXPOSE 10000
