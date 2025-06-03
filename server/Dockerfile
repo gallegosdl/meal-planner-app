@@ -13,7 +13,8 @@ USER root
 RUN chown -R pptruser:pptruser /app
 
 # Now install dependencies safely as root (package-lock.json needs write)
-RUN npm install --omit=dev
+RUN npm uninstall puppeteer-core && \
+    npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
 
 # Copy source files
 COPY . .
