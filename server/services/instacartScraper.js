@@ -21,13 +21,10 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
-      const executablePath =
-        process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
   
       this.browser = await puppeteerExtra.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
   
       console.log('✅ Browser launched successfully');
