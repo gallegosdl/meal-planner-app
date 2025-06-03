@@ -7,6 +7,8 @@ COPY server/package*.json ./
 
 RUN rm -rf node_modules package-lock.json && npm cache clean --force
 
+ENV PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
+
 # Install dependencies (downloads Chromium for Puppeteer)
 RUN npm install
 
