@@ -17,7 +17,6 @@ RUN mkdir -p /app && \
     chown -R pptruser:pptruser /home/pptruser && \
     chown -R pptruser:pptruser /app
 
-# Set working dir
 WORKDIR /app
 
 # Switch to user
@@ -27,21 +26,15 @@ USER pptruser
 RUN mkdir -p /home/pptruser/.cache/puppeteer && \
     chmod -R 777 /home/pptruser/.cache/puppeteer
 
-# Copy files first
+# Copy files and install deps
 COPY package*.json ./
 RUN npm ci && \
-    npx puppeteer browsers install chrome && \
-    CHROME_PATH=/home/pptruser/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome && \
-    echo "Chrome installed at: $CHROME_PATH" && \
-    echo "PUPPETEER_EXECUTABLE_PATH=$CHROME_PATH" >> /etc/environment
+    npx puppeteer browsers install chrome
 
 COPY . .
 
-# Set Chrome path 
+# Set Chrome path
 ENV PUPPETEER_EXECUTABLE_PATH=/home/pptruser/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome
 
-# Expose port
 EXPOSE 10000
-
-# Start app
 CMD ["node", "index.js"]
