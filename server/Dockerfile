@@ -31,12 +31,14 @@ RUN mkdir -p /home/pptruser/.cache/puppeteer && \
 COPY package*.json ./
 RUN npm ci && \
     npx puppeteer browsers install chrome && \
-    ls -la $(npm root)/puppeteer/.local-chromium/linux-*/chrome-linux/chrome
+    CHROME_PATH=$(ls -d $(npm root)/puppeteer/.local-chromium/linux-*/chrome-linux/chrome) && \
+    echo "Chrome installed at: $CHROME_PATH" && \
+    echo "PUPPETEER_EXECUTABLE_PATH=$CHROME_PATH" >> /etc/environment
 
 COPY . .
 
-# Set Chrome path to installed location
-ENV PUPPETEER_EXECUTABLE_PATH=$(npm root)/puppeteer/.local-chromium/linux-*/chrome-linux/chrome
+# Set Chrome path from environment file
+ENV PUPPETEER_EXECUTABLE_PATH=/app/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome
 
 # Expose port
 EXPOSE 10000
