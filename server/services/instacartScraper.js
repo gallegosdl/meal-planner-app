@@ -5,8 +5,11 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-puppeteer.use(StealthPlugin());
-puppeteer.usePuppeteer(vanillaPuppeteer);
+// 👇 This works and avoids usePuppeteer (which does NOT exist)
+puppeteerExtra.use(StealthPlugin());
+
+// 👇 Monkey patch the underlying launcher so it uses full Puppeteer instead of core
+puppeteerExtra._launcher = puppeteer;
 
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
