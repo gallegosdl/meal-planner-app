@@ -1,6 +1,3 @@
-process.env.PUPPETEER_CACHE_DIR = "/opt/render/.cache/puppeteer";
-process.env.PUPPETEER_EXECUTABLE_PATH = "/opt/render/.cache/puppeteer/chrome/linux-1108766/chrome";
-
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
@@ -28,8 +25,7 @@ class InstacartScraper {
 
       this.browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
 
       console.log('✅ Browser launched successfully');
