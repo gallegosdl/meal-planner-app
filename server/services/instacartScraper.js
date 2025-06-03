@@ -21,15 +21,19 @@ class InstacartScraper {
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
+      const executablePath =
+        process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
+  
       this.browser = await puppeteerExtra.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath
       });
-
+  
       console.log('✅ Browser launched successfully');
       this.page = await this.browser.newPage();
       await this.page.setViewport({ width: 1280, height: 800 });
-
+  
       await this.page.setRequestInterception(true);
       this.page.on('request', (req) => {
         if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
@@ -38,7 +42,7 @@ class InstacartScraper {
           req.continue();
         }
       });
-
+  
       return true;
     } catch (error) {
       console.error('🔥 Scraper initialization failed:', error);
