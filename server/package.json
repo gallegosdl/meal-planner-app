@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "postinstall": "node node_modules/puppeteer/install.js"
   },
   "dependencies": {
     "@google-cloud/vision": "^3.1.0",
@@ -20,9 +21,9 @@
     "openai": "^4.100.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.0",
-    "puppeteer": "^19.11.1",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "puppeteer": "19.11.1",
+    "puppeteer-extra": "3.3.6",
+    "puppeteer-extra-plugin-stealth": "2.11.2",
     "sharp": "^0.32.1",
     "sqlite3": "^5.1.7",
     "tesseract.js": "^4.1.1",
