@@ -1,7 +1,10 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+
+puppeteer.use(StealthPlugin());
 
 const SCRAPER_CONFIG = {
   TIMEOUT: 30000,
