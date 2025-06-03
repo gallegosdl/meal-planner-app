@@ -25,41 +25,13 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
-      // Log environment and directory contents
-      console.log('Current working directory:', process.cwd());
-      console.log('User:', require('os').userInfo().username);
-      console.log('Environment vars:', {
-        PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
-        PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH,
-        NODE_ENV: process.env.NODE_ENV
-      });
+      // Use runtime path
+      const chromePath = '/opt/render/project/src/server/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome';
+      console.log('📍 Using Chrome at:', chromePath);
 
-      // Check Chrome paths
-      const chromePaths = [
-        '/home/pptruser/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome',
-        process.env.PUPPETEER_EXECUTABLE_PATH,
-        '/usr/bin/google-chrome',
-        await puppeteer.executablePath()
-      ];
-
-      console.log('Checking Chrome paths:');
-      for (const path of chromePaths) {
-        try {
-          if (path) {
-            console.log(`Checking ${path}:`, {
-              exists: fs.existsSync(path),
-              isExecutable: fs.accessSync(path, fs.constants.X_OK),
-              stats: fs.statSync(path)
-            });
-          }
-        } catch (e) {
-          console.log(`Failed checking ${path}:`, e.message);
-        }
-      }
-
-      // Try to use puppeteer's default Chrome
       this.browser = await puppeteerExtra.launch({
         headless: true,
+        executablePath: chromePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',

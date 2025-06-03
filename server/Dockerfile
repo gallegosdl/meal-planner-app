@@ -33,8 +33,8 @@ RUN npm ci && \
 
 COPY . .
 
-# Set Chrome path
-ENV PUPPETEER_EXECUTABLE_PATH=/home/pptruser/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome
+# Set Chrome path for runtime
+ENV PUPPETEER_EXECUTABLE_PATH=/opt/render/project/src/server/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome
 
 EXPOSE 10000
 CMD ["node", "index.js"]
