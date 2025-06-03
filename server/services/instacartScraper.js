@@ -20,39 +20,24 @@ class InstacartScraper {
     try {
       console.log('🚀 Initializing Puppeteer...');
       
-      // Find Chrome location
-      const chromeLocations = [
-        '/usr/bin/google-chrome-stable',
-        '/usr/bin/google-chrome',
-        '/opt/google/chrome/chrome'
-      ];
-
-      let chromePath;
-      for (const loc of chromeLocations) {
-        try {
-          if (fs.existsSync(loc)) {
-            chromePath = loc;
-            console.log('📍 Found Chrome at:', chromePath);
-            break;
-          }
-        } catch (err) {
-          console.log('❌ Chrome not found at:', loc);
-        }
+      // Debug: List contents of /usr/bin to find Chrome
+      try {
+        const binContents = execSync('ls -l /usr/bin/google*').toString();
+        console.log('Contents of /usr/bin/google*:', binContents);
+      } catch (err) {
+        console.error('Error listing /usr/bin:', err.message);
       }
 
-      if (!chromePath) {
-        // Try to find Chrome using which
-        try {
-          chromePath = execSync('which google-chrome').toString().trim();
-          console.log('📍 Found Chrome using which:', chromePath);
-        } catch (err) {
-          console.error('❌ Could not find Chrome using which');
-        }
+      // Debug: Try which command
+      try {
+        const whichOutput = execSync('which google-chrome-stable').toString();
+        console.log('which google-chrome-stable:', whichOutput);
+      } catch (err) {
+        console.error('Error running which:', err.message);
       }
 
       this.browser = await puppeteer.launch({
         headless: true,
-        executablePath: chromePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',

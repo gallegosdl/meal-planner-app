@@ -11,7 +11,8 @@
     "test:scraper": "node test/scraper.test.js",
     "start": "node index.js",
     "build": "npm ci",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "keywords": [],
   "author": "",
