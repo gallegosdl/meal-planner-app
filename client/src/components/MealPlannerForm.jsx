@@ -20,6 +20,7 @@ import RecipeList from './RecipeList';
 import { toast } from 'react-hot-toast';
 import StoreComparison from './StoreComparison';
 import WelcomeModal from './WelcomeModal';
+import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 
 // Register ChartJS components
 ChartJS.register(
@@ -100,6 +101,9 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
+  const [activeTab, setActiveTab] = useState(1);
+  const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', 'calendar', or 'recipes'
+
   const dietOptions = {
     'Diet Types': [
       'High-Protein',
@@ -124,10 +128,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       'Nut-Free'
     ]
   };
-  const storeOptions = ['Smiths', 'Albertsons', 'Walmart', 'Whole Foods', 'Trader Joe\'s'];
-
-  const [activeTab, setActiveTab] = useState(1);
-  const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', 'calendar', or 'recipes'
 
   useEffect(() => {
     const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
@@ -367,7 +367,7 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       
       const response = await api.post('/api/instacart/compare-stores', {
         shoppingListUrl: listUrl,
-        stores: ['Smart & Final', 'Albertsons', 'Ralphs']
+        stores: ['Smiths', 'Albertsons', 'Walmart']
       });
 
       if (response.data.success) {
@@ -836,26 +836,33 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
           {/* Meal Preferences Row */}
           <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h2 className="text-xl font-semibold text-white mb-4">Meal Preferences</h2>
-            <div className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Meal Preferences</h2>
+            </div>
+            <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-400 mb-2 block">Foods You Like</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Foods You Like
+                </label>
                 <input
                   type="text"
                   value={formData.likes}
                   onChange={(e) => handleChange('likes', e.target.value)}
-                  placeholder="e.g. chicken, eggs"
-                  className="w-full bg-[#2A3142] rounded-lg p-3 text-gray-300"
+                  placeholder="e.g. Chicken, Rice, Broccoli"
+                  className="w-full px-4 py-2 bg-[#374151] text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
+
               <div>
-                <label className="text-sm text-gray-400 mb-2 block">Foods to Avoid</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Foods to Avoid
+                </label>
                 <input
                   type="text"
                   value={formData.dislikes}
                   onChange={(e) => handleChange('dislikes', e.target.value)}
-                  placeholder="e.g. mushrooms"
-                  className="w-full bg-[#2A3142] rounded-lg p-3 text-gray-300"
+                  placeholder="e.g. Mushrooms, Seafood"
+                  className="w-full px-4 py-2 bg-[#374151] text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -989,15 +996,15 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
         {mealPlan && (
           <div className="mt-8 space-y-6">
-            {/* Header and buttons container - stack on mobile */}
+            {/* Header and buttons container */}
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-6">
               <h2 className="text-2xl font-bold">Your Meal Plan</h2>
               
-              {/* Controls container - stack and wrap buttons on mobile */}
+              {/* Controls container */}
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <SendToInstacartButton mealPlan={mealPlan} />
                 
-                {/* View Toggle Buttons - wrap on mobile */}
+                {/* View Toggle Buttons */}
                 <div className="grid grid-cols-2 sm:flex gap-2">
                   <button
                     onClick={() => setViewMode('tabs')}
@@ -1043,7 +1050,13 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
               </div>
             </div>
 
-            {/* Original Tab View */}
+            {/* Add store comparison */}
+            <StoreComparison 
+              comparisonData={storeComparison}
+              isLoading={isComparingStores}
+            />
+
+            {/* View content based on selected mode */}
             {viewMode === 'tabs' && (
               <>
                 <div className="flex border-b border-[#ffffff1a] mb-6">
@@ -1114,26 +1127,60 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                 ))}
               </>
             )}
-
-            {/* Add Recipe Library View */}
             {viewMode === 'recipes' && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold mb-6">Recipe Library</h2>
-                <RecipeList />
+              <RecipeList recipes={mealPlan.recipes} />
+            )}
+            {viewMode === 'tiles' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Draggable tiles implementation */}
+                {mealPlan.days.map((day, dayIndex) => (
+                  <div 
+                    key={dayIndex}
+                    className="bg-[#2A3142] p-4 rounded-lg shadow-lg"
+                    draggable="true"
+                  >
+                    <h3 className="text-lg font-semibold mb-3">Day {dayIndex + 1}</h3>
+                    {Object.entries(day.meals).map(([mealType, meal]) => (
+                      <div 
+                        key={mealType}
+                        className="mb-2 p-2 bg-[#374151] rounded"
+                        draggable="true"
+                      >
+                        <h4 className="capitalize text-sm font-medium">{mealType}</h4>
+                        <p className="text-gray-300">{meal.recipe.title}</p>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* New Views wrapped in OAuth provider */}
-            <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
-              {viewMode === 'tiles' && <DraggableMealPlan mealPlan={mealPlan} />}
-              {viewMode === 'calendar' && <CalendarMealPlan mealPlan={mealPlan} />}
-            </GoogleOAuthProvider>
-
-            {/* Add store comparison */}
-            <StoreComparison 
-              comparisonData={storeComparison}
-              isLoading={isComparingStores}
-            />
+            {viewMode === 'calendar' && (
+              <div className="grid grid-cols-7 gap-4">
+                {/* Calendar view implementation */}
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-center font-semibold p-2">
+                    {day}
+                  </div>
+                ))}
+                {mealPlan.days.map((day, dayIndex) => (
+                  <div 
+                    key={dayIndex}
+                    className="min-h-[200px] bg-[#2A3142] p-4 rounded-lg"
+                  >
+                    <h3 className="text-sm font-semibold mb-2">Day {dayIndex + 1}</h3>
+                    {Object.entries(day.meals).map(([mealType, meal]) => (
+                      <div 
+                        key={mealType}
+                        className="mb-2 p-2 bg-[#374151] rounded text-sm"
+                      >
+                        <span className="capitalize text-xs text-gray-400">{mealType}</span>
+                        <p className="truncate">{meal.recipe.title}</p>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

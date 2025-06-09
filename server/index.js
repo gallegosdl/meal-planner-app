@@ -12,12 +12,22 @@ require('dotenv').config();
 
 const app = express();
 
-// Near the top of server/index.js
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://meal-planner-frontend-woan.onrender.com';
-
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://meal-planner-frontend-woan.onrender.com'
+];
 // Middleware
 app.use(cors({
-  origin: CORS_ORIGIN,
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
   allowedHeaders: [

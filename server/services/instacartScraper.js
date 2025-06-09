@@ -1,12 +1,14 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const { DEFAULT_PANTRY_SETTINGS } = require('../config/pantryConfig');
 
 const SCRAPER_CONFIG = {
-  TIMEOUT: 30000,
-  STORE_SWITCH_DELAY: 3000,
+  TIMEOUT: 60000,
+  STORE_SWITCH_DELAY: 5000,
   SCROLL_INTERVAL: 1000,
-  MAX_RETRIES: 3
+  MAX_RETRIES: 3,
+  RETRY_DELAY: 3000
 };
 
 function logChromiumLocations() {
@@ -33,24 +35,25 @@ function logChromiumLocations() {
 }
 
 class InstacartScraper {
-  constructor() {
+  constructor(options = {}) {
     this.browser = null;
     this.page = null;
+    this.pantrySettings = {
+      ...DEFAULT_PANTRY_SETTINGS,
+      ...options.pantrySettings
+    };
+    this.options = options;
   }
 
   async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
-      // Debug: Print PUPPETEER_EXECUTABLE_PATH env var
       console.log('PUPPETEER_EXECUTABLE_PATH:', process.env.PUPPETEER_EXECUTABLE_PATH);
 
-      // Debug: List Chromium download locations
       logChromiumLocations();
 
-      // Try to guess the Chromium executable path if not set
       let chromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!chromiumPath) {
-        // Try default Puppeteer v19 location
         const defaultPath = '/root/.cache/puppeteer/chrome/linux-1108766/chrome';
         if (fs.existsSync(defaultPath)) {
           chromiumPath = defaultPath;
@@ -68,14 +71,32 @@ class InstacartScraper {
 
       this.browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath: chromiumPath || undefined
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080'
+        ],
+        executablePath: chromiumPath || undefined,
+        protocolTimeout: 120000, // Increase protocol timeout to 2 minutes
+        defaultViewport: {
+          width: 1920,
+          height: 1080
+        }
       });
 
       console.log('✅ Browser launched successfully');
       this.page = await this.browser.newPage();
-      await this.page.setViewport({ width: 1280, height: 800 });
+      
+      // Set default timeout for all operations
+      this.page.setDefaultTimeout(120000); // 2 minutes
+      this.page.setDefaultNavigationTimeout(120000); // 2 minutes
+      
+      await this.page.setViewport({ width: 1920, height: 1080 });
 
+      // Enable request interception
       await this.page.setRequestInterception(true);
       this.page.on('request', (req) => {
         if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
@@ -83,6 +104,15 @@ class InstacartScraper {
         } else {
           req.continue();
         }
+      });
+
+      // Add error handling for page crashes
+      this.page.on('error', err => {
+        console.error('Page crashed:', err);
+      });
+
+      this.page.on('pageerror', err => {
+        console.error('Page error:', err);
       });
 
       return true;
@@ -95,7 +125,12 @@ class InstacartScraper {
   async scrapePrices(shoppingUrl, targetStores) {
     try {
       await this.initialize();
-      await this.page.goto(shoppingUrl, {
+      
+      // Navigate to the base shopping list URL without any store parameter
+      const baseUrl = shoppingUrl.split('?')[0]; // Remove any query parameters
+      console.log('Navigating to shopping list:', baseUrl);
+      
+      await this.page.goto(baseUrl, {
         waitUntil: 'networkidle2',
         timeout: SCRAPER_CONFIG.TIMEOUT
       });
@@ -114,6 +149,14 @@ class InstacartScraper {
           results.stores[storeName] = this.formatStoreData(storeResult);
         } catch (error) {
           console.error(`❌ Failed to process ${storeName}:`, error);
+          results.stores[storeName] = {
+            error: error.message,
+            totalPrice: '0.00',
+            itemCount: 0,
+            availableItems: [],
+            unavailableItems: [],
+            availability: '0'
+          };
         }
       }
 
@@ -128,25 +171,145 @@ class InstacartScraper {
   }
 
   async switchStore(storeName) {
-    try {
-      console.log(`Switching to ${storeName}...`);
-      await this.page.waitForSelector('[aria-label="show retailer chooser modal"]');
-      await this.page.click('[aria-label="show retailer chooser modal"]');
-      await this.page.waitForTimeout(1000);
+    let retryCount = 0;
+    
+    // Normalize store names by removing special characters, spaces, and common suffixes
+    const normalizeStoreName = (name) => {
+      return name.toLowerCase()
+        .replace(/\s*(delivery|pickup)\s*available/gi, '') // Remove "Delivery available" and "Pickup available"
+        .replace(/['\s-]/g, '') // Remove apostrophes, spaces, and hyphens
+        .replace(/&/g, 'and')   // Replace & with 'and'
+        .trim();
+    };
 
-      const storeButton = await this.page.$x(`//button[contains(., '${storeName}')]`);
-      if (storeButton.length > 0) {
-        await storeButton[0].click();
-      } else {
-        throw new Error(`Could not find store: ${storeName}`);
+    while (retryCount < SCRAPER_CONFIG.MAX_RETRIES) {
+      try {
+        console.log(`Switching to ${storeName}... (Attempt ${retryCount + 1}/${SCRAPER_CONFIG.MAX_RETRIES})`);
+        
+        // Wait for the store chooser button
+        const storeChooserSelector = '[aria-label="show retailer chooser modal"]';
+        await this.page.waitForSelector(storeChooserSelector, {
+          visible: true,
+          timeout: SCRAPER_CONFIG.TIMEOUT
+        });
+
+        // Click the store chooser button
+        await this.page.click(storeChooserSelector);
+        
+        // Wait for modal to appear and store buttons to be loaded
+        console.log('Waiting for store chooser modal...');
+        await this.page.waitForSelector('[data-testid="retailers-chooser-modal-tile"]', {
+          visible: true,
+          timeout: SCRAPER_CONFIG.TIMEOUT
+        });
+
+        // Give the modal time to fully render and stabilize
+        await this.page.waitForTimeout(3000);
+
+        // Find and click the store button using normalized text comparison
+        const targetNormalized = normalizeStoreName(storeName);
+        console.log('Target normalized store name:', targetNormalized);
+        
+        const matchingStore = await this.page.evaluate((targetNormalized) => {
+          // Helper function to normalize store names (must be defined inside evaluate)
+          const normalizeStoreName = (name) => {
+            return name.toLowerCase()
+              .replace(/\s*(delivery|pickup)\s*available/gi, '') // Remove "Delivery available" and "Pickup available"
+              .replace(/['\s-]/g, '') // Remove apostrophes, spaces, and hyphens
+              .replace(/&/g, 'and')   // Replace & with 'and'
+              .trim();
+          };
+
+          // Get all store tiles from the modal
+          const storeTiles = Array.from(document.querySelectorAll('[data-testid="retailers-chooser-modal-tile"]'));
+          console.log(`Found ${storeTiles.length} store tiles`);
+          
+          for (const tile of storeTiles) {
+            // Get the store name text, excluding any "Show alternatives" buttons
+            const storeNameElement = tile.querySelector('.e-1mkl09q, [data-testid="retailer-name"]');
+            if (!storeNameElement) continue;
+            
+            const storeText = storeNameElement.textContent.trim();
+            if (!storeText || storeText === 'Show alternatives') continue;
+            
+            const normalizedText = normalizeStoreName(storeText);
+            console.log(`Comparing store: ${storeText} -> ${normalizedText} (target: ${targetNormalized})`);
+            
+            if (normalizedText === targetNormalized) {
+              // Find the clickable element within the tile
+              const clickableElement = tile.querySelector('[role="button"]') || tile;
+              clickableElement.click();
+              return storeText;
+            }
+          }
+          return null;
+        }, targetNormalized);
+
+        if (!matchingStore) {
+          // Get a clean list of actual store names for the error message
+          const availableStores = await this.page.evaluate(() => {
+            const stores = new Set();
+            document.querySelectorAll('[data-testid="retailers-chooser-modal-tile"]').forEach(tile => {
+              const nameEl = tile.querySelector('.e-1mkl09q, [data-testid="retailer-name"]');
+              if (nameEl) {
+                const name = nameEl.textContent.trim();
+                if (name && name !== 'Show alternatives') {
+                  stores.add(name);
+                }
+              }
+            });
+            return Array.from(stores);
+          });
+          throw new Error(`Store ${storeName} not found. Available stores: ${availableStores.join(', ')}`);
+        }
+
+        console.log(`Found and clicked store: ${matchingStore}`);
+
+        // Wait for the modal to close
+        await this.page.waitForFunction(
+          () => !document.querySelector('[data-testid="retailers-chooser-modal-tile"]'),
+          { timeout: SCRAPER_CONFIG.TIMEOUT }
+        );
+
+        // Wait for store switch to complete
+        await this.page.waitForTimeout(SCRAPER_CONFIG.STORE_SWITCH_DELAY);
+
+        // Verify the store switch was successful
+        const finalStoreElement = await this.page.$('.e-1mkl09q, [data-testid="retailer-name"]');
+        if (!finalStoreElement) {
+          throw new Error('Could not find store name element after switching');
+        }
+
+        const finalStore = await this.page.evaluate(el => el.textContent.trim(), finalStoreElement);
+        const finalStoreNormalized = normalizeStoreName(finalStore);
+        
+        if (!finalStoreNormalized.includes(targetNormalized)) {
+          throw new Error(`Failed to switch to ${storeName}. Current store: ${finalStore}`);
+        }
+
+        console.log(`✅ Successfully switched to ${finalStore}`);
+        return;
+        
+      } catch (error) {
+        retryCount++;
+        console.error(`Failed to switch to ${storeName} (Attempt ${retryCount}/${SCRAPER_CONFIG.MAX_RETRIES}):`, error);
+        
+        if (retryCount < SCRAPER_CONFIG.MAX_RETRIES) {
+          console.log(`Retrying in ${SCRAPER_CONFIG.RETRY_DELAY}ms...`);
+          await this.page.waitForTimeout(SCRAPER_CONFIG.RETRY_DELAY);
+          await this.page.screenshot({ 
+            path: `store-switch-attempt-${retryCount}-${Date.now()}.png`,
+            fullPage: true 
+          });
+          await this.page.reload({ waitUntil: 'networkidle2', timeout: SCRAPER_CONFIG.TIMEOUT });
+        } else {
+          await this.page.screenshot({ 
+            path: `store-switch-final-error-${Date.now()}.png`,
+            fullPage: true 
+          });
+          throw error;
+        }
       }
-
-      await this.page.waitForNavigation({ waitUntil: 'networkidle2' });
-      await this.page.waitForTimeout(2000);
-      console.log(`✅ Switched to ${storeName}`);
-    } catch (error) {
-      console.error(`Failed to switch to ${storeName}:`, error);
-      throw error;
     }
   }
 
@@ -168,100 +331,117 @@ class InstacartScraper {
 
   async scrapeItems() {
     try {
-      await this.page.waitForSelector('body', { timeout: 10000 });
-      await new Promise(r => setTimeout(r, 5000));
+      console.log('\n🛒 Starting item scraping...');
+      
+      // Wait for the page to be ready
+      await this.page.waitForSelector('body', { timeout: SCRAPER_CONFIG.TIMEOUT });
+      
+      // Wait for items to load using the ingredient-item-card selector
+      console.log('Waiting for item list to load...');
+      await this.page.waitForSelector('[data-testid="ingredient-item-card"]', {
+        timeout: SCRAPER_CONFIG.TIMEOUT,
+        visible: true
+      });
 
+      // Get current store name
       const storeInfo = await this.page.evaluate(() => {
-        const selectors = [
-          'span[class="e-1mk109q"]',
-          'div[aria-label="show retailer chooser modal"] span',
-          '.store-header__store-name',
-          '.store-name',
-          '.retailer-name',
-          'h1[class*="store"]',
-          'div[class*="store-name"]'
-        ];
-
-        let storeName = 'Unknown Store';
-        for (const selector of selectors) {
-          const el = document.querySelector(selector);
-          if (el) {
-            const text = el.textContent.trim();
-            if (text && text !== 'Unknown Store') {
-              storeName = text;
-              break;
-            }
-          }
-        }
-
+        const storeElement = document.querySelector('[data-testid="retailer-name"]');
         return {
-          name: storeName,
+          name: storeElement ? storeElement.textContent.trim() : 'Unknown Store',
           url: window.location.href,
           originalUrl: window.location.href
         };
       });
 
-      console.log('Found store info:', storeInfo);
+      console.log('Current store:', storeInfo);
 
-      const items = await this.page.evaluate(() => {
-        const results = [];
-        const itemElements = document.querySelectorAll('ul.e-19tvapz > li');
+      // Scroll to load all items
+      console.log('Scrolling to load all items...');
+      await this.scrollToBottom();
+      
+      // Wait for any lazy-loaded content
+      await this.page.waitForTimeout(3000);
 
-        itemElements.forEach((item, index) => {
-          try {
-            const nameEl = item.querySelector('.e-10y4wp7');
-            const name = nameEl?.textContent?.trim() || '';
+      let items = [];
+      let retryCount = 0;
+      const maxRetries = 3;
 
-            const allPriceElements = item.querySelectorAll('span[class^="e-"]');
-            let priceText = '';
-            for (const el of allPriceElements) {
-              const text = el.textContent.trim();
-              if (text.includes('$') || /^\d+$/.test(text)) {
-                priceText = text;
-                break;
+      while (retryCount < maxRetries && items.length === 0) {
+        console.log(`Extracting items (attempt ${retryCount + 1}/${maxRetries})...`);
+        
+        items = await this.page.evaluate(() => {
+          const results = [];
+          const itemCards = Array.from(document.querySelectorAll('[data-testid="ingredient-item-card"]'));
+
+          for (const card of itemCards) {
+            try {
+              const recipeInfo = card.querySelector('.e-10y4wp7')?.textContent.trim() || '';
+              const productName = card.querySelector('[title]')?.getAttribute('title') || '';
+              
+              // Get price from screen reader text first
+              let price = 0;
+              let priceText = '';
+              const screenReaderPrice = card.querySelector('.screen-reader-only')?.textContent.match(/\$(\d+\.\d{2})/);
+              
+              if (screenReaderPrice) {
+                price = parseFloat(screenReaderPrice[1]);
+                priceText = screenReaderPrice[0];
+              } else {
+                const dollarElement = card.querySelector('.e-1qkvt8e');
+                const centsElement = card.querySelector('.e-p745l:last-child');
+                
+                if (dollarElement && centsElement) {
+                  const dollars = dollarElement.textContent.trim();
+                  const cents = centsElement.textContent.trim();
+                  price = parseFloat(`${dollars}.${cents}`);
+                  priceText = `$${dollars}.${cents}`;
+                }
               }
+
+              results.push({
+                name: productName,
+                price,
+                rawPrice: priceText,
+                display_text: recipeInfo || productName
+              });
+
+            } catch (err) {
+              console.error('Error parsing item:', err);
             }
-
-            let price = 0;
-            if (priceText) {
-              const cleanPrice = priceText.replace(/[^\d]/g, '');
-              if (cleanPrice.length > 0) {
-                const cents = cleanPrice.slice(-2);
-                const dollars = cleanPrice.slice(0, -2) || '0';
-                price = parseFloat(`${dollars}.${cents}`);
-              }
-            }
-
-            const quantityText = item.querySelector('.e-1nljhj5')?.textContent?.trim() || '1';
-            const quantity = parseInt(quantityText) || 1;
-
-            results.push({
-              name,
-              price,
-              quantity,
-              rawPrice: priceText
-            });
-          } catch (err) {
-            console.error(`Error parsing item ${index}:`, err);
           }
+          return results;
         });
 
-        return results;
-      });
+        if (items.length === 0 && retryCount < maxRetries - 1) {
+          console.log('No items found, waiting and retrying...');
+          await this.page.waitForTimeout(3000);
+          await this.scrollToBottom();
+          retryCount++;
+        } else {
+          break;
+        }
+      }
 
-      let total = 0;
+      // Log the results
+      console.log('\n📋 Processing Results:');
+      console.log(`Original items: ${items.length}`);
+      
+      console.log('\n🛒 Final Shopping List:');
       items.forEach(item => {
-        total += item.price * item.quantity;
+        console.log(`${item.display_text} - ${item.rawPrice}`);
       });
 
       return {
         store: storeInfo,
-        items,
-        total
+        items: items,
+        total: items.reduce((sum, item) => sum + (item.price || 0), 0)
       };
     } catch (error) {
       console.error('Failed to scrape items:', error);
-      await this.page.screenshot({ path: 'error-state.png', fullPage: true });
+      await this.page.screenshot({ 
+        path: `scraping-error-${Date.now()}.png`,
+        fullPage: true 
+      });
       throw error;
     }
   }
@@ -319,4 +499,6 @@ class InstacartScraper {
   }
 }
 
+// Export the class and configurations
 module.exports = InstacartScraper;
+module.exports.SCRAPER_CONFIG = SCRAPER_CONFIG;

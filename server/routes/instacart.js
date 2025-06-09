@@ -2,6 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const InstacartScraper = require('../services/instacartScraper');
+const SCRAPER_CONFIG = InstacartScraper.SCRAPER_CONFIG;
+const { isPantryItem, DEFAULT_PANTRY_SETTINGS } = require('../config/pantryConfig');
 
 //const INSTACART_API = 'https://connect.instacart.com/idp/v1/products/products_link'; // PRODUCTION
 const INSTACART_API = 'https://connect.dev.instacart.tools/idp/v1/products/products_link'; // DEV
@@ -25,15 +27,46 @@ router.post('/create-link', async (req, res) => {
   try {
     // Log the full request and ingredients payload
     console.log('Server: Full request body:', JSON.stringify(req.body, null, 2));
-    console.log('Server: Ingredients payload:', {
-      totalItems: req.body.line_items?.length || 0,
-      items: req.body.line_items?.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        unit: item.unit,
-        display: item.display_text
-      }))
-    });
+    console.log('Server: Initial ingredients count:', req.body.line_items?.length || 0);
+
+    // Get pantry items from the session or request (these are now items we HAVE in pantry)
+    const pantryItems = session.pantryItems || req.body.pantryItems || [];
+    console.log('Server: Pantry items to filter out:', pantryItems);
+
+    // Filter shopping list to only include items we need to buy
+    if (Array.isArray(req.body.line_items)) {
+      const beforeCount = req.body.line_items.length;
+      const removedItems = [];
+      
+      req.body.line_items = req.body.line_items.filter(item => {
+        const itemName = item.name.toLowerCase().trim();
+        const displayText = (item.display_text || '').toLowerCase().trim();
+
+        // Check if this item is in our pantry (unselected = in pantry)
+        const isInPantry = pantryItems.some(pantryItem => {
+          const pantryItemLower = pantryItem.toLowerCase().trim();
+          // Check for exact matches or matches with common variations
+          return itemName === pantryItemLower || 
+                 itemName === `${pantryItemLower} (to taste)` ||
+                 (displayText && displayText === pantryItemLower);
+        });
+
+        // If it's in our pantry, we don't need to buy it
+        if (isInPantry) {
+          removedItems.push(item);
+          console.log(`DEBUG: Removing pantry item from shopping list: name="${item.name}" display="${item.display_text}"`);
+          return false;
+        }
+
+        // Not in pantry, so we need to buy it
+        console.log(`DEBUG: Keeping item in shopping list: name="${item.name}" display="${item.display_text}"`);
+        return true;
+      });
+      
+      const afterCount = req.body.line_items.length;
+      console.log(`DEBUG: Shopping list filtering complete. Items before: ${beforeCount}, after: ${afterCount}`);
+      console.log('DEBUG: Removed items:', removedItems.map(item => item.name));
+    }
 
     console.log('Server: Creating Instacart link...');
     const response = await axios.post(INSTACART_API, req.body, {
@@ -55,7 +88,7 @@ router.post('/create-link', async (req, res) => {
     });
 
     res.status(error.response?.status || 500).json({
-      error: 'Failed to create shopping link',
+      error: 'Failed to create shopping list',
       details: error.response?.data || error.message
     });
   }
@@ -130,8 +163,9 @@ router.post('/scrape-prices', async (req, res) => {
   const { listUrl, store } = req.body;
   let scraper = null;
   
-  console.log('Server: Starting price scrape:', { store, listUrl });
-
+  console.log(`\n🔍 Starting price scrape for ${store}`);
+  console.log('List URL:', listUrl);
+  
   if (!listUrl || !store) {
     return res.status(400).json({
       error: 'Missing required fields',
@@ -142,20 +176,58 @@ router.post('/scrape-prices', async (req, res) => {
   try {
     scraper = new InstacartScraper();
     await scraper.initialize();
-    const priceData = await scraper.scrapePrices(listUrl, store);
     
-    console.log('Server: Scrape completed:', {
-      store,
-      totalItems: priceData.items?.length || 0,
-      total: priceData.totalPrice
+    // Navigate to the base list URL
+    await scraper.page.goto(listUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 90000
     });
 
-    res.json(priceData);
+    // Wait for content to stabilize
+    console.log('\n⏳ Waiting for page content to load...');
+    await scraper.page.waitForSelector('body', { timeout: SCRAPER_CONFIG.TIMEOUT });
+
+    // Switch to the desired store using the modal
+    await scraper.switchStore(store);
+
+    console.log('\n🛒 Starting item scraping...');
+    const priceData = await scraper.scrapeItems();
+    
+    // Detailed price logging
+    console.log('\n📊 Price Data Summary:');
+    console.log(`Store: ${store}`);
+    console.log(`Total Items: ${priceData.items.length}`);
+    console.log(`Total Price: $${priceData.total.toFixed(2)}`);
+    console.log('\n📝 Item Details:');
+    priceData.items.forEach((item, index) => {
+      console.log(`${index + 1}. ${item.name}`);
+      console.log(`   Price: $${item.price.toFixed(2)} x ${item.quantity}`);
+      console.log(`   Raw Price: ${item.rawPrice}`);
+    });
+    console.log('\n-------------------');
+
+    res.json({
+      ...priceData,
+      total: Number(priceData.total.toFixed(2))
+    });
   } catch (error) {
-    console.error('Server: Scrape failed:', error);
+    console.error('\n❌ Scraping failed for', store);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
+    
+    try {
+      if (scraper?.page) {
+        await scraper.page.screenshot({ path: `error-${store}-${Date.now()}.png`, fullPage: true });
+      }
+    } catch (screenshotError) {
+      console.error('Failed to capture error screenshot:', screenshotError.message);
+    }
+
     res.status(500).json({
       error: 'Failed to scrape prices',
-      details: error.message
+      store,
+      details: error.message,
+      errorType: error.name
     });
   } finally {
     if (scraper) {

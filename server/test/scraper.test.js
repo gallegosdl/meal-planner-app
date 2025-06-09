@@ -7,6 +7,7 @@ async function testScraper() {
   try {
     console.log('Starting scraper test...');
     
+    // Use the base URL without any store parameter
     const listUrl = 'https://customers.dev.instacart.tools/store/shopping_lists/5895574';
     console.log('List URL:', listUrl);
 
@@ -16,7 +17,7 @@ async function testScraper() {
     const page = scraper.page;
     console.log('Navigating to page...');
 
-    // Simple navigation with longer timeout
+    // Navigate to the base URL
     await page.goto(listUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 90000 // 90 seconds
@@ -27,6 +28,11 @@ async function testScraper() {
     
     console.log('Page loaded, current URL:', page.url());
 
+    // Test store switching
+    console.log('\nTesting store switching...');
+    await scraper.switchStore("Smith's");
+    
+    console.log('\nScraping items...');
     const result = await scraper.scrapeItems();
     
     if (!result.items || result.items.length === 0) {
