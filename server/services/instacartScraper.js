@@ -45,7 +45,7 @@ class InstacartScraper {
     this.options = options;
   }
 
-  async initialize() {
+  /*async initialize() {
     try {
       console.log('🚀 Initializing Puppeteer...');
       console.log('PUPPETEER_EXECUTABLE_PATH:', process.env.PUPPETEER_EXECUTABLE_PATH);
@@ -67,7 +67,7 @@ class InstacartScraper {
         console.warn('[WARN] No Chromium executable path found, Puppeteer will use default.');
       } else {
         console.log(`[DEBUG] Chromium binary will be used from: ${chromiumPath}`);
-      }
+      }*/ 
 
       /*this.browser = await puppeteer.launch({
         headless: true,
@@ -122,35 +122,78 @@ class InstacartScraper {
     }
   }*/
 
-  const isRender = process.env.RENDER === 'true';
-
-  let launchOptions = {
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--disable-gpu',
-      '--window-size=1920x1080'
-    ],
-    defaultViewport: {
-      width: 1920,
-      height: 1080
+    async initialize() {
+      try {
+        console.log('🚀 Initializing Puppeteer...');
+        console.log('PUPPETEER_EXECUTABLE_PATH:', process.env.PUPPETEER_EXECUTABLE_PATH);
+    
+        logChromiumLocations();
+    
+        const isRender = process.env.RENDER === 'true';
+        let chromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    
+        if (!chromiumPath && isRender) {
+          const renderPath = '/opt/render/.cache/puppeteer/chrome/linux-1108766/chrome';
+          if (fs.existsSync(renderPath)) {
+            chromiumPath = renderPath;
+            console.log(`[RENDER] Using Chromium at ${chromiumPath}`);
+          } else {
+            throw new Error(`[RENDER] Expected Chromium not found at ${renderPath}`);
+          }
+        }
+    
+        const launchOptions = {
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--window-size=1920x1080'
+          ],
+          defaultViewport: {
+            width: 1920,
+            height: 1080
+          }
+        };
+    
+        if (chromiumPath) {
+          if (!fs.existsSync(chromiumPath)) {
+            throw new Error(`[FATAL] Chromium binary not found at expected path: ${chromiumPath}`);
+          }
+          launchOptions.executablePath = chromiumPath;
+          console.log(`[DEBUG] Chromium binary will be used from: ${chromiumPath}`);
+        } else {
+          console.warn('[WARN] No Chromium executable path found, Puppeteer will use default.');
+        }
+    
+        this.browser = await puppeteer.launch(launchOptions);
+        console.log('✅ Browser launched successfully');
+    
+        this.page = await this.browser.newPage();
+        this.page.setDefaultTimeout(120000);
+        this.page.setDefaultNavigationTimeout(120000);
+        await this.page.setViewport({ width: 1920, height: 1080 });
+    
+        await this.page.setRequestInterception(true);
+        this.page.on('request', (req) => {
+          if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
+            req.abort();
+          } else {
+            req.continue();
+          }
+        });
+    
+        this.page.on('error', err => console.error('Page crashed:', err));
+        this.page.on('pageerror', err => console.error('Page error:', err));
+    
+        return true;
+      } catch (error) {
+        console.error('🔥 Scraper initialization failed:', error);
+        throw error;
+      }
     }
-  };
-
-  if (isRender) {
-    const chromiumPath = '/opt/render/.cache/puppeteer/chrome/linux-1108766/chrome';
-    if (fs.existsSync(chromiumPath)) {
-      console.log(`[RENDER] Using Chromium at ${chromiumPath}`);
-      launchOptions.executablePath = chromiumPath;
-    } else {
-      throw new Error(`[RENDER] Expected Chromium not found at ${chromiumPath}`);
-    }
-  }
-
-  this.browser = await puppeteer.launch(launchOptions);
 
   async scrapePrices(shoppingUrl, targetStores) {
     try {
