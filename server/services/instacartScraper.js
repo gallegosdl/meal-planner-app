@@ -69,7 +69,7 @@ class InstacartScraper {
         console.log(`[DEBUG] Chromium binary will be used from: ${chromiumPath}`);
       }
 
-      this.browser = await puppeteer.launch({
+      /*this.browser = await puppeteer.launch({
         headless: true,
         args: [
           '--no-sandbox',
@@ -120,7 +120,37 @@ class InstacartScraper {
       console.error('🔥 Scraper initialization failed:', error);
       throw error;
     }
+  }*/
+
+  const isRender = process.env.RENDER === 'true';
+
+  let launchOptions = {
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--window-size=1920x1080'
+    ],
+    defaultViewport: {
+      width: 1920,
+      height: 1080
+    }
+  };
+
+  if (isRender) {
+    const chromiumPath = '/opt/render/.cache/puppeteer/chrome/linux-1108766/chrome';
+    if (fs.existsSync(chromiumPath)) {
+      console.log(`[RENDER] Using Chromium at ${chromiumPath}`);
+      launchOptions.executablePath = chromiumPath;
+    } else {
+      throw new Error(`[RENDER] Expected Chromium not found at ${chromiumPath}`);
+    }
   }
+
+  this.browser = await puppeteer.launch(launchOptions);
 
   async scrapePrices(shoppingUrl, targetStores) {
     try {
