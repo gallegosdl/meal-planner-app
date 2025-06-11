@@ -9,7 +9,8 @@ const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json'  // Set default content type for all requests
-  }
+  },
+  withCredentials: true
 });
 
 // Store session token in browser's sessionStorage
@@ -34,9 +35,9 @@ export const clearSession = () => {
 // This automatically adds the session token to every API request
 // Prevents having to manually add token to each request
 api.interceptors.request.use((config) => {
-  const sessionToken = getSession();
-  if (sessionToken) {
-    config.headers['x-session-token'] = sessionToken;  // Add token to request headers
+  const token = getSession();
+  if (token) {
+    config.headers['x-session-token'] = token;
   }
   return config;
 });
@@ -45,33 +46,40 @@ api.interceptors.request.use((config) => {
 // Handles the entire authentication flow in one place
 export const authenticate = async (apiKey) => {
   try {
-    // Clear any existing session before attempting new auth
-    // This prevents stale token issues
-    clearSession();
+    const response = await api.post('/api/auth', { apiKey });
     
-    // Make the auth request with timestamp to prevent caching
-    // Some browsers/networks might cache POST requests
-    // Adding timestamp ensures each request is unique
-    const response = await api.post('/api/auth', { 
-      apiKey,
-      timestamp: Date.now() 
-    });
-
-    // Validate the response has the expected data structure
-    // Ensures we have a valid session token before proceeding
-    if (response.data?.sessionToken) {
-      // Store the session token for future requests
-      // This token will be automatically added to future requests by the interceptor
+    if (response.data.sessionToken) {
       setSession(response.data.sessionToken);
-      return response.data;
+      return { success: true };
     } else {
-      throw new Error('Invalid authentication response');
+      throw new Error('No session token received');
     }
   } catch (error) {
-    // Always clear session on auth failure
-    // This prevents invalid tokens from persisting
+    console.error('Authentication error:', error);
     clearSession();
-    throw error; // Re-throw to be handled by the component
+    throw error;
+  }
+};
+
+// Add validation function to check if current session is valid
+export const validateSession = async () => {
+  try {
+    const token = getSession();
+    if (!token) {
+      return { valid: false };
+    }
+
+    const response = await api.post('/api/auth/validate', null, {
+      headers: {
+        'x-session-token': token
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Session validation error:', error);
+    clearSession();
+    return { valid: false };
   }
 };
 
@@ -83,5 +91,20 @@ export default api; // Single instance exported
 // Encapsulates the meal plan generation API call
 export const generateMealPlan = async (data) => {
   const response = await api.post('/api/generate-meal-plan', data);
+  return response.data;
+};
+
+export const generateOpenAIMealPlan = async (preferences) => {
+  const response = await api.post('/api/generate-openai-plan', preferences);
+  return response.data;
+};
+
+export const searchFatSecretRecipes = async (preferences) => {
+  const response = await api.post('/api/search-fatsecret-recipes', preferences);
+  return response.data;
+};
+
+export const compareMealPlans = async (preferences) => {
+  const response = await api.post('/api/compare-meal-plans', preferences);
   return response.data;
 }; 

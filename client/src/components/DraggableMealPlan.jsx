@@ -45,7 +45,7 @@ const DraggableMealPlan = ({ mealPlan: initialMealPlan }) => {
     // DragDropContext provides drag and drop functionality to its children
     <DragDropContext onDragEnd={handleDragEnd}>
       {/* Grid layout for days */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Map through each day in the meal plan */}
         {meals.days.map((day) => (
           <div key={day.day} className="bg-[#252B3B]/50 p-4 rounded-xl">
@@ -71,9 +71,8 @@ const DraggableMealPlan = ({ mealPlan: initialMealPlan }) => {
                     <h4 className="capitalize text-gray-400 mb-2">{mealType}</h4>
                     {/* Draggable component makes its children draggable */}
                     <Draggable
-                      draggableId={`${day.day}-${mealType}-${meal.name}`}
+                      draggableId={`${day.day}-${mealType}`}
                       index={0} // Required for ordering, single item so index is 0
-                      key={`${day.day}-${mealType}-${meal.name}`}
                     >
                       {/* Another render props pattern for draggable items */}
                       {(provided, snapshot) => (
@@ -89,8 +88,9 @@ const DraggableMealPlan = ({ mealPlan: initialMealPlan }) => {
                         >
                           <h5 className="font-medium mb-2">{meal.name}</h5>
                           <p className="text-sm text-gray-400">
-                            {meal.ingredients.length} ingredients
+                            {meal.ingredients.length} ingredients • {meal.difficulty}
                           </p>
+                          <p className="text-xs text-gray-500 mt-1">{meal.prepTime}</p>
                         </div>
                       )}
                     </Draggable>

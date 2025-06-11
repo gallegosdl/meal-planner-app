@@ -3,10 +3,10 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const ReceiptParser = require('./services/receiptParser');
-const MealPlanGenerator = require('./services/mealPlanGenerator');
 const crypto = require('crypto');
 const instacartRoutes = require('./routes/instacart');
 const recipesRouter = require('./routes/recipes');
+const apiRoutes = require('./routes/api');
 const OpenAI = require('openai');
 require('dotenv').config();
 
@@ -193,41 +193,25 @@ app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
   }
 });
 
-// Meal plan generation endpoint
-app.post('/api/generate-meal-plan', async (req, res) => {
-  const apiKey = getApiKey(req);
-  if (!apiKey) {
-    return res.status(401).json({ error: 'Invalid or expired session' });
-  }
-
-  try {
-    const mealPlanGenerator = new MealPlanGenerator(apiKey);
-    const mealPlan = await mealPlanGenerator.generateMealPlan(req.body);
-    res.json(mealPlan);
-  } catch (error) {
-    console.error('Error generating meal plan:', error);
-    res.status(500).json({ 
-      error: 'Failed to generate meal plan',
-      details: error.message 
-    });
-  }
-});
+// Mount routes
+app.use('/api', apiRoutes);
+app.use('/api/instacart', instacartRoutes);
+app.use('/api/recipes', recipesRouter);
 
 // Authentication endpoint with OpenAI validation
 app.post('/api/auth', async (req, res) => {
   const { apiKey } = req.body;
   
+  if (!apiKey) {
+    return res.status(400).json({ error: 'API key is required' });
+  }
+
   try {
     // Create an OpenAI instance with the provided key
     const openai = new OpenAI({ apiKey });
     
     // Test the API key with a minimal API call
-    // This verifies the key is valid without consuming much quota
-    await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "system", content: "Test" }],
-      max_tokens: 1
-    });
+    await openai.models.list();
 
     // If we get here, the key is valid
     // Generate a unique session token
@@ -252,14 +236,37 @@ app.post('/api/auth', async (req, res) => {
   }
 });
 
+// Validate existing session
+app.post('/api/auth/validate', (req, res) => {
+  const token = req.headers['x-session-token'];
+  const session = sessions.get(token);
+  
+  if (!session) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
+  
+  if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+    sessions.delete(token);
+    return res.status(401).json({ error: 'Session expired' });
+  }
+  
+  res.json({ valid: true });
+});
+
+// Logout endpoint
+app.post('/api/auth/logout', (req, res) => {
+  const token = req.headers['x-session-token'];
+  if (token) {
+    sessions.delete(token);
+  }
+  res.json({ success: true });
+});
+
 // Add route logging
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
   next();
 });
-
-app.use('/api/instacart', instacartRoutes);
-app.use('/api/recipes', recipesRouter);
 
 // Add near the top of your routes
 app.get('/health', (req, res) => {

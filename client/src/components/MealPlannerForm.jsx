@@ -96,9 +96,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
   const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
 
-  const [storeComparison, setStoreComparison] = useState(null);
-  const [isComparingStores, setIsComparingStores] = useState(false);
-
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState(1);
@@ -361,28 +358,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
     }
   };
 
-  const handleCompareStores = async () => {
-    try {
-      setIsComparingStores(true);
-      
-      const response = await api.post('/api/instacart/compare-stores', {
-        shoppingListUrl: listUrl,
-        stores: ['Smiths', 'Albertsons', 'Walmart']
-      });
-
-      if (response.data.success) {
-        setStoreComparison(response.data.data);
-      } else {
-        throw new Error('Failed to compare stores');
-      }
-    } catch (error) {
-      console.error('Store comparison failed:', error);
-      toast.error('Failed to compare store prices');
-    } finally {
-      setIsComparingStores(false);
-    }
-  };
-
   const handleGenerateMealPlan = async () => {
     try {
       setIsLoading(true);
@@ -412,10 +387,9 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
       const response = await api.post('/api/generate-meal-plan', payload);
-      console.log('Server response:', response.data);
+      console.log('Server response:', response);
       setMealPlan(response.data);
       
-      // Add success toast notification
       toast.success('Meal Plan Available! Scroll down to view your Personalized Plan.', {
         duration: 4000,
         icon: '📋',
@@ -425,16 +399,10 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           border: '1px solid rgba(255,255,255,0.1)',
         },
       });
-      
-      // After meal plan is generated, compare stores
-      if (response.shoppingListUrl) {
-        await handleCompareStores();
-      }
     } catch (error) {
       console.error('Error details:', error.response?.data);
-      setError(error.response?.data?.message || 'Failed to generate meal plan');
+      setError(error.response?.data?.error || 'Failed to generate meal plan');
       
-      // Add error toast notification
       toast.error('Failed to generate meal plan. Please try again.', {
         duration: 4000,
         style: {
@@ -457,28 +425,29 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       try {
         // Attempt to authenticate with the API key
         await authenticate(value);
-        // Show success message using toast
+        localStorage.setItem('openai_api_key', value);
         toast.success('API key validated successfully');
         
       } catch (error) {
         // Handle different error scenarios with specific messages
+        let errorMessage;
         if (error.response?.status === 401) {
-          // 401: Unauthorized - Invalid API key
-          setError('Invalid API key. Please check your key and try again.');
+          errorMessage = 'Invalid API key. Please check your key and try again.';
         } else if (error.response?.status === 429) {
-          // 429: Too Many Requests - Rate limiting
-          setError('Too many attempts. Please wait a moment and try again.');
+          errorMessage = 'Too many attempts. Please wait a moment and try again.';
         } else {
-          // Generic error for other cases
-          setError('Failed to validate API key. Please try again later.');
+          errorMessage = 'Failed to validate API key. Please try again later.';
         }
+        setError(errorMessage);
+        toast.error(errorMessage);
         console.error('Authentication error:', error);
+        localStorage.removeItem('openai_api_key');
       } finally {
-        // Always reset loading state
         setIsAuthenticating(false);
       }
     } else {
-      // If value is empty, clear the session
+      // If value is empty, clear everything
+      localStorage.removeItem('openai_api_key');
       clearSession();
     }
   };
@@ -986,13 +955,15 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
           </div>
         </div>
 
-        <button
-          onClick={handleGenerateMealPlan}
-          className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow hover:from-blue-600 hover:to-purple-600 transition-all"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Generating...' : 'Generate Your Meal Plan'}
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={handleGenerateMealPlan}
+            className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow hover:from-blue-600 hover:to-purple-600 transition-all"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Generating...' : 'Generate Your Meal Plan'}
+          </button>
+        </div>
 
         {mealPlan && (
           <div className="mt-8 space-y-6">
@@ -1049,12 +1020,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                 </div>
               </div>
             </div>
-
-            {/* Add store comparison */}
-            <StoreComparison 
-              comparisonData={storeComparison}
-              isLoading={isComparingStores}
-            />
 
             {/* View content based on selected mode */}
             {viewMode === 'tabs' && (
@@ -1131,55 +1096,10 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
               <RecipeList recipes={mealPlan.recipes} />
             )}
             {viewMode === 'tiles' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Draggable tiles implementation */}
-                {mealPlan.days.map((day, dayIndex) => (
-                  <div 
-                    key={dayIndex}
-                    className="bg-[#2A3142] p-4 rounded-lg shadow-lg"
-                    draggable="true"
-                  >
-                    <h3 className="text-lg font-semibold mb-3">Day {dayIndex + 1}</h3>
-                    {Object.entries(day.meals).map(([mealType, meal]) => (
-                      <div 
-                        key={mealType}
-                        className="mb-2 p-2 bg-[#374151] rounded"
-                        draggable="true"
-                      >
-                        <h4 className="capitalize text-sm font-medium">{mealType}</h4>
-                        <p className="text-gray-300">{meal.recipe.title}</p>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+              <DraggableMealPlan mealPlan={mealPlan} />
             )}
             {viewMode === 'calendar' && (
-              <div className="grid grid-cols-7 gap-4">
-                {/* Calendar view implementation */}
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center font-semibold p-2">
-                    {day}
-                  </div>
-                ))}
-                {mealPlan.days.map((day, dayIndex) => (
-                  <div 
-                    key={dayIndex}
-                    className="min-h-[200px] bg-[#2A3142] p-4 rounded-lg"
-                  >
-                    <h3 className="text-sm font-semibold mb-2">Day {dayIndex + 1}</h3>
-                    {Object.entries(day.meals).map(([mealType, meal]) => (
-                      <div 
-                        key={mealType}
-                        className="mb-2 p-2 bg-[#374151] rounded text-sm"
-                      >
-                        <span className="capitalize text-xs text-gray-400">{mealType}</span>
-                        <p className="truncate">{meal.recipe.title}</p>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+              <CalendarMealPlan mealPlan={mealPlan} />
             )}
           </div>
         )}

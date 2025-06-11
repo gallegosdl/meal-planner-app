@@ -51,16 +51,19 @@ router.post('/parse-receipt', upload.single('receipt'), async (req, res) => {
   }
 });
 
+// Generate meal plan route with session-based auth
 router.post('/generate-meal-plan', async (req, res) => {
-  try {
-    const { ingredients } = req.body;
-    if (!ingredients || !Array.isArray(ingredients)) {
-      return res.status(400).json({ error: 'Invalid ingredients list' });
-    }
+  // Get API key from session
+  const token = req.headers['x-session-token'];
+  const session = req.app.get('sessions').get(token);
+  
+  if (!session?.apiKey) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
 
-    const generator = new MealPlanGenerator();
-    const mealPlan = await generator.generateMealPlan(ingredients);
-    
+  try {
+    const generator = new MealPlanGenerator(session.apiKey);
+    const mealPlan = await generator.generateMealPlan(req.body);
     res.json(mealPlan);
   } catch (error) {
     console.error('Meal plan generation error:', error);
