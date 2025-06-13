@@ -454,18 +454,22 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     }
   }, [user]);
 
-  // Update member name when user data is available
+  // Update member name and photo when user data is available
   useEffect(() => {
     if (user?.name) {
       setFormData(prev => ({
         ...prev,
         householdMembers: [
-          { id: 1, name: user.name, photo: null },
+          { 
+            id: 1, 
+            name: user.name, 
+            photo: user.picture || null  // Use Google profile picture
+          },
           ...prev.householdMembers.slice(1)
         ]
       }));
     }
-  }, [user?.name]);
+  }, [user?.name, user?.picture]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
