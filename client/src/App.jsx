@@ -1,15 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MealPlannerForm from './components/MealPlannerForm';
 import RecipeList from './components/RecipeList';
+import WelcomeModal from './components/WelcomeModal';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('planner'); // 'planner' or 'recipes'
+  const [activeTab, setActiveTab] = useState('planner');
   const [generatedMealPlan, setGeneratedMealPlan] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [user, setUser] = useState(null);
+
+  // Check if welcome modal should be shown and verify session
+  useEffect(() => {
+    const shouldShow = !localStorage.getItem('dontShowWelcome');
+    setShowWelcome(shouldShow);
+
+    // Verify session on load
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/auth/verify-session', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Session verification failed:', error);
+      }
+    };
+
+    checkSession();
+  }, []);
 
   const handleMealPlanGenerated = (mealPlan) => {
     setGeneratedMealPlan(mealPlan);
-    // Don't auto-switch to recipes tab anymore
-    // setActiveTab('recipes');
+  };
+
+  const handleWelcomeClose = () => {
+    setShowWelcome(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      setUser(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   return (
@@ -19,27 +60,47 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <h1 className="text-xl font-bold">Meal Planner AI</h1>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setActiveTab('planner')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'planner'
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                Meal Planner
-              </button>
-              <button
-                onClick={() => setActiveTab('recipes')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'recipes'
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                Recipe Library
-              </button>
+            <div className="flex items-center space-x-4">
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setActiveTab('planner')}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    activeTab === 'planner'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  Meal Planner
+                </button>
+                <button
+                  onClick={() => setActiveTab('recipes')}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    activeTab === 'recipes'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  Recipe Library
+                </button>
+              </div>
+              {user ? (
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-300">{user.email}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowWelcome(true)}
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Sign In
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -56,6 +117,11 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Welcome Modal */}
+      {showWelcome && (
+        <WelcomeModal onClose={handleWelcomeClose} />
+      )}
     </div>
   );
 }

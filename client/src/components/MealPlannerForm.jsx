@@ -19,7 +19,6 @@ import SendToInstacartButton from './SendToInstacartButton';
 import RecipeList from './RecipeList';
 import { toast } from 'react-hot-toast';
 import StoreComparison from './StoreComparison';
-import WelcomeModal from './WelcomeModal';
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 
 // Register ChartJS components
@@ -96,8 +95,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
   const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
 
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-
   const [activeTab, setActiveTab] = useState(1);
   const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', 'calendar', or 'recipes'
 
@@ -124,20 +121,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
       'Pescatarian',
       'Nut-Free'
     ]
-  };
-
-  useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
-    if (!hasSeenWelcome) {
-      setShowWelcomeModal(true);
-    }
-  }, []);
-
-  const handleCloseWelcomeModal = (dontShowAgain) => {
-    if (dontShowAgain) {
-      localStorage.setItem('hasSeenWelcome', 'true');
-    }
-    setShowWelcomeModal(false);
   };
 
   const handleChange = (field, value) => {
@@ -454,9 +437,6 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
-      {showWelcomeModal && (
-        <WelcomeModal onClose={handleCloseWelcomeModal} />
-      )}
       <div className="max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -1054,6 +1034,16 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
                             {mealType}: {meal.name}
                           </h4>
                           <div className="ml-4 space-y-4">
+                            {mealPlan.macros && mealPlan.macros[`day${day.day}`] && mealPlan.macros[`day${day.day}`][mealType] && (
+                              <div className="bg-[#2A3142] rounded-lg p-3 mb-4">
+                                <div className="grid grid-cols-4 gap-2 text-sm">
+                                  <div className="text-blue-400">Calories: {mealPlan.macros[`day${day.day}`][mealType].calories}</div>
+                                  <div className="text-green-400">Protein: {mealPlan.macros[`day${day.day}`][mealType].protein_g}g</div>
+                                  <div className="text-yellow-400">Carbs: {mealPlan.macros[`day${day.day}`][mealType].carbs_g}g</div>
+                                  <div className="text-red-400">Fat: {mealPlan.macros[`day${day.day}`][mealType].fat_g}g</div>
+                                </div>
+                              </div>
+                            )}
                             <div>
                               <h5 className="font-medium mb-2">Ingredients:</h5>
                               <ul className="list-disc ml-4 space-y-1">

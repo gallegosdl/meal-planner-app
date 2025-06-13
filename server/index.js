@@ -7,29 +7,18 @@ const crypto = require('crypto');
 const instacartRoutes = require('./routes/instacart');
 const recipesRouter = require('./routes/recipes');
 const apiRoutes = require('./routes/api');
+const authRoutes = require('./routes/auth');
+const cookieParser = require('cookie-parser');
 const OpenAI = require('openai');
 require('dotenv').config();
 
 const app = express();
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://meal-planner-frontend-woan.onrender.com';
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://meal-planner-frontend-woan.onrender.com'
-];
 // Middleware
 app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
+  origin: true, // Allow all origins in development
   credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
     'x-openai-key',
@@ -37,11 +26,15 @@ app.use(cors({
     'Authorization'
   ]
 }));
-app.use(express.json());
 
-// Add after the CORS middleware
+// Body parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Add request logging
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'no origin'}`);
   next();
 });
 
@@ -194,9 +187,10 @@ app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
 });
 
 // Mount routes
-app.use('/api', apiRoutes);
-app.use('/api/instacart', instacartRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/recipes', recipesRouter);
+app.use('/api/instacart', instacartRoutes);
+app.use('/api', apiRoutes);
 
 // Authentication endpoint with OpenAI validation
 app.post('/api/auth', async (req, res) => {
@@ -288,4 +282,10 @@ app.options('/api/parse-receipt', cors());
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 }); 

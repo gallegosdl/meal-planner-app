@@ -106,18 +106,50 @@ CREATE TABLE meal_logs (
   FOREIGN KEY (recipe_id) REFERENCES recipes(id)
 );
 
--- User Authentication and Profile
+-- Users table - Storing only essential user data
 CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  google_id TEXT UNIQUE,
   email TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  avatar_url TEXT,
+  oauth_sub_id TEXT UNIQUE,  -- Google OAuth subject ID
+  oauth_provider TEXT,       -- 'google', 'github', etc.
+  email_verified BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  last_login TIMESTAMP
 );
 
--- User Profile Settings
+-- Active sessions
+CREATE TABLE sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  token TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Login audit trail
+CREATE TABLE login_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  success BOOLEAN NOT NULL,
+  ip_address TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- User preferences (app-specific, non-PII data)
+CREATE TABLE user_preferences (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER UNIQUE NOT NULL,
+  theme TEXT DEFAULT 'light',
+  language TEXT DEFAULT 'en',
+  notifications_enabled BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- User Authentication and Profile
 CREATE TABLE user_profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -323,10 +355,15 @@ CREATE TABLE progress_logs (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_user_email ON users(email);
-CREATE INDEX idx_user_google_id ON users(google_id);
+CREATE INDEX idx_users_oauth_sub ON users(oauth_sub_id);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE INDEX idx_sessions_expiry ON sessions(expires_at);
+CREATE INDEX idx_login_history_user ON login_history(user_id, created_at);
 CREATE INDEX idx_recipe_category ON recipes(category);
 CREATE INDEX idx_recipe_cuisine ON recipes(cuisine_type);
 CREATE INDEX idx_inventory_expiry ON inventory_items(expiry_date);
 CREATE INDEX idx_progress_date ON progress_logs(log_date);
-CREATE INDEX idx_weight_date ON weight_history(measurement_date); 
+CREATE INDEX idx_weight_date ON weight_history(measurement_date);
+CREATE INDEX idx_auth_logs_user_created ON login_history(user_id, created_at);
+CREATE INDEX idx_security_events_user_severity ON login_history(user_id, oauth_sub_id); 

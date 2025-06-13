@@ -32,7 +32,7 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preparedData) {
-    return `Create a TWO day meal plan with 3 meals per day. Ensure recipes are detailed and include all ingredients and instructions.
+    return `Create a TWO day meal plan with 3 meals per day. Ensure recipes are detailed and include all ingredients and instructions RETUN MACRO NUTRITIONAL INFORMATION in grams. 
 
 Return ONLY valid JSON matching this EXACT structure:
 {
@@ -68,7 +68,7 @@ Requirements:
 - Cuisine focus: ${preparedData.cuisinePreferences}
 - Use ingredients: ${preparedData.likes}
 - Avoid: ${preparedData.dislikes}
-- Target: ${preparedData.macros.protein}% protein
+- Target Macros: ${preparedData.macros.protein}% protein, ${preparedData.macros.carbs}% carbs, ${preparedData.macros.fat}% fat
 - Budget: $${preparedData.budget} per day
 - Keep all text fields under 200 characters
 - No line breaks in text fields
@@ -79,7 +79,7 @@ Requirements:
     try {
       const preparedData = this.preparePreferences(preferences);
       const prompt = this.buildPrompt(preparedData);
-      const systemMessage = "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for TWO days of meals. Ensure variety between days.";
+      const systemMessage = "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for TWO days of meals. Return MACRO NUTRITIONAL INFORMATION. Ensure variety between days.";
 
       // Detailed token counting
       const promptTokens = encode(prompt).length;
