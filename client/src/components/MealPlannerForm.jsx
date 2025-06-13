@@ -460,7 +460,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           </div>
           {user && (
             <div className="flex items-center gap-4">
-              <span className="text-gray-400">{user.email}</span>
+              <span className="text-gray-400">{user.name}</span>
             </div>
           )}
         </div>
