@@ -3,19 +3,22 @@ const sequelize = require('../config/database');
 
 const UserProfile = sequelize.define('UserProfile', {
   id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
+  },
+  name: {
+    type: DataTypes.STRING
   },
   googleId: {
     type: DataTypes.STRING,
     unique: true
   },
-  email: {
-    type: DataTypes.STRING,
-    unique: true
-  },
-  name: DataTypes.STRING,
   weeklyBudget: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.00
@@ -53,6 +56,17 @@ const UserProfile = sequelize.define('UserProfile', {
       fat: null
     }
   }
+}, {
+  tableName: 'users',
+  schema: 'public',
+  timestamps: false
 });
+
+UserProfile.associate = (models) => {
+  UserProfile.hasMany(models.Recipe, {
+    foreignKey: 'userId',
+    as: 'recipes'
+  });
+};
 
 module.exports = UserProfile; 

@@ -1,5 +1,5 @@
 const { TwitterApi } = require('twitter-api-v2');
-const { UserProfile, Recipe } = require('../models');
+const { User, Recipe } = require('../models');
 
 class SocialSharing {
   constructor() {
@@ -14,9 +14,13 @@ class SocialSharing {
   async shareRecipe(userId, recipeId) {
     try {
       const recipe = await Recipe.findByPk(recipeId);
-      const user = await UserProfile.findByPk(userId);
+      const user = await User.findByPk(userId);
       
-      const tweetText = this.formatRecipeTweet(recipe, user);
+      if (!recipe) {
+        throw new Error('Recipe not found');
+      }
+
+      const tweetText = this.formatRecipeTweet(recipe);
       
       // Create tweet with recipe image if available
       if (recipe.imageUrl) {
@@ -36,37 +40,27 @@ class SocialSharing {
     }
   }
 
-  formatRecipeTweet(recipe, user) {
-    const savings = this.calculateSavings(recipe);
+  formatRecipeTweet(recipe) {
     const hashtags = this.generateHashtags(recipe);
     
-    return `🍳 Just made ${recipe.name} using my meal planner!
-${savings ? `💰 Saved ${savings} on ingredients` : ''}
-🔗 Get the recipe: ${process.env.APP_URL}/recipes/${recipe.id}
+    return `🍳 Just made ${recipe.name}! Ready in ${recipe.prep_time}
+Difficulty: ${recipe.difficulty}
 ${hashtags}`;
-  }
-
-  calculateSavings(recipe) {
-    // Calculate savings based on price comparison data
-    return null; // Implement actual calculation
   }
 
   generateHashtags(recipe) {
     const tags = ['MealPlanner', 'Cooking'];
     
-    // Add diet-specific tags
-    if (recipe.isVegetarian) tags.push('Vegetarian');
-    if (recipe.isVegan) tags.push('Vegan');
-    if (recipe.isGlutenFree) tags.push('GlutenFree');
-    
-    // Add meal type tags
-    if (recipe.type) tags.push(recipe.type);
+    // Add difficulty tag
+    if (recipe.difficulty) {
+      tags.push(recipe.difficulty.replace(/\s+/g, ''));
+    }
     
     return tags.map(tag => `#${tag}`).join(' ');
   }
 
   async shareSavings(userId, savingsData) {
-    const user = await UserProfile.findByPk(userId);
+    const user = await User.findByPk(userId);
     const tweetText = this.formatSavingsTweet(savingsData, user);
     
     await this.twitterClient.v2.tweet(tweetText);
