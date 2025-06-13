@@ -435,6 +435,20 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     }
   };
 
+  // Add logout handler
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout');
+      clearSession();
+      // Show welcome modal by clearing localStorage
+      localStorage.removeItem('dontShowWelcome');
+      // Refresh the page to reset the app state
+      window.location.reload();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   // Update preferences when user data is available
   useEffect(() => {
     if (user) {
@@ -483,15 +497,25 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
             <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
           </div>
           {user && (
-            <div className="flex items-center gap-2 bg-[#2A3142] px-4 py-2 rounded-lg border border-[#ffffff1a]">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-[#2A3142] px-4 py-2 rounded-lg border border-[#ffffff1a] hover:bg-[#313d4f] transition-colors group"
+            >
               <svg className="w-5 h-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
               </svg>
-              <div className="flex flex-col">
+              <div className="flex flex-col items-start">
                 <span className="text-gray-400 text-xs">Logged in as</span>
-                <span className="text-white font-medium">{user.name}</span>
+                <span className="text-white font-medium group-hover:text-blue-400 transition-colors">{user.name}</span>
               </div>
-            </div>
+              <svg 
+                className="w-4 h-4 text-gray-400 group-hover:text-blue-400 transition-colors ml-2" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd"/>
+              </svg>
+            </button>
           )}
         </div>
 

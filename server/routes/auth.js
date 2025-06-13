@@ -341,20 +341,14 @@ router.post('/google', async (req, res) => {
 
     // Return user data
     console.log('Sending response to client:', { 
-      id: user.id, 
-      email: userData.email,
-      name: userData.name,
-      oauth_sub_id: userData.id,
-      picture: userData.picture,
+      ...userData,
+      id: user.id,
       sessionToken 
     });
     
     res.json({
+      ...userData,
       id: user.id,
-      email: userData.email,
-      name: userData.name,
-      oauth_sub_id: userData.id,
-      picture: userData.picture,
       sessionToken
     });
 
@@ -487,6 +481,79 @@ router.get('/check-users', async (req, res) => {
   } catch (error) {
     console.error('Error checking users:', error);
     res.status(500).json({ error: 'Failed to check users' });
+  }
+});
+
+// Handle session creation for Google OAuth users
+router.post('/session', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { oauth_sub_id, email } = req.body;
+    
+    if (!oauth_sub_id || !email) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    await client.query('BEGIN');
+
+    // Check if user exists
+    let result = await client.query(
+      'SELECT * FROM users WHERE oauth_sub_id = $1 OR email = $2',
+      [oauth_sub_id, email]
+    );
+
+    let user;
+    if (result.rows.length === 0) {
+      // Create new user with minimal info
+      result = await client.query(
+        `INSERT INTO users (
+          email,
+          oauth_sub_id,
+          oauth_provider,
+          email_verified,
+          created_at,
+          last_login
+        ) VALUES ($1, $2, 'google', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
+        RETURNING id`,
+        [email, oauth_sub_id]
+      );
+      user = result.rows[0];
+    } else {
+      user = result.rows[0];
+      // Update last login
+      await client.query(
+        `UPDATE users 
+         SET last_login = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [user.id]
+      );
+    }
+
+    // Generate session token
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    
+    // Store session
+    await client.query(
+      `INSERT INTO sessions (
+        user_id,
+        token,
+        created_at,
+        expires_at
+      ) VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + interval '24 hours')`,
+      [user.id, sessionToken]
+    );
+
+    await client.query('COMMIT');
+
+    // Return only the session token
+    res.json({ sessionToken });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Session creation error:', error);
+    res.status(500).json({ error: 'Failed to create session' });
+  } finally {
+    client.release();
   }
 });
 
