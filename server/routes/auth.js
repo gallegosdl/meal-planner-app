@@ -256,6 +256,7 @@ router.post('/google', async (req, res) => {
           oauth_provider,
           email_verified,
           created_at,
+          name,
           last_login
         ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
         RETURNING *`,
@@ -335,12 +336,19 @@ router.post('/google', async (req, res) => {
     });
 
     // Return user data
-    console.log('Sending response to client:', { id: user.id, email: user.email, name: user.name, oauth_sub_id: user.oauth_sub_id, sessionToken });
+    console.log('Sending response to client:', { 
+      id: user.id, 
+      email: userData.email,
+      name: userData.name,
+      oauth_sub_id: userData.id,
+      sessionToken 
+    });
+    
     res.json({
       id: user.id,
-      email: user.email,
-      oauth_sub_id: user.oauth_sub_id,
-      name: user.name,
+      email: userData.email,
+      name: userData.name,
+      oauth_sub_id: userData.id,
       sessionToken
     });
 
