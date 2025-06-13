@@ -345,6 +345,7 @@ router.post('/google', async (req, res) => {
       email: userData.email,
       name: userData.name,
       oauth_sub_id: userData.id,
+      picture: userData.picture,
       sessionToken 
     });
     
@@ -353,6 +354,7 @@ router.post('/google', async (req, res) => {
       email: userData.email,
       name: userData.name,
       oauth_sub_id: userData.id,
+      picture: userData.picture,
       sessionToken
     });
 
