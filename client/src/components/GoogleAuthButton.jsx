@@ -1,25 +1,21 @@
 import React from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
+import api from '../services/api';
 
 const GoogleAuthButton = ({ onSuccess, onError }) => {
   const login = useGoogleLogin({
     onSuccess: async (response) => {
       try {
         // Send the credential to your backend
-        const result = await fetch('/api/auth/google', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ credential: response.credential }),
-          credentials: 'include', // Important for cookies
+        const result = await api.post('/api/auth/google', {
+          credential: response.credential
         });
 
-        if (!result.ok) {
+        if (result.status !== 200) {
           throw new Error('Authentication failed');
         }
 
-        const userData = await result.json();
+        const userData = result.data;
         onSuccess(userData);
       } catch (error) {
         console.error('Login error:', error);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import SignupModal from './SignupModal';
+import api from '../services/api';
 
 const WelcomeModal = ({ onClose }) => {
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -15,26 +16,17 @@ const WelcomeModal = ({ onClose }) => {
         setError(null);
 
         // Send the credential to your backend
-        const result = await fetch('/api/auth/google', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ 
-            credential: response.access_token
-          }),
-          credentials: 'include', // Important for cookies
-          mode: 'cors' // Explicitly set CORS mode
+        const result = await api.post('/api/auth/google', {
+          credential: response.access_token
         });
 
-        if (!result.ok) {
-          const errorData = await result.json();
+        if (result.status !== 200) {
+          const errorData = result.data;
           console.error('Server auth error:', errorData);
           throw new Error(errorData.error || 'Authentication failed');
         }
 
-        const authData = await result.json();
+        const authData = result.data;
         console.log('Login successful:', authData);
         
         if (dontShowAgain) {
