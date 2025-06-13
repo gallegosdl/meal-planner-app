@@ -3,6 +3,8 @@ import axios from 'axios';
 // Get API URL from environment variables or use localhost as fallback
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
+console.log('API_URL in use:', API_URL);
+
 // Creates ONE reusable axios instance for the entire app
 // This ensures consistent configuration and interceptors across all API calls
 const api = axios.create({
