@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const UserProfile = sequelize.define('UserProfile', {
+const User = sequelize.define('User', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -15,9 +15,12 @@ const UserProfile = sequelize.define('UserProfile', {
   name: {
     type: DataTypes.STRING
   },
-  googleId: {
+  oauth_sub_id: {
     type: DataTypes.STRING,
     unique: true
+  },
+  oauth_provider: {
+    type: DataTypes.STRING
   },
   weeklyBudget: {
     type: DataTypes.DECIMAL(10, 2),
@@ -62,11 +65,11 @@ const UserProfile = sequelize.define('UserProfile', {
   timestamps: false
 });
 
-UserProfile.associate = (models) => {
-  UserProfile.hasMany(models.Recipe, {
+User.associate = (models) => {
+  User.hasMany(models.Recipe, {
     foreignKey: 'userId',
     as: 'recipes'
   });
 };
 
-module.exports = UserProfile; 
+module.exports = User; 
