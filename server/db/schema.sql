@@ -366,4 +366,10 @@ CREATE INDEX idx_inventory_expiry ON inventory_items(expiry_date);
 CREATE INDEX idx_progress_date ON progress_logs(log_date);
 CREATE INDEX idx_weight_date ON weight_history(measurement_date);
 CREATE INDEX idx_auth_logs_user_created ON login_history(user_id, created_at);
-CREATE INDEX idx_security_events_user_severity ON login_history(user_id, oauth_sub_id); 
+CREATE INDEX idx_security_events_user_severity ON login_history(user_id, oauth_sub_id);
+
+-- Add new columns to users table
+ALTER TABLE users
+ADD COLUMN oauth_sub_id VARCHAR(255),
+ADD COLUMN oauth_provider VARCHAR(50),
+ADD COLUMN email_verified BOOLEAN DEFAULT false; 
