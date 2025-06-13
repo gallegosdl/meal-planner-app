@@ -281,22 +281,26 @@ router.post('/google', async (req, res) => {
           `UPDATE users 
            SET oauth_sub_id = $1,
                oauth_provider = $2,
+               name = $3,
                last_login = CURRENT_TIMESTAMP
-           WHERE id = $3`,
-          [userData.id, 'google', user.id]
+           WHERE id = $4`,
+          [userData.id, 'google', userData.name, user.id]
         );
         user.oauth_sub_id = userData.id;
         user.oauth_provider = 'google';
+        user.name = userData.name;
       } else {
-        // Just update login time
+        // Update user info and login time
         await client.query(
           `UPDATE users 
-           SET last_login = CURRENT_TIMESTAMP
+           SET last_login = CURRENT_TIMESTAMP,
+               name = $2
            WHERE id = $1`,
-          [user.id]
+          [user.id, userData.name]
         );
+        user.name = userData.name;
       }
-      console.log('Updated existing user:', { id: user.id, email: user.email, oauth_sub_id: user.oauth_sub_id });
+      console.log('Updated existing user:', { id: user.id, email: user.email, name: user.name, oauth_sub_id: user.oauth_sub_id });
     }
 
     // Log the login attempt
