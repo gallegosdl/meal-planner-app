@@ -14,9 +14,12 @@ function App() {
     setShowWelcome(shouldShow);
   }, []);
 
-  const handleWelcomeClose = (dontShowAgain) => {
+  const handleWelcomeClose = (dontShowAgain, userData) => {
     if (dontShowAgain) {
       localStorage.setItem('dontShowWelcome', 'true');
+    }
+    if (userData) {
+      setUser(userData);
     }
     setShowWelcome(false);
   };
@@ -43,13 +46,6 @@ function App() {
 
   return (
     <div className="App">
-      <MealPlannerForm />
-      {showWelcome && (
-        <WelcomeModal 
-          onClose={handleWelcomeClose}
-          onGoogleLogin={handleGoogleLogin}
-        />
-      )}
       <Toaster 
         position="top-right"
         toastOptions={{
@@ -72,6 +68,13 @@ function App() {
           },
         }}
       />
+      {showWelcome && (
+        <WelcomeModal 
+          onClose={handleWelcomeClose}
+          onGoogleLogin={handleGoogleLogin}
+        />
+      )}
+      <MealPlannerForm user={user} />
     </div>
   );
 }

@@ -26,13 +26,13 @@ const WelcomeModal = ({ onClose }) => {
           throw new Error(errorData.error || 'Authentication failed');
         }
 
-        const authData = result.data;
-        console.log('Login successful:', authData);
+        const userData = result.data;
+        console.log('Login successful:', userData);
         
         if (dontShowAgain) {
           localStorage.setItem('dontShowWelcome', 'true');
         }
-        onClose();
+        onClose(dontShowAgain, userData);
       } catch (error) {
         console.error('Login error:', error);
         setError(error.message || 'Failed to authenticate. Please try again.');

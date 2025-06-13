@@ -33,7 +33,7 @@ ChartJS.register(
   PieController
 );
 
-const MealPlannerForm = ({ onMealPlanGenerated }) => {
+const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   const [preferences, setPreferences] = useState({
     preferences: {
       dietGoals: [], // From diet type checkboxes
@@ -435,13 +435,34 @@ const MealPlannerForm = ({ onMealPlanGenerated }) => {
     }
   };
 
+  // Update preferences when user data is available
+  useEffect(() => {
+    if (user) {
+      // Set initial preferences based on user data
+      setPreferences(prev => ({
+        ...prev,
+        email: user.email,
+        userId: user.id
+      }));
+    }
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
       <div className="max-w-[1400px] mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Meal Planner AI</h1>
-          <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+              Meal Planner AI
+            </h1>
+            <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
+          </div>
+          {user && (
+            <div className="flex items-center gap-4">
+              <span className="text-gray-400">{user.email}</span>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
