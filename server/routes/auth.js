@@ -193,13 +193,14 @@ router.post('/login', async (req, res) => {
 
 // Handle Google OAuth login/signup
 router.post('/google', async (req, res) => {
+  console.log('POST /api/auth/google called');
   const client = await pool.connect();
   try {
     const { credential: accessToken } = req.body;
-    
-    console.log('Received auth request with access token:', accessToken ? 'present' : 'missing');
+    console.log('Request body:', req.body);
     
     if (!accessToken) {
+      console.log('Missing access token in request');
       return res.status(400).json({ error: 'Missing access token' });
     }
 
@@ -211,23 +212,27 @@ router.post('/google', async (req, res) => {
         'Accept': 'application/json'
       }
     });
+    console.log('Google userinfo response status:', userInfoResponse.status);
 
     if (!userInfoResponse.ok) {
       console.error('Google API error:', {
         status: userInfoResponse.status,
         statusText: userInfoResponse.statusText
       });
-      throw new Error('Failed to get user info from Google');
+      return res.status(401).json({ error: 'Failed to get user info from Google' });
     }
 
-    const userData = await userInfoResponse.json();
-    console.log('Received user data:', {
-      email: userData.email,
-      sub: userData.id,  // This is the Google OAuth subject ID
-      verified: userData.verified_email
-    });
+    let userData;
+    try {
+      userData = await userInfoResponse.json();
+      console.log('Google user data:', userData);
+    } catch (error) {
+      console.error('Failed to parse Google response:', error);
+      return res.status(500).json({ error: 'Failed to parse Google response' });
+    }
 
     if (!userData.email) {
+      console.log('No email provided by Google');
       return res.status(400).json({ error: 'No email provided by Google' });
     }
 
@@ -238,6 +243,7 @@ router.post('/google', async (req, res) => {
       'SELECT * FROM users WHERE oauth_sub_id = $1 OR email = $2',
       [userData.id, userData.email]
     );
+    console.log('User lookup result:', result.rows);
 
     let user;
     if (result.rows.length === 0) {
@@ -255,9 +261,7 @@ router.post('/google', async (req, res) => {
         RETURNING *`,
         [userData.email, userData.id, 'google']
       );
-      
       user = result.rows[0];
-
       // Create default preferences
       await client.query(
         `INSERT INTO user_preferences (
@@ -267,11 +271,9 @@ router.post('/google', async (req, res) => {
         ) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [user.id]
       );
-
       console.log('Created new user:', { id: user.id, email: user.email, oauth_sub_id: user.oauth_sub_id });
     } else {
       user = result.rows[0];
-      
       // Update existing user if needed
       if (!user.oauth_sub_id) {
         await client.query(
@@ -293,12 +295,7 @@ router.post('/google', async (req, res) => {
           [user.id]
         );
       }
-      
-      console.log('Updated existing user:', { 
-        id: user.id, 
-        email: user.email, 
-        oauth_sub_id: user.oauth_sub_id 
-      });
+      console.log('Updated existing user:', { id: user.id, email: user.email, oauth_sub_id: user.oauth_sub_id });
     }
 
     // Log the login attempt
@@ -315,12 +312,7 @@ router.post('/google', async (req, res) => {
 
     // Generate session token
     const sessionToken = crypto.randomBytes(32).toString('hex');
-    console.log('Generated session token for user:', { 
-      id: user.id, 
-      email: user.email,
-      oauth_sub_id: user.oauth_sub_id 
-    });
-    
+    console.log('Generated session token for user:', { id: user.id, email: user.email, oauth_sub_id: user.oauth_sub_id });
     // Store session
     await client.query(
       `INSERT INTO sessions (
@@ -342,20 +334,21 @@ router.post('/google', async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
-    // Return minimal user data
+    // Return user data
+    console.log('Sending response to client:', { id: user.id, email: user.email, oauth_sub_id: user.oauth_sub_id, sessionToken });
     res.json({
       id: user.id,
       email: user.email,
-      oauth_sub_id: user.oauth_sub_id
+      oauth_sub_id: user.oauth_sub_id,
+      sessionToken
     });
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Authentication error:', error);
-    res.status(500).json({ 
-      error: 'Authentication failed',
-      details: error.message 
-    });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Authentication failed', details: error.message });
+    }
   } finally {
     client.release();
   }
