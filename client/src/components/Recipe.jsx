@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StarIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import api from '../services/api';
+import { toast } from 'react-hot-toast';
 
 const Recipe = ({ recipe }) => {
   const [rating, setRating] = useState(recipe.average_rating || 0);
@@ -12,6 +13,34 @@ const Recipe = ({ recipe }) => {
       setRating(newRating);
     } catch (error) {
       console.error('Failed to rate recipe:', error);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const response = await api.post(`/api/recipes/${recipe.id}/share`);
+      if (response.data.success) {
+        toast.success('Recipe shared to X!', {
+          duration: 3000,
+          style: {
+            background: '#1a1f2b',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+          },
+        });
+      } else {
+        throw new Error(response.data.error);
+      }
+    } catch (error) {
+      console.error('Error sharing recipe:', error);
+      toast.error('Failed to share recipe. Please try again.', {
+        duration: 3000,
+        style: {
+          background: '#1a1f2b',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.1)',
+        },
+      });
     }
   };
 
@@ -92,6 +121,23 @@ const Recipe = ({ recipe }) => {
             <p className="text-gray-300 italic">{recipe.plating}</p>
           </div>
         )}
+      </div>
+
+      <div className="mt-4 flex justify-between items-center">
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-2 px-3 py-1.5 bg-[#2A3142] rounded-lg hover:bg-[#313d4f] transition-colors group"
+          title="Share to X (Twitter)"
+        >
+          <svg 
+            className="w-5 h-5 text-[#1DA1F2] group-hover:text-white transition-colors" 
+            fill="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+          <span className="text-gray-400 group-hover:text-white transition-colors text-sm">Share</span>
+        </button>
       </div>
     </div>
   );

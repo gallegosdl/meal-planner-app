@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
+const socialSharing = require('../services/socialSharing');
 
 // GET /api/recipes - Get all recipes
 router.get('/', async (req, res) => {
@@ -53,6 +54,23 @@ router.post('/:id/rate', async (req, res) => {
   } catch (error) {
     console.error('Failed to rate recipe:', error);
     res.status(500).json({ error: 'Failed to rate recipe' });
+  }
+});
+
+// Share recipe to X (Twitter)
+router.post('/:id/share', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await socialSharing.shareRecipe(req.user.id, id);
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('Recipe sharing error:', error);
+    res.status(500).json({ success: false, error: 'Failed to share recipe' });
   }
 });
 
