@@ -444,8 +444,28 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         email: user.email,
         userId: user.id
       }));
+      setFormData(prev => ({
+        ...prev,
+        householdMembers: [
+          { id: 1, name: user.name, photo: null },
+          ...prev.householdMembers.slice(1)
+        ]
+      }));
     }
   }, [user]);
+
+  // Update member name when user data is available
+  useEffect(() => {
+    if (user?.name) {
+      setFormData(prev => ({
+        ...prev,
+        householdMembers: [
+          { id: 1, name: user.name, photo: null },
+          ...prev.householdMembers.slice(1)
+        ]
+      }));
+    }
+  }, [user?.name]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
@@ -463,7 +483,10 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
               <svg className="w-5 h-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
               </svg>
-              <span className="text-white font-medium">{user.name}</span>
+              <div className="flex flex-col">
+                <span className="text-gray-400 text-xs">Logged in as</span>
+                <span className="text-white font-medium">{user.name}</span>
+              </div>
             </div>
           )}
         </div>
