@@ -335,11 +335,12 @@ router.post('/google', async (req, res) => {
     });
 
     // Return user data
-    console.log('Sending response to client:', { id: user.id, email: user.email, oauth_sub_id: user.oauth_sub_id, sessionToken });
+    console.log('Sending response to client:', { id: user.id, email: user.email, name: user.name, oauth_sub_id: user.oauth_sub_id, sessionToken });
     res.json({
       id: user.id,
       email: user.email,
       oauth_sub_id: user.oauth_sub_id,
+      name: user.name,
       sessionToken
     });
 
