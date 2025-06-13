@@ -459,8 +459,11 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
             <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
           </div>
           {user && (
-            <div className="flex items-center gap-4">
-              <span className="text-gray-400">{user.name}</span>
+            <div className="flex items-center gap-2 bg-[#2A3142] px-4 py-2 rounded-lg border border-[#ffffff1a]">
+              <svg className="w-5 h-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
+              <span className="text-white font-medium">{user.name}</span>
             </div>
           )}
         </div>
