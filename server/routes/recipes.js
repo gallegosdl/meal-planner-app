@@ -61,16 +61,21 @@ router.post('/:id/rate', async (req, res) => {
 router.post('/:id/share', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await socialSharing.shareRecipe(req.user.id, id);
-    
-    if (result.success) {
-      res.json({ success: true });
-    } else {
-      res.status(500).json({ success: false, error: result.error });
+    // Get recipe from your existing database query
+    const recipe = await db.query(
+      'SELECT name, difficulty, prep_time FROM recipes WHERE id = $1',
+      [id]
+    );
+
+    if (recipe.rows.length === 0) {
+      return res.json({ success: false, error: 'Recipe not found' });
     }
+
+    const result = await socialSharing.shareRecipe(recipe.rows[0]);
+    res.json({ success: result.success, error: result.error });
   } catch (error) {
-    console.error('Recipe sharing error:', error);
-    res.status(500).json({ success: false, error: 'Failed to share recipe' });
+    console.error('Share error:', error);
+    res.json({ success: false, error: 'Failed to share recipe' });
   }
 });
 

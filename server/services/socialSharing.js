@@ -1,5 +1,4 @@
 const { TwitterApi } = require('twitter-api-v2');
-const { User, Recipe } = require('../models');
 
 class SocialSharing {
   constructor() {
@@ -11,28 +10,10 @@ class SocialSharing {
     });
   }
 
-  async shareRecipe(userId, recipeId) {
+  async shareRecipe(recipe) {
     try {
-      const recipe = await Recipe.findByPk(recipeId);
-      const user = await User.findByPk(userId);
-      
-      if (!recipe) {
-        throw new Error('Recipe not found');
-      }
-
       const tweetText = this.formatRecipeTweet(recipe);
-      
-      // Create tweet with recipe image if available
-      if (recipe.imageUrl) {
-        const mediaId = await this.twitterClient.v1.uploadMedia(recipe.imageUrl);
-        await this.twitterClient.v2.tweet({
-          text: tweetText,
-          media: { media_ids: [mediaId] }
-        });
-      } else {
-        await this.twitterClient.v2.tweet(tweetText);
-      }
-
+      await this.twitterClient.v2.tweet(tweetText);
       return { success: true, message: 'Recipe shared successfully' };
     } catch (error) {
       console.error('Twitter sharing error:', error);
@@ -41,22 +22,9 @@ class SocialSharing {
   }
 
   formatRecipeTweet(recipe) {
-    const hashtags = this.generateHashtags(recipe);
-    
     return `🍳 Just made ${recipe.name}! Ready in ${recipe.prep_time}
 Difficulty: ${recipe.difficulty}
-${hashtags}`;
-  }
-
-  generateHashtags(recipe) {
-    const tags = ['MealPlanner', 'Cooking'];
-    
-    // Add difficulty tag
-    if (recipe.difficulty) {
-      tags.push(recipe.difficulty.replace(/\s+/g, ''));
-    }
-    
-    return tags.map(tag => `#${tag}`).join(' ');
+#MealPlanner #Cooking #${recipe.difficulty.replace(/\s+/g, '')}`;
   }
 
   async shareSavings(userId, savingsData) {
