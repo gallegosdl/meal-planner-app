@@ -372,4 +372,15 @@ CREATE INDEX idx_security_events_user_severity ON login_history(user_id, oauth_s
 ALTER TABLE users
 ADD COLUMN oauth_sub_id VARCHAR(255),
 ADD COLUMN oauth_provider VARCHAR(50),
-ADD COLUMN email_verified BOOLEAN DEFAULT false; 
+ADD COLUMN email_verified BOOLEAN DEFAULT false;
+
+CREATE TABLE pantry_items (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 0),
+  category TEXT NOT NULL CHECK (category IN ('meat', 'spices', 'grains', 'vegetables')),
+  unit TEXT DEFAULT 'unit',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+); 
