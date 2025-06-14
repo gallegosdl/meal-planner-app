@@ -2,10 +2,10 @@ const { TwitterApi } = require('twitter-api-v2');
 
 class SocialSharing {
   constructor() {
-    // Initialize with OAuth 2.0 credentials
+    // Initialize with OAuth 1.0a credentials
     this.twitterClient = new TwitterApi({
-      clientId: process.env.TWITTER_CLIENT_ID,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET,
+      appKey: process.env.TWITTER_API_KEY,          // API Key
+      appSecret: process.env.TWITTER_API_SECRET,    // API Key Secret
       accessToken: process.env.TWITTER_ACCESS_TOKEN,
       accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
     });
@@ -13,16 +13,29 @@ class SocialSharing {
 
   async shareRecipe(recipe) {
     try {
+      console.log('Sharing recipe:', recipe);
       const tweetText = this.formatRecipeTweet(recipe);
+      console.log('Tweet text:', tweetText);
+      
+      // Get the read-write client
+      const rwClient = this.twitterClient.readWrite;
+      console.log('Twitter client initialized');
       
       // Using v2 tweet creation endpoint
-      const response = await this.twitterClient.v2.tweet({
+      console.log('Attempting to tweet...');
+      const response = await rwClient.v2.tweet({
         text: tweetText
       });
+      console.log('Tweet posted successfully:', response);
 
       return { success: true, message: 'Recipe shared successfully' };
     } catch (error) {
-      console.error('Twitter sharing error:', error);
+      console.error('Twitter sharing error details:', {
+        error: error.message,
+        data: error.data,
+        code: error.code,
+        stack: error.stack
+      });
       return { 
         success: false, 
         error: error.data?.detail || error.message || 'Failed to share recipe' 
@@ -31,9 +44,13 @@ class SocialSharing {
   }
 
   formatRecipeTweet(recipe) {
-    return `🍳 Just made ${recipe.name}! Ready in ${recipe.prep_time}
+    const tweet = `🍳 Just made ${recipe.name}! Ready in ${recipe.prep_time}
 Difficulty: ${recipe.difficulty}
 #MealPlanner #Cooking #${recipe.difficulty.replace(/\s+/g, '')}`;
+    
+    // Check tweet length
+    console.log('Tweet length:', tweet.length);
+    return tweet;
   }
 
   async shareSavings(userId, savingsData) {
