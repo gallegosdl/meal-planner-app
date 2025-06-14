@@ -500,13 +500,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
             <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
           </div>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsPantryOpen(true)}
-              className="flex items-center gap-2 bg-[#2A3142] px-4 py-2 rounded-lg hover:bg-[#313d4f] transition-colors"
-            >
-              <span className="material-icons">kitchen</span>
-              Pantry
-            </button>
             {user && (
               <button
                 onClick={handleLogout}
@@ -540,7 +533,19 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Household Container */}
           <div className="col-span-1 sm:col-span-3 lg:col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h2 className="text-xl font-semibold text-white mb-4">Household</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Household</h2>
+              <button
+                onClick={() => setIsPantryOpen(true)}
+                className="flex items-center gap-2 bg-[#2A3142] px-4 py-2 rounded-lg hover:bg-[#313d4f] transition-colors group border border-[#ffffff1a]"
+              >
+                <span className="material-icons text-blue-400">kitchen</span>
+                <div className="flex flex-col items-start">
+                  <span className="text-gray-400 text-xs">Manage</span>
+                  <span className="text-white font-medium group-hover:text-blue-400 transition-colors">Pantry</span>
+                </div>
+              </button>
+            </div>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
                 <svg 
