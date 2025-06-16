@@ -528,7 +528,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
               <h2 className="text-xl font-semibold text-white">Household</h2>
               <button
                 onClick={() => setIsPantryModalOpen(true)}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-green-500 text-white font-bold rounded-lg shadow-lg hover:from-blue-600 hover:to-green-600 transition-all flex items-center gap-2 border-2 border-blue-400"
+                className="px-4 py-2 bg-gradient-to-r from-blue-300 to-blue-700 text-white font-bold rounded-lg shadow-lg hover:from-blue-600 hover:to-green-600 transition-all flex items-center gap-2 border-2 border-blue-400"
               >
                 <ClipboardDocumentListIcon className="w-5 h-5 text-white" />
                 Pantry
