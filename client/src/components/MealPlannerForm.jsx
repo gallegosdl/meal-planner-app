@@ -20,6 +20,7 @@ import RecipeList from './RecipeList';
 import { toast } from 'react-hot-toast';
 import StoreComparison from './StoreComparison';
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
+import PantryModal from './PantryModal';
 // Register ChartJS components
 ChartJS.register(
   ArcElement,
@@ -96,6 +97,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
 
   const [activeTab, setActiveTab] = useState(1);
   const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', 'calendar', or 'recipes'
+
+  const [isPantryModalOpen, setIsPantryModalOpen] = useState(false);
 
   const dietOptions = {
     'Diet Types': [
@@ -521,7 +524,18 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Household Container */}
           <div className="col-span-1 sm:col-span-3 lg:col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h2 className="text-xl font-semibold text-white mb-4">Household</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Household</h2>
+              <button
+                onClick={() => setIsPantryModalOpen(true)}
+                className="px-3 py-1.5 bg-[#2A3142] text-gray-300 rounded-lg hover:bg-[#313748] transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                Pantry
+              </button>
+            </div>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
                 <svg 
@@ -1167,6 +1181,12 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
             )}
           </div>
         )}
+
+        {/* Add PantryModal */}
+        <PantryModal 
+          isOpen={isPantryModalOpen} 
+          onClose={() => setIsPantryModalOpen(false)} 
+        />
       </div>
     </div>
   );
