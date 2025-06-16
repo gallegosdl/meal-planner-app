@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { PANTRY_ITEMS } from '../config/pantryConfig';
+import api from '../services/api';
 
 const categories = [
   { label: 'Meat / Poultry / Seafood', value: 'meat' },
@@ -82,23 +83,21 @@ const PantryModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/pantry')
-        .then(res => res.json())
-        .then(data => setPantry(data))
+      api.get('/api/pantry')
+        .then(res => setPantry(res.data))
         .catch(err => console.error('Failed to load pantry:', err));
     }
   }, [isOpen]);
 
   const addItem = async () => {
     if (!newItem.trim()) return;
-    const response = await fetch('/api/pantry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item_name: newItem.trim(), quantity, category })
+    const response = await api.post('/api/pantry', {
+      item_name: newItem.trim(),
+      quantity,
+      category
     });
-    if (response.ok) {
-      const updated = await response.json();
-      setPantry(updated);
+    if (response.status === 200) {
+      setPantry(response.data);
       setNewItem('');
       setQuantity(1);
       setCategory('meat');
@@ -108,37 +107,24 @@ const PantryModal = ({ isOpen, onClose }) => {
   };
 
   const addBulkItems = async (items) => {
-    // POST each item (could be optimized to batch if backend supports)
     await Promise.all(items.map(item =>
-      fetch('/api/pantry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item)
-      })
+      api.post('/api/pantry', item)
     ));
-    // Refresh pantry
-    const res = await fetch('/api/pantry');
-    const data = await res.json();
-    setPantry(data);
+    const res = await api.get('/api/pantry');
+    setPantry(res.data);
   };
 
   const updateQuantity = async (id, newQty) => {
     if (newQty < 0) return;
-    await fetch(`/api/pantry/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quantity: newQty })
-    });
-    const res = await fetch('/api/pantry');
-    const data = await res.json();
-    setPantry(data);
+    await api.patch(`/api/pantry/${id}`, { quantity: newQty });
+    const res = await api.get('/api/pantry');
+    setPantry(res.data);
   };
 
   const deleteItem = async (id) => {
-    await fetch(`/api/pantry/${id}`, { method: 'DELETE' });
-    const res = await fetch('/api/pantry');
-    const data = await res.json();
-    setPantry(data);
+    await api.delete(`/api/pantry/${id}`);
+    const res = await api.get('/api/pantry');
+    setPantry(res.data);
   };
 
   // Map PANTRY_ITEMS to UI categories (for demo, map 'meat' to a subset)
