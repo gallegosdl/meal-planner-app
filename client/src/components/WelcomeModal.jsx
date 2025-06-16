@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import SignupModal from './SignupModal';
 import api from '../services/api';
-import { Link } from 'react-router-dom';
+import Privacy from '../pages/legal/Privacy';
+import Terms from '../pages/legal/Terms';
 
 const WelcomeModal = ({ onClose }) => {
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showSignup, setShowSignup] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const login = useGoogleLogin({
     onSuccess: async (response) => {
@@ -129,8 +132,8 @@ const WelcomeModal = ({ onClose }) => {
           <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col gap-2">
             {/* Legal Links Row */}
             <div className="flex gap-4 justify-center text-sm text-gray-400 mb-2">
-              <Link to="/legal/privacy" className="hover:text-blue-400 transition-colors">Privacy Policy</Link>
-              <Link to="/legal/terms" className="hover:text-blue-400 transition-colors">Terms of Service</Link>
+              <button type="button" className="hover:text-blue-400 transition-colors underline" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
+              <button type="button" className="hover:text-blue-400 transition-colors underline" onClick={() => setShowTerms(true)}>Terms of Service</button>
             </div>
             {/* Buttons Row */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -175,6 +178,25 @@ const WelcomeModal = ({ onClose }) => {
           </div>
         </div>
       </div>
+
+      {/* Privacy Modal */}
+      {showPrivacy && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#252B3B] rounded-2xl max-w-3xl w-full p-8 shadow-xl border border-[#ffffff1a] max-h-[90vh] overflow-y-auto relative">
+            <button onClick={() => setShowPrivacy(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+            <Privacy />
+          </div>
+        </div>
+      )}
+      {/* Terms Modal */}
+      {showTerms && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#252B3B] rounded-2xl max-w-3xl w-full p-8 shadow-xl border border-[#ffffff1a] max-h-[90vh] overflow-y-auto relative">
+            <button onClick={() => setShowTerms(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+            <Terms />
+          </div>
+        </div>
+      )}
 
       {/* Signup Modal */}
       <SignupModal
