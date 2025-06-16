@@ -1183,10 +1183,12 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         )}
 
         {/* Add PantryModal */}
-        <PantryModal 
-          isOpen={isPantryModalOpen} 
-          onClose={() => setIsPantryModalOpen(false)} 
-        />
+        {isPantryModalOpen && (
+          <PantryModal 
+            isOpen={isPantryModalOpen} 
+            onClose={() => setIsPantryModalOpen(false)} 
+          />
+        )}
       </div>
     </div>
   );
