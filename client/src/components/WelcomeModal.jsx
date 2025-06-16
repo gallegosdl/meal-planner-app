@@ -126,15 +126,22 @@ const WelcomeModal = ({ onClose }) => {
 
           {/* Footer - Fixed at bottom */}
           <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <label className="flex items-center gap-2 text-gray-400 text-sm">
-              <input
-                type="checkbox"
-                checked={dontShowAgain}
-                onChange={(e) => setDontShowAgain(e.target.checked)}
-                className="rounded bg-[#1a1f2b] border-gray-600 text-blue-500 focus:ring-blue-500"
-              />
-              Don't show this again
-            </label>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <label className="flex items-center gap-2 text-gray-400 text-sm">
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  className="rounded bg-[#1a1f2b] border-gray-600 text-blue-500 focus:ring-blue-500"
+                />
+                Don't show this again
+              </label>
+              
+              <div className="flex gap-4 text-sm text-gray-400">
+                <a href="/legal/privacy" className="hover:text-blue-400 transition-colors">Privacy Policy</a>
+                <a href="/legal/terms" className="hover:text-blue-400 transition-colors">Terms of Service</a>
+              </div>
+            </div>
             
             <div className="flex gap-2 w-full sm:w-auto">
               <button
