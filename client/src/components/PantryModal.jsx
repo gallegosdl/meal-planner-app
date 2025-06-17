@@ -118,9 +118,7 @@ const PantryModal = ({ isOpen, onClose }) => {
   };
 
   const addBulkItems = async (items) => {
-    await Promise.all(items.map(item =>
-      api.post('/api/pantry', item)
-    ));
+    await api.post('/api/pantry/bulk', { items });
     const res = await api.get('/api/pantry');
     setPantry(res.data);
   };
