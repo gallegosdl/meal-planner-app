@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import SignupModal from './SignupModal';
-import api from '../services/api';
+import api, { setSession } from '../services/api';
 import Privacy from '../pages/legal/Privacy';
 import Terms from '../pages/legal/Terms';
 
@@ -28,6 +28,11 @@ const WelcomeModal = ({ onClose }) => {
           const errorData = result.data;
           console.error('Server auth error:', errorData);
           throw new Error(errorData.error || 'Authentication failed');
+        }
+
+        if (result.data.sessionToken) {
+          setSession(result.data.sessionToken);
+          console.log('Session token set after Google login:', result.data.sessionToken);
         }
 
         const userData = result.data;

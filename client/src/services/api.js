@@ -17,7 +17,7 @@ const api = axios.create({
 
 // Store session token in browser's sessionStorage
 // sessionStorage persists until browser tab is closed
-const setSession = (token) => {
+export const setSession = (token) => {
   sessionStorage.setItem('session_token', token);
   console.log('Session token set in sessionStorage:', token);
 };
