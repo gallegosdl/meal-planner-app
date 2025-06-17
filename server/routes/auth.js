@@ -558,14 +558,21 @@ router.post('/session', async (req, res) => {
 });
 
 function authenticateToken(req, res, next) {
-  const sessionToken = req.cookies.session_token;
+  // Accept token from cookie OR header
+  const sessionToken = req.cookies.session_token || req.headers['x-session-token'];
   if (!sessionToken) {
     return res.status(401).json({ error: 'No session token' });
   }
-  // TODO: Lookup user by sessionToken and set req.user
-  req.user = { id: 1 }; // Dummy user for now
+  // TODO: Lookup user by sessionToken in your DB/session store
+  req.user = { id: 1 }; // Dummy user for now, replace with real lookup
+  console.log('Authenticated user in the auth.js file:', req.user);
   next();
 }
+
+router.get('/', (req, res) => {
+  console.log('Pantry route HIT!');
+  res.json({ test: 'ok' });
+});
 
 module.exports = router;
 module.exports.authenticateToken = authenticateToken; 

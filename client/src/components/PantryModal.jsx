@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { PANTRY_ITEMS } from '../config/pantryConfig';
 import api from '../services/api';
@@ -83,9 +82,21 @@ const PantryModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
+      console.log('[PantryModal] Fetching pantry from:', api.defaults.baseURL + '/api/pantry');
       api.get('/api/pantry')
-        .then(res => setPantry(res.data))
-        .catch(err => console.error('Failed to load pantry:', err));
+        .then(res => {
+          console.log('[PantryModal] Pantry data:', res.data);
+          setPantry(res.data);
+        })
+        .catch(err => {
+          console.error('[PantryModal] Error fetching pantry:', {
+            status: err.response?.status,
+            data: err.response?.data,
+            headers: err.response?.headers,
+            url: err.config?.url,
+            baseURL: err.config?.baseURL
+          });
+        });
     }
   }, [isOpen]);
 

@@ -10,7 +10,8 @@ const apiRoutes = require('./routes/api');
 const authRoutes = require('./routes/auth');
 const cookieParser = require('cookie-parser');
 const OpenAI = require('openai');
-require('dotenv').config();
+const pantryRoutes = require('./routes/pantry');
+require('dotenv').config({ path: './server/.env' });
 
 const app = express();
 
@@ -204,6 +205,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/recipes', recipesRouter);
 app.use('/api/instacart', instacartRoutes);
 app.use('/api', apiRoutes);
+app.use('/api/pantry', pantryRoutes);
+console.log('Registering /api/pantry routes');
 
 // Authentication endpoint with OpenAI validation
 app.post('/api/auth', async (req, res) => {
