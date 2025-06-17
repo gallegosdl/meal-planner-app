@@ -11,7 +11,7 @@ const categories = [
 ];
 
 // CategorySelectorModal: for bulk adding items from a category
-const CategorySelectorModal = ({ isOpen, onClose, categoryLabel, items, onAdd }) => {
+const CategorySelectorModal = ({ isOpen, onClose, categoryValue, categoryLabel, items, onAdd }) => {
   const [selected, setSelected] = useState({});
 
   useEffect(() => {
@@ -35,7 +35,7 @@ const CategorySelectorModal = ({ isOpen, onClose, categoryLabel, items, onAdd })
       .map(([item, qty]) => ({
         item_name: item,
         quantity: qty,
-        category: bulkCategory
+        category: categoryValue
       }));
     onAdd(itemsToAdd);
     onClose();
@@ -269,6 +269,7 @@ const PantryModal = ({ isOpen, onClose }) => {
           <CategorySelectorModal
             isOpen={!!bulkCategory}
             onClose={() => setBulkCategory(null)}
+            categoryValue={bulkCategory}
             categoryLabel={categories.find(c => c.value === bulkCategory)?.label}
             items={pantryCategoryMap[bulkCategory] || []}
             onAdd={addBulkItems}
