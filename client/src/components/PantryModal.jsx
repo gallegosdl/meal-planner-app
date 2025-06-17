@@ -32,7 +32,11 @@ const CategorySelectorModal = ({ isOpen, onClose, categoryLabel, items, onAdd })
   const handleAdd = () => {
     const itemsToAdd = Object.entries(selected)
       .filter(([_, qty]) => qty > 0)
-      .map(([item, qty]) => ({ item_name: item, quantity: qty, category: categoryLabel }));
+      .map(([item, qty]) => ({
+        item_name: item,
+        quantity: qty,
+        category: bulkCategory
+      }));
     onAdd(itemsToAdd);
     onClose();
   };
