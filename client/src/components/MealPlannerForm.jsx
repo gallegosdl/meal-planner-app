@@ -24,6 +24,14 @@ import PantryModal from './PantryModal';
 import CuisinePreferences from './CuisinePreferences';
 import MacronutrientSplit from './MacronutrientSplit';
 import HouseholdBox from './HouseholdBox';
+import DietaryGoals from './DietaryGoals';
+import DailyCalories from './DailyCalories';
+import MealsPerWeek from './MealsPerWeek';
+import MealPreferences from './MealPreferences';
+import PreferredFoods from './PreferredFoods';
+import AvoidedFoods from './AvoidedFoods';
+import UploadReceipt from './UploadReceipt';
+import MealPlanResults from './MealPlanResults';
 // Register ChartJS components
 ChartJS.register(
   ArcElement,
@@ -103,6 +111,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
 
   const [isPantryModalOpen, setIsPantryModalOpen] = useState(false);
 
+  const [showRecipeList, setShowRecipeList] = useState(false);
+
   const dietOptions = {
     'Diet Types': [
       'High-Protein',
@@ -177,19 +187,23 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     const newValue = parseInt(value);
     const oldValue = formData.macros[macro];
     const difference = newValue - oldValue;
-    
-    // Calculate how to distribute the difference among other macros
     const otherMacros = Object.keys(formData.macros).filter(m => m !== macro);
     const totalOtherMacros = otherMacros.reduce((sum, m) => sum + formData.macros[m], 0);
-    
     const newMacros = { ...formData.macros };
     newMacros[macro] = newValue;
 
-    // Proportionally adjust other macros
-    otherMacros.forEach(m => {
-      const proportion = formData.macros[m] / totalOtherMacros;
-      newMacros[m] = Math.max(0, Math.round(formData.macros[m] - (difference * proportion)));
-    });
+    if (totalOtherMacros === 0 && difference < 0) {
+      // All other macros are 0, and we're reducing the current macro
+      // Assign the freed value to the first other macro
+      const firstOther = otherMacros[0];
+      newMacros[firstOther] = Math.abs(difference);
+    } else {
+      // Proportionally adjust other macros
+      otherMacros.forEach(m => {
+        const proportion = totalOtherMacros === 0 ? 0 : formData.macros[m] / totalOtherMacros;
+        newMacros[m] = Math.max(0, Math.round(formData.macros[m] - (difference * proportion)));
+      });
+    }
 
     // Ensure total is 100%
     const total = Object.values(newMacros).reduce((sum, val) => sum + val, 0);
@@ -524,7 +538,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-8">
           {/* Left column (3): Household, Budget */}
           <div className="col-span-1 sm:col-span-3 lg:col-span-3 flex flex-col gap-6">
             <HouseholdBox 
@@ -553,170 +567,46 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-12">
+            <DietaryGoals dietOptions={dietOptions} formData={formData} toggleDietGoal={toggleDietGoal} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+            <DailyCalories formData={formData} handleChange={handleChange} calorieData={calorieData} />
+          </div>
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+            <MealsPerWeek formData={formData} handleMealsChange={handleMealsChange} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
+            <MealPreferences formData={formData} handleChange={handleChange} />
+          </div>
+          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
+            <PreferredFoods formData={formData} />
+          </div>
+          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
+            <AvoidedFoods formData={formData} />
+          </div>
+        </div>
+
+        {/* Upload Receipt */}
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-12">
+            <UploadReceipt 
+              handleReceiptUpload={handleReceiptUpload} 
+              isParsingReceipt={isParsingReceipt} 
+              receiptItems={receiptItems} 
+            />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
-          {/* Dietary Goals */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h3 className="text-sm text-gray-400 mb-4">Dietary Goals</h3>
-            {Object.entries(dietOptions).map(([category, options]) => (
-              <div key={category} className="mb-4">
-                <h4 className="text-xs text-gray-500 mb-2">{category}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {options.map((goal) => (
-                    <button
-                      key={goal}
-                      onClick={() => toggleDietGoal(goal)}
-                      className={`px-4 py-2 rounded-lg transition-colors ${
-                        formData.dietGoals.includes(goal)
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-[#2A3142] text-gray-400 hover:bg-[#313748]'
-                      }`}
-                    >
-                      {goal}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Calories Card */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-sm text-gray-400">Daily Calories</h3>
-              <select 
-                className="bg-[#2A3142] text-sm rounded-lg px-3 py-1.5 border-none focus:ring-1 focus:ring-blue-500"
-                onChange={(e) => {
-                  const goals = {
-                    maintain: 2000,
-                    lose: 1800,
-                    gain: 2300
-                  };
-                  handleChange('targetCalories', goals[e.target.value]);
-                }}
-              >
-                <option value="maintain">Maintain Weight</option>
-                <option value="lose">Lose Weight (-200 cal)</option>
-                <option value="gain">Gain Muscle (+300 cal)</option>
-              </select>
-            </div>
-            <div className="h-48">
-              <Bar 
-                data={calorieData} 
-                options={{
-                  maintainAspectRatio: false,
-                  scales: {
-                    y: { 
-                      grid: { color: '#2A3142' }, 
-                      border: { display: false },
-                      ticks: { color: '#9ca3af' }
-                    },
-                    x: { 
-                      grid: { display: false }, 
-                      border: { display: false },
-                      ticks: { color: '#9ca3af' }
-                    }
-                  },
-                  plugins: { 
-                    legend: { display: false },
-                    tooltip: {
-                      backgroundColor: '#1E2433',
-                      titleColor: '#9ca3af',
-                      bodyColor: '#fff',
-                      padding: 12,
-                      cornerRadius: 8
-                    }
-                  }
-                }} 
-              />
-            </div>
-          </div>
-
-          {/* Middle Row */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h3 className="text-sm text-gray-400 mb-4">Meals Per Week</h3>
-            <div className="space-y-3">
-              {['breakfast', 'lunch', 'dinner'].map(meal => (
-                <div key={meal} className="flex items-center justify-between bg-[#2A3142] p-3 rounded">
-                  <span className="capitalize">{meal}</span>
-                  <div className="flex items-center gap-3">
-                    <button className="w-8 h-8 bg-[#313748] rounded" onClick={() => handleMealsChange(meal, Math.max(0, formData.mealsPerWeek[meal] - 1))}>-</button>
-                    <span className="w-8 text-center">{formData.mealsPerWeek[meal]}</span>
-                    <button className="w-8 h-8 bg-[#313748] rounded" onClick={() => handleMealsChange(meal, Math.min(7, formData.mealsPerWeek[meal] + 1))}>+</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Meal Preferences Row */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">Meal Preferences</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Foods You Like
-                </label>
-                <input
-                  type="text"
-                  value={formData.likes}
-                  onChange={(e) => handleChange('likes', e.target.value)}
-                  placeholder="e.g. Chicken, Rice, Broccoli"
-                  className="w-full px-4 py-2 bg-[#374151] text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Foods to Avoid
-                </label>
-                <input
-                  type="text"
-                  value={formData.dislikes}
-                  onChange={(e) => handleChange('dislikes', e.target.value)}
-                  placeholder="e.g. Mushrooms, Seafood"
-                  className="w-full px-4 py-2 bg-[#374151] text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Preferred Foods Display */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h2 className="text-xl font-semibold text-white mb-4">Preferred Foods</h2>
-            <div className="bg-[#2A3142] rounded-lg p-4 min-h-[200px]">
-              {formData.likes.split(',').map((item, index) => (
-                item.trim() && (
-                  <span 
-                    key={index}
-                    className="inline-block bg-blue-500/20 text-blue-400 rounded-full px-3 py-1 text-sm mr-2 mb-2"
-                  >
-                    {item.trim()}
-                  </span>
-                )
-              ))}
-            </div>
-          </div>
-
-          {/* Avoided Foods Display */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h2 className="text-xl font-semibold text-white mb-4">Avoided Foods</h2>
-            <div className="bg-[#2A3142] rounded-lg p-4 min-h-[200px]">
-              {formData.dislikes.split(',').map((item, index) => (
-                item.trim() && (
-                  <span 
-                    key={index}
-                    className="inline-block bg-red-500/20 text-red-400 rounded-full px-3 py-1 text-sm mr-2 mb-2"
-                  >
-                    {item.trim()}
-                  </span>
-                )
-              ))}
-            </div>
-          </div>
-
-          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] mb-8">
             <h3 className="text-sm text-gray-400 mb-4">OpenAI API Key</h3>
             <div className="flex flex-col gap-4">
               <div className="flex gap-4">
@@ -765,198 +655,42 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
               </p>
             </div>
           </div>
+        </div>
 
-          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h3 className="text-sm text-gray-400 mb-4">Upload Receipt</h3>
-            <div className="flex items-center gap-4">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleReceiptUpload}
-                className="hidden"
-                id="receipt-upload"
-              />
-              <label
-                htmlFor="receipt-upload"
-                className="px-4 py-2 bg-[#2A3142] rounded-lg cursor-pointer hover:bg-[#313748] transition-colors"
-              >
-                Select Receipt Image
-              </label>
-              {isParsingReceipt && <span className="text-gray-400">Parsing receipt...</span>}
-            </div>
-            {receiptItems.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm text-gray-400 mb-2">Detected Items:</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {receiptItems.map((item, index) => (
-                    <div key={index} className="bg-[#2A3142] p-2 rounded">
-                      <div className="text-sm">{item.name}</div>
-                      <div className="text-xs text-gray-400">${item.price}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Action Buttons Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+            <button
+              onClick={handleGenerateMealPlan}
+              className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow hover:from-blue-600 hover:to-purple-600 transition-all"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Generating...' : 'Generate Your Meal Plan'}
+            </button>
+          </div>
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+            <button
+              onClick={() => setShowRecipeList((prev) => !prev)}
+              className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:from-green-600 hover:to-teal-600 transition-all"
+            >
+              {showRecipeList ? 'Hide Recipe List' : 'View Recipe List'}
+            </button>
           </div>
         </div>
-
-        <div className="flex gap-4">
-          <button
-            onClick={handleGenerateMealPlan}
-            className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow hover:from-blue-600 hover:to-purple-600 transition-all"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Generating...' : 'Generate Your Meal Plan'}
-          </button>
-        </div>
+        {showRecipeList && (
+          <div className="mb-8">
+            <RecipeList />
+          </div>
+        )}
 
         {mealPlan && (
-          <div className="mt-8 space-y-6">
-            {/* Header and buttons container */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-6">
-              <h2 className="text-2xl font-bold">Your Meal Plan</h2>
-              
-              {/* Controls container */}
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <SendToInstacartButton mealPlan={mealPlan} />
-                
-                {/* View Toggle Buttons */}
-                <div className="grid grid-cols-2 sm:flex gap-2">
-                  <button
-                    onClick={() => setViewMode('tabs')}
-                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
-                      viewMode === 'tabs' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-[#2A3142] text-gray-400'
-                    }`}
-                  >
-                    Detailed View
-                  </button>
-                  <button
-                    onClick={() => setViewMode('recipes')}
-                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
-                      viewMode === 'recipes' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-[#2A3142] text-gray-400'
-                    }`}
-                  >
-                    Recipe Library
-                  </button>
-                  <button
-                    onClick={() => setViewMode('tiles')}
-                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
-                      viewMode === 'tiles' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-[#2A3142] text-gray-400'
-                    }`}
-                  >
-                    Draggable Tiles
-                  </button>
-                  <button
-                    onClick={() => setViewMode('calendar')}
-                    className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
-                      viewMode === 'calendar' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-[#2A3142] text-gray-400'
-                    }`}
-                  >
-                    Calendar View
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* View content based on selected mode */}
-            {viewMode === 'tabs' && (
-              <>
-                <div className="flex border-b border-[#ffffff1a] mb-6">
-                  {[1, 2, 3, 4, 5].map((dayNum) => (
-                    <button
-                      key={dayNum}
-                      onClick={() => setActiveTab(dayNum)}
-                      className={`px-4 py-2 -mb-px ${
-                        activeTab === dayNum
-                          ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
-                          : 'text-gray-400 hover:text-gray-300'
-                      }`}
-                    >
-                      Day {dayNum}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Original Tab Content */}
-                {mealPlan.days.map((day) => (
-                  <div
-                    key={day.day}
-                    className={`${activeTab === day.day ? 'block' : 'hidden'} mb-8`}
-                  >
-                    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-                      <h3 className="text-xl font-semibold mb-4">Day {day.day}</h3>
-                      {Object.entries(day.meals).map(([mealType, meal]) => (
-                        <div key={mealType} className="mb-6">
-                          <h4 className="text-lg font-medium capitalize mb-3">
-                            {mealType}: {meal.name}
-                          </h4>
-                          <div className="ml-4 space-y-4">
-                            {mealPlan.macros && mealPlan.macros[`day${day.day}`] && mealPlan.macros[`day${day.day}`][mealType] && (
-                              <div className="bg-[#2A3142] rounded-lg p-3 mb-4">
-                                <div className="grid grid-cols-4 gap-2 text-sm">
-                                  <div className="text-blue-400">Calories: {mealPlan.macros[`day${day.day}`][mealType].calories}</div>
-                                  <div className="text-green-400">Protein: {mealPlan.macros[`day${day.day}`][mealType].protein_g}g</div>
-                                  <div className="text-yellow-400">Carbs: {mealPlan.macros[`day${day.day}`][mealType].carbs_g}g</div>
-                                  <div className="text-red-400">Fat: {mealPlan.macros[`day${day.day}`][mealType].fat_g}g</div>
-                                </div>
-                              </div>
-                            )}
-                            <div>
-                              <h5 className="font-medium mb-2">Ingredients:</h5>
-                              <ul className="list-disc ml-4 space-y-1">
-                                {meal.ingredients.map((ing, i) => (
-                                  <li key={i}>
-                                    {ing.name} - {ing.amount}
-                                    {ing.cost && ` ($${ing.cost})`}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                            
-                            <div>
-                              <h5 className="font-medium mb-2">Instructions:</h5>
-                              <p className="ml-4 text-gray-300">{meal.instructions}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Original Placeholder Days */}
-                {[3, 4, 5].map((dayNum) => (
-                  <div
-                    key={dayNum}
-                    className={`${activeTab === dayNum ? 'block' : 'hidden'} mb-8`}
-                  >
-                    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-                      <div className="text-center text-gray-400 py-8">
-                        Day {dayNum} meal plan not generated yet.
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-            {viewMode === 'recipes' && (
-              <RecipeList recipes={mealPlan.recipes} />
-            )}
-            {viewMode === 'tiles' && (
-              <DraggableMealPlan mealPlan={mealPlan} />
-            )}
-            {viewMode === 'calendar' && (
-              <CalendarMealPlan mealPlan={mealPlan} />
-            )}
-          </div>
+          <MealPlanResults 
+            mealPlan={mealPlan}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
         )}
 
         {/* Add PantryModal */}
