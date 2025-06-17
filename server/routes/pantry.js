@@ -3,6 +3,9 @@ const router = express.Router();
 const PantryItem = require('../models/PantryItem');
 const { authenticateToken } = require('../middleware/auth');
 
+// In routes/pantry.js
+console.log('pantry.js loaded');
+
 // Get all pantry items for the authenticated user, grouped by category
 router.get('/', authenticateToken, async (req, res) => {
   try {
