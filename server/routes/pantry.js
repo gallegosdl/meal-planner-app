@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const PantryItem = require('../models/PantryItem');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('./auth');
 
 // In routes/pantry.js
 console.log('pantry.js loaded');

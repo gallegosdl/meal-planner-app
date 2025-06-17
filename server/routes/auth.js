@@ -557,4 +557,15 @@ router.post('/session', async (req, res) => {
   }
 });
 
-module.exports = router; 
+function authenticateToken(req, res, next) {
+  const sessionToken = req.cookies.session_token;
+  if (!sessionToken) {
+    return res.status(401).json({ error: 'No session token' });
+  }
+  // TODO: Lookup user by sessionToken and set req.user
+  req.user = { id: 1 }; // Dummy user for now
+  next();
+}
+
+module.exports = router;
+module.exports.authenticateToken = authenticateToken; 
