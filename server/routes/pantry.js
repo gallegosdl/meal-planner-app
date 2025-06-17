@@ -9,6 +9,7 @@ console.log('pantry.js loaded');
 // Get all pantry items for the authenticated user, grouped by category
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    console.log('GET /api/pantry handler, user:', req.user);
     const items = await PantryItem.findAll({
       where: { user_id: req.user.id },
       order: [['item_name', 'ASC']]
