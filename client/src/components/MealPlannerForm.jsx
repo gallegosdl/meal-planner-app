@@ -524,8 +524,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
-          {/* Household Container */}
-          <div className="col-span-1 sm:col-span-3 lg:col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+          {/* Left column (3): Household, Budget */}
+          <div className="col-span-1 sm:col-span-3 lg:col-span-3 flex flex-col gap-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Household</h2>
               <button
@@ -624,18 +624,24 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
             </div>
           </div>
 
-          {/* Cuisine Preferences Container */}
-          <CuisinePreferences 
-            cuisinePreferences={cuisinePreferences} 
-            handleCuisineChange={handleCuisineChange} 
-          />
+          {/* Middle column (6): Cuisine Preferences */}
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6 flex flex-col gap-6">
+            <CuisinePreferences 
+              cuisinePreferences={cuisinePreferences} 
+              handleCuisineChange={handleCuisineChange} 
+            />
+          </div>
 
-          {/* Macronutrient Split Container */}
-          <MacronutrientSplit 
-            formData={formData} 
-            handleMacroChange={handleMacroChange} 
-          />
+          {/* Right column (3): Macronutrient Split */}
+          <div className="col-span-1 sm:col-span-3 lg:col-span-3 flex flex-col gap-6">
+            <MacronutrientSplit 
+              formData={formData} 
+              handleMacroChange={handleMacroChange} 
+            />
+          </div>
+        </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Dietary Goals */}
           <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
             <h3 className="text-sm text-gray-400 mb-4">Dietary Goals</h3>
