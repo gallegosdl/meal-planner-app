@@ -144,7 +144,7 @@ const PantryModal = ({ isOpen, onClose }) => {
   const pantryCategoryMap = {
     meat: ['Ground Beef', 'NY Strip', 'Sirloin', 'Chicken Breast', 'Salmon'],
     spices: PANTRY_ITEMS.SPICES_AND_HERBS,
-    grains: PANTRY_ITEMS.GRAINS,
+    grains: PANTRY_ITEMS.GRAINS_AND_PASTA,
     vegetables: ['Carrot', 'Broccoli', 'Spinach', 'Onion', 'Bell Pepper']
   };
 
