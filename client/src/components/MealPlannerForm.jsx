@@ -22,6 +22,7 @@ import StoreComparison from './StoreComparison';
 import { Cog6ToothIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import PantryModal from './PantryModal';
 import CuisinePreferences from './CuisinePreferences';
+import MacronutrientSplit from './MacronutrientSplit';
 // Register ChartJS components
 ChartJS.register(
   ArcElement,
@@ -630,77 +631,10 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           />
 
           {/* Macronutrient Split Container */}
-          <div className="col-span-1 sm:col-span-3 lg:col-span-3 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-            <h2 className="text-xl font-semibold text-white mb-4">Macronutrient Split</h2>
-            <div className="h-48 mb-6">
-              <Doughnut 
-                data={macroData} 
-                options={{ 
-                  maintainAspectRatio: false,
-                  cutout: '70%',
-                  plugins: {
-                    legend: {
-                      position: 'right',
-                      labels: {
-                        color: '#9ca3af',
-                        font: { size: 11 },
-                        padding: 10,
-                        usePointStyle: false
-                      }
-                    }
-                  }
-                }} 
-              />
-            </div>
-
-            {/* Macro Sliders */}
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm text-gray-400 mb-1">
-                  <span>Protein</span>
-                  <span>{formData.macros.protein}%</span>
-                </div>
-                <input 
-                  type="range"
-                  min="10"
-                  max="60"
-                  value={formData.macros.protein}
-                  onChange={(e) => handleMacroChange('protein', e.target.value)}
-                  className="w-full h-1.5 bg-[#2A3142] rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-sm text-gray-400 mb-1">
-                  <span>Carbs</span>
-                  <span>{formData.macros.carbs}%</span>
-                </div>
-                <input 
-                  type="range"
-                  min="10"
-                  max="60"
-                  value={formData.macros.carbs}
-                  onChange={(e) => handleMacroChange('carbs', e.target.value)}
-                  className="w-full h-1.5 bg-[#2A3142] rounded-lg appearance-none cursor-pointer accent-orange-500"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-sm text-gray-400 mb-1">
-                  <span>Fat</span>
-                  <span>{formData.macros.fat}%</span>
-                </div>
-                <input 
-                  type="range"
-                  min="10"
-                  max="60"
-                  value={formData.macros.fat}
-                  onChange={(e) => handleMacroChange('fat', e.target.value)}
-                  className="w-full h-1.5 bg-[#2A3142] rounded-lg appearance-none cursor-pointer accent-green-500"
-                />
-              </div>
-            </div>
-          </div>
+          <MacronutrientSplit 
+            formData={formData} 
+            handleMacroChange={handleMacroChange} 
+          />
 
           {/* Dietary Goals */}
           <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
