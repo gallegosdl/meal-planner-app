@@ -149,15 +149,15 @@ const PantryModal = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#252B3B] rounded-2xl max-w-3xl w-full shadow-xl border border-[#ffffff1a] max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-[#252B3B] rounded-xl sm:rounded-2xl w-[98vw] max-w-full sm:max-w-3xl shadow-xl border border-[#ffffff1a] max-h-[95vh] flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+        <div className="p-4 sm:p-6 border-b border-gray-700 flex justify-between items-center">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+            <h2 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
               Kitchen Pantry
             </h2>
-            <p className="text-gray-400 mt-2 text-sm">
+            <p className="text-gray-400 mt-1 sm:mt-2 text-xs sm:text-sm">
               Manage your pantry inventory and track ingredients
             </p>
           </div>
@@ -167,25 +167,25 @@ const PantryModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Add Item Form */}
-        <div className="p-6 border-b border-gray-700 bg-[#1a1f2b]">
-          <div className="flex gap-3">
+        <div className="p-4 sm:p-6 border-b border-gray-700 bg-[#1a1f2b]">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <input
               value={newItem}
               onChange={(e) => setNewItem(e.target.value)}
               placeholder="Item name"
-              className="flex-1 px-4 py-2 bg-[#2A3142] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 sm:px-4 bg-[#2A3142] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
             />
             <input
               type="number"
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
-              className="w-24 px-4 py-2 bg-[#2A3142] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-16 sm:w-24 px-3 py-2 sm:px-4 bg-[#2A3142] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
             />
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="bg-[#2A3142] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-[#2A3142] rounded-lg px-3 py-2 sm:px-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
             >
               {categories.map((cat) => (
                 <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -193,7 +193,7 @@ const PantryModal = ({ isOpen, onClose }) => {
             </select>
             <button 
               onClick={addItem}
-              className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-indigo-600 transition-colors"
+              className="px-4 sm:px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-indigo-600 transition-colors text-sm sm:text-base"
             >
               Add Item
             </button>
@@ -201,13 +201,13 @@ const PantryModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Bulk Add by Category */}
-        <div className="p-6 border-b border-gray-700 bg-[#23283a]">
-          <div className="flex flex-wrap gap-4">
+        <div className="p-4 sm:p-6 border-b border-gray-700 bg-[#23283a]">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
             {categories.map(cat => (
               <button
                 key={cat.value}
                 onClick={() => setBulkCategory(cat.value)}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition-colors"
+                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition-colors text-sm sm:text-base"
               >
                 Bulk Add {cat.label}
               </button>
@@ -216,36 +216,36 @@ const PantryModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Pantry Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           {categories.map(({ label, value }) => (
-            <div key={value} className="mb-6 last:mb-0">
-              <h3 className="text-lg font-semibold text-white mb-3">{label}</h3>
+            <div key={value} className="mb-4 sm:mb-6 last:mb-0">
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">{label}</h3>
               <div className="space-y-2">
                 {(pantry[value] || []).map(item => (
                   <div 
                     key={item.id} 
-                    className="flex items-center justify-between p-3 bg-[#2A3142] rounded-lg border border-[#ffffff1a] group"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-[#2A3142] rounded-lg border border-[#ffffff1a] group"
                   >
-                    <span className="text-white">{item.item_name}</span>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 bg-[#1a1f2b] rounded-lg px-2">
+                    <span className="text-white text-sm sm:text-base">{item.item_name}</span>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="flex items-center gap-1 sm:gap-2 bg-[#1a1f2b] rounded-lg px-1 sm:px-2">
                         <button 
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                          className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors text-base sm:text-lg"
                         >
                           -
                         </button>
-                        <span className="text-white min-w-[2ch] text-center">{item.quantity}</span>
+                        <span className="text-white min-w-[2ch] text-center text-sm sm:text-base">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                          className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors text-base sm:text-lg"
                         >
                           +
                         </button>
                       </div>
                       <button 
                         onClick={() => deleteItem(item.id)}
-                        className="text-gray-400 hover:text-red-400 transition-colors p-2"
+                        className="text-gray-400 hover:text-red-400 transition-colors p-1 sm:p-2"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -255,7 +255,7 @@ const PantryModal = ({ isOpen, onClose }) => {
                   </div>
                 ))}
                 {(pantry[value] || []).length === 0 && (
-                  <div className="text-gray-400 text-center py-4 bg-[#2A3142] rounded-lg">
+                  <div className="text-gray-400 text-center py-3 sm:py-4 bg-[#2A3142] rounded-lg text-sm sm:text-base">
                     No items in this category
                   </div>
                 )}
