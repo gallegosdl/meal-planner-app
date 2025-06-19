@@ -4,7 +4,6 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MealPlannerForm from './components/MealPlannerForm';
 import WelcomeModal from './components/WelcomeModal';
-import FitbitSuccess from './components/FitbitSuccess';
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -72,12 +71,6 @@ function App() {
           }}
         />
         <Routes>
-          <Route path="/fitbit/success" element={<FitbitSuccess />} />
-          <Route path="/fitbit/error" element={
-            <div className="text-red-500 p-4">
-              {new URLSearchParams(window.location.search).get('message')}
-            </div>
-          } />
           <Route path="/" element={
             <>
               {showWelcome && (

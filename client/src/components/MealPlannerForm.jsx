@@ -33,10 +33,8 @@ import AvoidedFoods from './AvoidedFoods';
 import UploadReceipt from './UploadReceipt';
 import MealPlanResults from './MealPlanResults';
 import BuildMealPlanWithPantryButton from './BuildMealPlanWithPantryButton';
-import FitbitLogin from './FitbitLogin';
-import StravaLogin from './StravaLogin';
-import StravaDisplay from './StravaDisplay';
 import FitbitDisplay from './FitbitDisplay';
+import StravaDisplay from './StravaDisplay';
 // Register ChartJS components
 ChartJS.register(
   ArcElement,
@@ -117,9 +115,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   const [isPantryModalOpen, setIsPantryModalOpen] = useState(false);
 
   const [showRecipeList, setShowRecipeList] = useState(false);
-
-  const [fitbitData, setFitbitData] = useState(null);
-  const [stravaData, setStravaData] = useState(null);
 
   const dietOptions = {
     'Diet Types': [
@@ -512,17 +507,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     }
   }, [user?.name, user?.picture]);
 
-  // Add handlers for Fitbit and Strava data
-  const handleFitbitData = (data) => {
-    console.log('Received Fitbit data:', data);
-    setFitbitData(data);
-  };
-
-  const handleStravaData = (data) => {
-    console.log('Received Strava data:', data);
-    setStravaData(data);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
       <div className="max-w-[1400px] mx-auto">
@@ -609,63 +593,11 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
 
         {/* Dietary Goals & Fitbit/Strava side by side */}
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6 flex items-stretch">
-            <div className="w-full flex flex-col justify-center">
-              {fitbitData ? (
-                <FitbitDisplay data={fitbitData} />
-              ) : (
-                <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] flex justify-center">
-                  <button
-                    onClick={() => {
-                      const fitbitComponent = document.querySelector('[data-testid="fitbit-login"]');
-                      if (fitbitComponent) {
-                        fitbitComponent.querySelector('button').click();
-                      }
-                    }}
-                    className="bg-[#00B0B9] text-white px-6 py-3 rounded-lg hover:bg-[#00919A] transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="currentColor"/>
-                    </svg>
-                    Connect Fitbit
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+            <FitbitDisplay />
           </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6 flex items-stretch">
-            <div className="w-full flex flex-col justify-center">
-              {stravaData ? (
-                <StravaDisplay data={stravaData} />
-              ) : (
-                <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] flex justify-center">
-                  <button
-                    onClick={() => {
-                      const stravaComponent = document.querySelector('[data-testid="strava-login"]');
-                      if (stravaComponent) {
-                        stravaComponent.querySelector('button').click();
-                      }
-                    }}
-                    className="flex items-center gap-2 bg-[#FC4C02] hover:bg-[#ff6934] text-white px-4 py-2 rounded-lg transition-colors"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Connect Strava
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Hidden components for functionality */}
-        <div className="hidden">
-          <div data-testid="fitbit-login">
-            <FitbitLogin onDataReceived={handleFitbitData} />
-          </div>
-          <div data-testid="strava-login">
-            <StravaLogin onDataReceived={handleStravaData} />
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+            <StravaDisplay />
           </div>
         </div>
 

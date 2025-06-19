@@ -1,9 +1,108 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-const FitbitDisplay = ({ data }) => {
-  if (!data) {
-    return null;
-  }
+const FitbitDisplay = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [data, setData] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Handle redirect flow
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const responseData = params.get('data');
+    const errorMessage = params.get('message');
+
+    if (responseData) {
+      try {
+        const parsedData = JSON.parse(decodeURIComponent(responseData));
+        handleFitbitData(parsedData);
+        navigate(location.pathname, { replace: true });
+      } catch (err) {
+        console.error('Failed to parse Fitbit data:', err);
+        setError('Failed to process Fitbit data');
+      }
+    } else if (errorMessage) {
+      setError(decodeURIComponent(errorMessage));
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
+
+  // Function to handle messages from popup window
+  const handleOAuthCallback = async (event) => {
+    if (!event.data || event.data.type !== 'fitbit_callback') return;
+    
+    if (event.data.error) {
+      setError(event.data.error);
+      setLoading(false);
+      return;
+    }
+
+    handleFitbitData(event.data.data);
+  };
+
+  // Common function to handle Fitbit data
+  const handleFitbitData = async (responseData) => {
+    try {
+      const { profile, tokens, allData } = responseData;
+      
+      // Store tokens in session
+      await axios.post('/api/fitbit/store-tokens', tokens, {
+        withCredentials: true
+      });
+      
+      setData({ ...profile, allData });
+      setError(null);
+    } catch (err) {
+      setError('Failed to store Fitbit tokens');
+      console.error('Fitbit token storage error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Add message listener for popup callback
+    window.addEventListener('message', handleOAuthCallback);
+    return () => window.removeEventListener('message', handleOAuthCallback);
+  }, []);
+
+  const handleFitbitLogin = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get auth URL from backend
+      const response = await axios.get('/api/fitbit/auth', { 
+        withCredentials: true
+      });
+
+      // Try popup first
+      const width = 600;
+      const height = 800;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      
+      const popup = window.open(
+        response.data.authUrl,
+        'Fitbit Authorization',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      // If popup blocked, fallback to redirect
+      if (!popup) {
+        window.location.href = response.data.authUrl;
+        return;
+      }
+
+    } catch (err) {
+      setError('Failed to initialize Fitbit authentication');
+      console.error('Fitbit auth error:', err);
+      setLoading(false);
+    }
+  };
 
   // Add height conversion function
   const formatHeight = (heightCm) => {
@@ -14,8 +113,34 @@ const FitbitDisplay = ({ data }) => {
     return `${feet}'${inches}"`;
   };
 
-  const height = formatHeight(data.height);
+  if (!data) {
+    return (
+      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">
+        {error && (
+          <div className="text-red-400 text-center mb-4">
+            <p>{error}</p>
+          </div>
+        )}
+        <button 
+          onClick={handleFitbitLogin}
+          disabled={loading}
+          className="bg-[#00B0B9] text-white px-6 py-3 rounded-lg hover:bg-[#00919A] transition-colors flex items-center gap-2 disabled:opacity-50"
+        >
+          {loading ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          ) : (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="currentColor"/>
+            </svg>
+          )}
+          {loading ? 'Connecting...' : 'Connect Fitbit'}
+        </button>
+      </div>
+    );
+  }
 
+  const height = formatHeight(data.height);
+  
   return (
     <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">
       <div className="text-white">
@@ -33,12 +158,7 @@ const FitbitDisplay = ({ data }) => {
               <p className="text-base">{new Date(data.memberSince).toLocaleDateString()}</p>
             </div>
             <button 
-              onClick={() => {
-                const fitbitComponent = document.querySelector('[data-testid="fitbit-login"]');
-                if (fitbitComponent) {
-                  fitbitComponent.querySelector('button').click();
-                }
-              }}
+              onClick={handleFitbitLogin}
               className="self-start mt-[8px] text-green-400 hover:text-green-300 transition-colors"
             >
               <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor">
