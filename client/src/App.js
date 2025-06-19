@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useGoogleLogin } from '@react-oauth/google';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MealPlannerForm from './components/MealPlannerForm';
 import WelcomeModal from './components/WelcomeModal';
+import FitbitSuccess from './components/FitbitSuccess';
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -45,37 +47,51 @@ function App() {
   });
 
   return (
-    <div className="App">
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#2A3142',
-            color: '#fff',
-          },
-          success: {
-            iconTheme: {
-              primary: '#4ade80',
-              secondary: '#2A3142',
+    <Router>
+      <div className="App">
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#2A3142',
+              color: '#fff',
             },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#2A3142',
+            success: {
+              iconTheme: {
+                primary: '#4ade80',
+                secondary: '#2A3142',
+              },
             },
-          },
-        }}
-      />
-      {showWelcome && (
-        <WelcomeModal 
-          onClose={handleWelcomeClose}
-          onGoogleLogin={handleGoogleLogin}
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#2A3142',
+              },
+            },
+          }}
         />
-      )}
-      <MealPlannerForm user={user} />
-    </div>
+        <Routes>
+          <Route path="/fitbit/success" element={<FitbitSuccess />} />
+          <Route path="/fitbit/error" element={
+            <div className="text-red-500 p-4">
+              {new URLSearchParams(window.location.search).get('message')}
+            </div>
+          } />
+          <Route path="/" element={
+            <>
+              {showWelcome && (
+                <WelcomeModal 
+                  onClose={handleWelcomeClose}
+                  onGoogleLogin={handleGoogleLogin}
+                />
+              )}
+              <MealPlannerForm user={user} />
+            </>
+          } />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

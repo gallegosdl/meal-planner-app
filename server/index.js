@@ -11,25 +11,49 @@ const authRoutes = require('./routes/auth');
 const cookieParser = require('cookie-parser');
 const OpenAI = require('openai');
 const pantryRoutes = require('./routes/pantry');
+const fitbitRoutes = require('./routes/fitbit');
+const session = require('express-session');
 require('dotenv').config({ path: './server/.env' });
 
 const app = express();
 
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
 // Middleware
 const allowedOrigins = [
   'https://meal-planner-frontend-woan.onrender.com',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://www.fitbit.com'
 ];
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    // Always allow requests with no origin (like OAuth redirects)
+    if (!origin) {
+      console.log('Allowing request with no origin');
       return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
     }
+    // Check if origin starts with any allowed origin
+    const isAllowed = allowedOrigins.some(allowed => 
+      origin === allowed || origin.startsWith(allowed)
+    );
+    if (isAllowed) {
+      console.log('Allowing origin:', origin);
+      return callback(null, true);
+    }
+    console.log('Rejected origin:', origin);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -37,7 +61,8 @@ app.use(cors({
     'Content-Type', 
     'x-openai-key',
     'x-session-token',
-    'Authorization'
+    'Authorization',
+    'Cookie'
   ]
 }));
 
@@ -206,6 +231,7 @@ app.use('/api/recipes', recipesRouter);
 app.use('/api/instacart', instacartRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/pantry', pantryRoutes);
+app.use('/api/fitbit', fitbitRoutes);
 console.log('Registering /api/pantry routes');
 
 // Authentication endpoint with OpenAI validation

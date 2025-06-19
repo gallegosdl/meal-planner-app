@@ -11,6 +11,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { sendVerificationEmail } = require('../services/email');
 const fetch = require('node-fetch');
+const axios = require('axios');
 
 // Configure protection middleware
 const csrfProtection = csrf({ cookie: true });

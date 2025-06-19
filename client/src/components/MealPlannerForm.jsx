@@ -32,6 +32,8 @@ import PreferredFoods from './PreferredFoods';
 import AvoidedFoods from './AvoidedFoods';
 import UploadReceipt from './UploadReceipt';
 import MealPlanResults from './MealPlanResults';
+import BuildMealPlanWithPantryButton from './BuildMealPlanWithPantryButton';
+import FitbitLogin from './FitbitLogin';
 // Register ChartJS components
 ChartJS.register(
   ArcElement,
@@ -548,6 +550,14 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
               handleChange={handleChange}
               setIsPantryModalOpen={setIsPantryModalOpen}
             />
+            <BuildMealPlanWithPantryButton
+              onMealPlanGenerated={setMealPlan}
+              cuisinePreferences={cuisinePreferences}
+              formData={formData}
+              detectedItems={detectedItems}
+              isLoading={isLoading}
+              setIsLoading={setIsLoading}
+            />
           </div>
 
           {/* Middle column (6): Cuisine Preferences */}
@@ -567,9 +577,15 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           </div>
         </div>
 
+        {/* Dietary Goals & Fitbit side by side */}
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-12">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
             <DietaryGoals dietOptions={dietOptions} formData={formData} toggleDietGoal={toggleDietGoal} />
+          </div>
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6 flex items-stretch">
+            <div className="w-full flex flex-col justify-center">
+              <FitbitLogin />
+            </div>
           </div>
         </div>
 
@@ -684,20 +700,29 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         )}
 
         {mealPlan && (
-          <MealPlanResults 
-            mealPlan={mealPlan}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-          />
+          <div className="mb-8">
+            {mealPlan.generatedWithPantry && (
+              <div className="mb-4 flex items-center gap-3">
+                {/*<span className="inline-block bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium border border-green-500/30">
+                  🍽️ Generated with {mealPlan.pantryItemCount} Pantry Items
+                </span>*/}
+              </div>
+            )}
+            <MealPlanResults 
+              mealPlan={mealPlan}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+            />
+          </div>
         )}
 
         {/* Add PantryModal */}
         {isPantryModalOpen && (
           <PantryModal 
             isOpen={isPantryModalOpen} 
-            onClose={() => setIsPantryModalOpen(false)} 
+            onClose={() => setIsPantryModalOpen(false)}
           />
         )}
       </div>

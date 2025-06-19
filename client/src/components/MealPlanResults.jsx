@@ -61,20 +61,22 @@ const MealPlanResults = ({ mealPlan, viewMode, setViewMode, activeTab, setActive
     {/* View content based on selected mode */}
     {viewMode === 'tabs' && (
       <>
-        <div className="flex border-b border-[#ffffff1a] mb-6">
-          {[1, 2, 3, 4, 5].map((dayNum) => (
-            <button
-              key={dayNum}
-              onClick={() => setActiveTab(dayNum)}
-              className={`px-4 py-2 -mb-px ${
-                activeTab === dayNum
-                  ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              Day {dayNum}
-            </button>
-          ))}
+        <div className="flex items-center gap-3 border-b border-[#ffffff1a] mb-6">
+          <div className="flex">
+            {[1, 2, 3, 4, 5].map((dayNum) => (
+              <button
+                key={dayNum}
+                onClick={() => setActiveTab(dayNum)}
+                className={`px-4 py-2 -mb-px ${
+                  activeTab === dayNum
+                    ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Day {dayNum}
+              </button>
+            ))}
+          </div>
         </div>
         {/* Tab Content */}
         {mealPlan.days.map((day) => (
@@ -83,7 +85,15 @@ const MealPlanResults = ({ mealPlan, viewMode, setViewMode, activeTab, setActive
             className={`${activeTab === day.day ? 'block' : 'hidden'} mb-8`}
           >
             <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
-              <h3 className="text-xl font-semibold mb-4">Day {day.day}</h3>
+              {/* Day heading and badge */}
+              <div className="flex items-center gap-3 mb-4">
+                <h3 className="text-xl font-semibold">Day {day.day}</h3>
+                {mealPlan.generatedWithPantry && (
+                  <span className="inline-block bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium border border-green-500/30 ml-2">
+                    🍽️ Generated with {mealPlan.pantryItemCount} Pantry Items
+                  </span>
+                )}
+              </div>
               {Object.entries(day.meals).map(([mealType, meal]) => (
                 <div key={mealType} className="mb-6">
                   <h4 className="text-lg font-medium capitalize mb-3">

@@ -15,11 +15,12 @@ class MealPlanGenerator {
   preparePreferences(preferences) {
     return {
       totalDays: 2, // Changed to 2 days
-      likes: (preferences.preferences.likes || []).slice(0, 3).join(', ') || 'None',
+      likes: (preferences.preferences.likes || []).slice(0, 10).join(', ') || 'None', // Limit to 10 items to avoid token overflow
       dislikes: (preferences.preferences.dislikes || []).slice(0, 2).join(', ') || 'None',
       macros: preferences.preferences.macros || { protein: 30, carbs: 40, fat: 30 },
       budget: preferences.preferences.budget || 75,
-      cuisinePreferences: this.getTopCuisines(preferences.preferences.cuisinePreferences || {})
+      cuisinePreferences: this.getTopCuisines(preferences.preferences.cuisinePreferences || {}),
+      pantryItems: preferences.pantryItems || [] // Keep pantry items separate for logging
     };
   }
 
@@ -32,6 +33,10 @@ class MealPlanGenerator {
   }
 
   buildPrompt(preparedData) {
+    const pantryInfo = preparedData.pantryItems && preparedData.pantryItems.length > 0 
+      ? `\nPANTRY ITEMS AVAILABLE: ${preparedData.pantryItems.join(', ')}` 
+      : '';
+      
     return `Create a TWO day meal plan with 3 meals per day. Ensure recipes are detailed and include all ingredients and instructions RETUN MACRO NUTRITIONAL INFORMATION in grams. 
 
 Return ONLY valid JSON matching this EXACT structure:
@@ -66,18 +71,25 @@ Return ONLY valid JSON matching this EXACT structure:
 
 Requirements:
 - Cuisine focus: ${preparedData.cuisinePreferences}
-- Use ingredients: ${preparedData.likes}
+- Use ingredients: ${preparedData.likes}${pantryInfo}
 - Avoid: ${preparedData.dislikes}
 - Target Macros: ${preparedData.macros.protein}% protein, ${preparedData.macros.carbs}% carbs, ${preparedData.macros.fat}% fat
 - Budget: $${preparedData.budget} per day
 - Keep all text fields under 200 characters
 - No line breaks in text fields
-- Vary meals between days`;
+- Vary meals between days
+- Prioritize using pantry items when possible`;
   }
 
   async generateMealPlan(preferences) {
     try {
       const preparedData = this.preparePreferences(preferences);
+      
+      // Log pantry items usage
+      if (preparedData.pantryItems && preparedData.pantryItems.length > 0) {
+        console.log('Generating meal plan with pantry items:', preparedData.pantryItems);
+      }
+      
       const prompt = this.buildPrompt(preparedData);
       const systemMessage = "You are a seasoned chef experienced in creating detailed recipes based on the user's preferences. Return ONLY valid JSON for TWO days of meals. Return MACRO NUTRITIONAL INFORMATION. Ensure variety between days.";
 
@@ -132,7 +144,16 @@ Requirements:
       });
 
       try {
-        return JSON.parse(responseContent);
+        const mealPlan = JSON.parse(responseContent);
+        
+        // Add pantry generation metadata
+        const hasPantryItems = preparedData.pantryItems && preparedData.pantryItems.length > 0;
+        mealPlan.generatedWithPantry = hasPantryItems;
+        if (hasPantryItems) {
+          mealPlan.pantryItemCount = preparedData.pantryItems.length;
+        }
+        
+        return mealPlan;
       } catch (parseError) {
         console.log('Initial parse failed, attempting repair');
         try {
@@ -144,18 +165,31 @@ Requirements:
           
           if (!this.validateMealPlanStructure(mealPlan, 2)) {
             console.error('Invalid structure after repair');
-            return this.generateDefaultMealPlan(2);
+            const defaultPlan = this.generateDefaultMealPlan(2);
+            defaultPlan.generatedWithPantry = false;
+            return defaultPlan;
+          }
+          
+          // Add pantry generation metadata
+          const hasPantryItems = preparedData.pantryItems && preparedData.pantryItems.length > 0;
+          mealPlan.generatedWithPantry = hasPantryItems;
+          if (hasPantryItems) {
+            mealPlan.pantryItemCount = preparedData.pantryItems.length;
           }
           
           return mealPlan;
         } catch (repairError) {
           console.error('JSON repair failed:', repairError);
-          return this.generateDefaultMealPlan(2);
+          const defaultPlan = this.generateDefaultMealPlan(2);
+          defaultPlan.generatedWithPantry = false;
+          return defaultPlan;
         }
       }
     } catch (error) {
       console.error('Meal plan generation error:', error);
-      return this.generateDefaultMealPlan(2);
+      const defaultPlan = this.generateDefaultMealPlan(2);
+      defaultPlan.generatedWithPantry = false;
+      return defaultPlan;
     }
   }
 
