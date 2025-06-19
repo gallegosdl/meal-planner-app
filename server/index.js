@@ -12,6 +12,7 @@ const cookieParser = require('cookie-parser');
 const OpenAI = require('openai');
 const pantryRoutes = require('./routes/pantry');
 const fitbitRoutes = require('./routes/fitbit');
+const stravaRoutes = require('./routes/strava');
 const session = require('express-session');
 require('dotenv').config({ path: './server/.env' });
 
@@ -20,7 +21,7 @@ const app = express();
 // Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-  resave: false,
+  resave: true,  // Force session to be saved back to the session store
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
@@ -34,7 +35,8 @@ const allowedOrigins = [
   'https://meal-planner-frontend-woan.onrender.com',
   'http://localhost:3000',
   'http://localhost:3001',
-  'https://www.fitbit.com'
+  'https://www.fitbit.com',
+  'https://www.strava.com'
 ];
 
 app.use(cors({
@@ -232,6 +234,7 @@ app.use('/api/instacart', instacartRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/pantry', pantryRoutes);
 app.use('/api/fitbit', fitbitRoutes);
+app.use('/api/strava', stravaRoutes);
 console.log('Registering /api/pantry routes');
 
 // Authentication endpoint with OpenAI validation
@@ -330,4 +333,10 @@ app.listen(PORT, () => {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
+});
+
+// Add debug logging for Strava env vars
+console.log('Strava Configuration:', {
+  CLIENT_ID: process.env.STRAVA_CLIENT_ID ? 'Present' : 'Missing',
+  CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET ? 'Present' : 'Missing'
 }); 

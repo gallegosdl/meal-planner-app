@@ -2,7 +2,7 @@ import React from 'react';
 import { Bar } from 'react-chartjs-2';
 
 const DailyCalories = ({ formData, handleChange, calorieData }) => (
-  <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+  <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full">
     <div className="flex justify-between items-center mb-6">
       <h3 className="text-sm text-gray-400">Daily Calories</h3>
       <select 
