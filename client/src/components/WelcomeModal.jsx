@@ -81,7 +81,7 @@ const WelcomeModal = ({ onClose }) => {
               <img 
                 src="/images/DGMealPlanner.png" 
                 alt="Meal Planner Logo" 
-                className="w-12 h-12 rounded-xl"
+                className="w-16 h-16 rounded-xl"
               />
               <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                 Welcome to Meal Planner AI
