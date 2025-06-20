@@ -72,69 +72,75 @@ const WelcomeModal = ({ onClose }) => {
   };
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-[#252B3B] rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-[#ffffff1a] max-h-[90vh] flex flex-col">
-          {/* Header */}
-          <div className="mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-              Welcome to Meal Planner AI
-            </h2>
-            <p className="text-gray-400 mt-2 text-sm sm:text-base">
-              Your personal AI-powered nutrition assistant
-            </p>
-          </div>
-
-          {error && (
-            <div className="mb-4 bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-lg">
-              {error}
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="min-h-[calc(100vh-2rem)] md:min-h-0 w-full flex items-center justify-center py-8">
+        <div className="bg-[#1a1f2b] rounded-2xl p-8 max-w-2xl w-full border border-[#ffffff1a] flex flex-col max-h-[90vh]">
+          {/* Sticky Header */}
+          <div className="flex-shrink-0">
+            <div className="flex items-center gap-4 mb-6">
+              <img 
+                src="/images/DGMealPlanner.png" 
+                alt="Meal Planner Logo" 
+                className="w-12 h-12 rounded-xl"
+              />
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                Welcome to Meal Planner AI
+              </h2>
             </div>
-          )}
+
+            {error && (
+              <div className="mb-4 bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-lg">
+                {error}
+              </div>
+            )}
+          </div>
 
           {/* Scrollable Content */}
-          <div className="space-y-4 text-gray-300 overflow-y-auto flex-1 text-sm sm:text-base">
-            <section>
-              <h3 className="text-lg font-semibold text-white mb-2">About Meal Planner</h3>
-              <p>
-                Meal Planner AI is designed to help you achieve your health and dietary goals 
-                through personalized meal planning. Our AI-powered system takes into account your:
-              </p>
-              <ul className="list-disc ml-6 mt-2 space-y-1">
-                <li>Cuisine preferences</li>
-                <li>Dietary restrictions and goals</li>
-                <li>Favorite foods and ingredients</li>
-                <li>Foods you want to avoid</li>
-                <li>Budget constraints</li>
-                <li>Nutritional targets</li>
-              </ul>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold text-white mb-2">Getting Started</h3>
-              <div className="bg-[#1a1f2b] rounded-lg p-4">
-                <p className="text-yellow-400 mb-2">⚠️ Important:</p>
+          <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            <div className="space-y-4 text-gray-300 text-sm sm:text-base">
+              <section>
+                <h3 className="text-lg font-semibold text-white mb-2">About Meal Planner</h3>
                 <p>
-                  To use Meal Planner AI, you'll need to provide your OpenAI API key. 
-                  This key allows our system to generate personalized meal plans using AI technology.
+                  Meal Planner AI is designed to help you achieve your health and dietary goals 
+                  through personalized meal planning. Our AI-powered system takes into account your:
                 </p>
-              </div>
-            </section>
+                <ul className="list-disc ml-6 mt-2 space-y-1">
+                  <li>Cuisine preferences</li>
+                  <li>Dietary restrictions and goals</li>
+                  <li>Favorite foods and ingredients</li>
+                  <li>Foods you want to avoid</li>
+                  <li>Budget constraints</li>
+                  <li>Nutritional targets</li>
+                </ul>
+              </section>
 
-            <section>
-              <h3 className="text-lg font-semibold text-white mb-2">Key Features</h3>
-              <ul className="list-disc ml-6 space-y-1">
-                <li>Personalized meal recommendations</li>
-                <li>Automatic grocery lists</li>
-                <li>Multiple view options (Calendar, Tiles, Detailed)</li>
-                <li>Store price comparisons</li>
-                <li>Recipe library</li>
-                <li>Instacart integration</li>
-              </ul>
-            </section>
+              <section>
+                <h3 className="text-lg font-semibold text-white mb-2">Getting Started</h3>
+                <div className="bg-[#1a1f2b] rounded-lg p-4 border border-[#ffffff1a] bg-[#151922]">
+                  <p className="text-yellow-400 mb-2">⚠️ Important:</p>
+                  <p>
+                    To use Meal Planner AI, you'll need to provide your OpenAI API key. 
+                    This key allows our system to generate personalized meal plans using AI technology.
+                  </p>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white mb-2">Key Features</h3>
+                <ul className="list-disc ml-6 space-y-1">
+                  <li>Personalized meal recommendations</li>
+                  <li>Automatic grocery lists</li>
+                  <li>Multiple view options (Calendar, Tiles, Detailed)</li>
+                  <li>Store price comparisons</li>
+                  <li>Recipe library</li>
+                  <li>Instacart integration</li>
+                </ul>
+              </section>
+            </div>
           </div>
 
-          {/* Footer - Fixed at bottom */}
-          <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col gap-2">
+          {/* Sticky Footer */}
+          <div className="flex-shrink-0 mt-4 pt-4 border-t border-gray-700">
             {/* Legal Links Row */}
             <div className="flex gap-4 justify-center text-sm text-gray-400 mb-2">
               <button type="button" className="hover:text-blue-400 transition-colors underline" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
@@ -209,7 +215,7 @@ const WelcomeModal = ({ onClose }) => {
         onClose={() => setShowSignup(false)}
         onSubmit={handleManualSignup}
       />
-    </>
+    </div>
   );
 };
 

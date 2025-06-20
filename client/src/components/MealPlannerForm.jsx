@@ -512,11 +512,18 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
       <div className="max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-              Meal Planner AI
-            </h1>
-            <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
+          <div className="flex items-center gap-4">
+            <img 
+              src="/images/DGMealPlanner.png" 
+              alt="Meal Planner Logo" 
+              className="w-16 h-16 rounded-xl"
+            />
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                Meal Planner AI
+              </h1>
+              <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
+            </div>
           </div>
           {user && (
             <button

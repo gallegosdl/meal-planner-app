@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="64" height="64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circular Background -->
+  <circle cx="256" cy="256" r="256" fill="#1a1f2b"/>
+  
+  <!-- Gradient Definition -->
   <defs>
-    <clipPath id="circular-clip">
-      <circle cx="32" cy="32" r="32" />
-    </clipPath>
+    <linearGradient id="blue-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
   </defs>
-  <image width="64" height="64" xlink:href="./images/DGMealPlanner.png" clip-path="url(#circular-clip)" />
+  
+  <!-- Complete M Letter -->
+  <path d="M160 372L160 140L256 256L352 140L352 372" 
+        stroke="url(#blue-gradient)"
+        stroke-width="32" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"
+        fill="none"/>
 </svg> 
