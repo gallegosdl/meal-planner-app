@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const FitbitDisplay = () => {
+const FitbitDisplay = ({ onCaloriesUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -15,9 +15,13 @@ const FitbitDisplay = () => {
     const responseData = params.get('data');
     const errorMessage = params.get('message');
 
+    console.log('Checking URL params:', { responseData, errorMessage });
+
     if (responseData) {
       try {
+        console.log('Parsing response data from URL');
         const parsedData = JSON.parse(decodeURIComponent(responseData));
+        console.log('Successfully parsed data:', parsedData);
         handleFitbitData(parsedData);
         navigate(location.pathname, { replace: true });
       } catch (err) {
@@ -25,6 +29,7 @@ const FitbitDisplay = () => {
         setError('Failed to process Fitbit data');
       }
     } else if (errorMessage) {
+      console.log('Found error message in URL:', errorMessage);
       setError(decodeURIComponent(errorMessage));
       navigate(location.pathname, { replace: true });
     }
@@ -32,32 +37,63 @@ const FitbitDisplay = () => {
 
   // Function to handle messages from popup window
   const handleOAuthCallback = async (event) => {
-    if (!event.data || event.data.type !== 'fitbit_callback') return;
+    console.log('Received message event:', event);
+    if (!event.data || event.data.type !== 'fitbit_callback') {
+      console.log('Not a Fitbit callback event:', event.data?.type);
+      return;
+    }
     
     if (event.data.error) {
+      console.error('Fitbit OAuth error:', event.data.error);
       setError(event.data.error);
       setLoading(false);
       return;
     }
 
+    console.log('Received valid Fitbit callback data:', event.data);
     handleFitbitData(event.data.data);
   };
 
   // Common function to handle Fitbit data
   const handleFitbitData = async (responseData) => {
     try {
+      console.log('handleFitbitData called with:', responseData);
       const { profile, tokens, allData } = responseData;
       
       // Store tokens in session
+      console.log('Storing Fitbit tokens...');
       await axios.post('/api/fitbit/store-tokens', tokens, {
         withCredentials: true
       });
-      
-      setData({ ...profile, allData });
+      console.log('Fitbit tokens stored successfully');
+      console.log('Activities data structure:', allData);
+
+      // Calculate total calories from activities only
+      const activitiesCalories = allData?.activities?.daily?.activities?.reduce((sum, activity) => {
+        return sum + (activity.calories || 0);
+      }, 0) || 0;
+
+      console.log('Activities List:', allData?.activities?.daily?.activities);
+      console.log('Activities Calories Total:', activitiesCalories);
+
+      // Pass calories to parent component if callback exists
+      if (onCaloriesUpdate) {
+        console.log('Passing Fitbit activities calories to parent:', activitiesCalories);
+        onCaloriesUpdate(activitiesCalories);
+      }
+
+      // Format the data for display
+      setData({
+        displayName: profile.displayName || profile.fullName,
+        memberSince: profile.memberSince,
+        allData: allData,
+        id: profile.encodedId
+      });
+
       setError(null);
     } catch (err) {
-      setError('Failed to store Fitbit tokens');
-      console.error('Fitbit token storage error:', err);
+      console.error('Failed to process Fitbit data:', err);
+      setError('Failed to process Fitbit data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -181,24 +217,31 @@ const FitbitDisplay = () => {
         {/* Bottom Section - Daily Activities */}
         <div className="mt-3 pt-4 border-t border-[#ffffff1a]">
           <h4 className="text-lg font-semibold mb-4">Today's Activities</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.allData?.activities?.daily?.activities?.map((activity, index) => {
               if (!activity) return null;
 
               // Determine which icon to show
-              let iconPath = null;
-              const isRowing = activity.name?.toLowerCase().includes('rowing');
-              if (isRowing) {
+              let iconPath;
+              const activityName = activity.name?.toLowerCase() || '';
+
+              if (activityName.includes('rowing')) {
                 iconPath = "/images/rowerWhite64.png";
-              } else if (activity.activityParentName === "Run" || activity.name?.toLowerCase().includes('run')) {
+              } else if (activityName.includes('run')) {
                 iconPath = "/images/speed.png";
-              } else if (activity.activityParentName === "Walk" || activity.name?.toLowerCase().includes('walk')) {
+              } else if (activityName.includes('walk')) {
                 iconPath = "/images/walking.png";
+              } else if (activityName.includes('weightlifting')) {
+                iconPath = "/images/workout.png";
+              } else if (activityName.includes('activity')) {
+                iconPath = "/images/workout.png";
               }
+
+              const isRowing = activityName.includes('rowing');
 
               return (
                 <div 
-                  key={index} 
+                  key={index}
                   className={`bg-[#ffffff0a] rounded-lg p-4 flex flex-col ${
                     isRowing ? 'sm:col-span-2 lg:col-span-2' : ''
                   }`}
@@ -208,7 +251,7 @@ const FitbitDisplay = () => {
                       {iconPath && (
                         <img 
                           src={iconPath}
-                          alt={activity.name}
+                          alt={activity.type}
                           className={`${isRowing ? 'w-12 h-12' : 'w-8 h-8'}`}
                         />
                       )}
@@ -218,13 +261,17 @@ const FitbitDisplay = () => {
                   
                   <div className="space-y-2 text-sm text-gray-400">
                     {activity.distance && (
-                      <p className="text-green-400 font-medium">
-                        {(activity.distance).toFixed(2)} miles
+                      <p className="text-[#FC4C02] font-medium">
+                        {(activity.distance)} km
                       </p>
                     )}
-                    <p>{activity.calories} Calories</p>
+                    {activity.calories && (
+                      <p className="text-green-400 font-medium">
+                        {activity.calories} cal
+                      </p>
+                    )}
                     <p>{Math.round(activity.duration / 60000)} minutes</p>
-                    <p className="text-xs">{activity.startTime || 'No time available'}</p>
+                    <p className="text-xs">{(activity.startTime)}</p>
                   </div>
                 </div>
               );

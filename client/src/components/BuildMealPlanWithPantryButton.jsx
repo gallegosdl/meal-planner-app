@@ -120,7 +120,7 @@ const BuildMealPlanWithPantryButton = ({
       <button
         onClick={handleBuildMealPlanWithPantry}
         disabled={isBuildingWithPantry || isLoading}
-        className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:from-green-600 hover:to-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-3 px-4 bg-[#111827]/50 text-green-200 font-semibold border border-green-400/40 rounded-xl shadow-[0_0_8px_1px_rgba(0,255,255,0.25)] hover:bg-[#1e293b]/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 backdrop-blur"
       >
         {isBuildingWithPantry ? (
           <>

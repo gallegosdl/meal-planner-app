@@ -2,13 +2,15 @@ import React from 'react';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
 const HouseholdBox = ({ formData, handlePhotoUpload, updateHouseholdSize, handleChange, setIsPantryModalOpen }) => (
-  <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-between">
+  
+  <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between 
+  shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-white">Household</h2>
         <button
           onClick={() => setIsPantryModalOpen(true)}
-          className="px-4 py-2 bg-gradient-to-r from-blue-300 to-blue-700 text-white font-bold rounded-lg shadow-lg hover:from-blue-600 hover:to-yellow-600 transition-all flex items-center gap-2 border-2 border-blue-400"
+          className="px-4 py-2 bg-[#111827]/50 text-blue-200 font-semibold border border-blue-400/40 rounded-lg shadow-[0_0_8px_1px_rgba(100,180,255,0.25)] hover:bg-[#1e293b]/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 backdrop-blur"
         >
           <ClipboardDocumentListIcon className="w-5 h-5 text-white" />
           Pantry

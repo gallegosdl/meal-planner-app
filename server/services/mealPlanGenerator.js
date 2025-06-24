@@ -37,7 +37,7 @@ class MealPlanGenerator {
       ? `\nPANTRY ITEMS AVAILABLE: ${preparedData.pantryItems.join(', ')}` 
       : '';
       
-    return `Create a TWO day meal plan with 3 meals per day. Ensure recipes are detailed and include all ingredients and instructions RETUN MACRO NUTRITIONAL INFORMATION in grams. 
+      return `Create a TWO day meal plan with 3 meals per day. Each meal must include: name, difficulty, prep time, ingredients, instructions, and nutritional information.
 
 Return ONLY valid JSON matching this EXACT structure:
 {
@@ -46,24 +46,30 @@ Return ONLY valid JSON matching this EXACT structure:
       "day": 1,
       "meals": {
         "breakfast": {
-          "name": "name",
+          "name": "string",
           "difficulty": "Easy",
           "prepTime": "X min prep, Y min cook",
           "ingredients": [
-            {"name": "item", "amount": "qty", "notes": "brief"}
+            {"name": "string", "amount": "string", "notes": "string"}
           ],
-          "instructions": "steps"
+          "instructions": "string",
+          "nutrition": {
+            "protein_g": number,
+            "carbs_g": number,
+            "fat_g": number,
+            "calories": number
+          }
         },
-        "lunch": {...},
-        "dinner": {...}
+        "lunch": { ... same structure ... },
+        "dinner": { ... same structure ... }
       }
     },
     {
       "day": 2,
       "meals": {
-        "breakfast": {...},
-        "lunch": {...},
-        "dinner": {...}
+        "breakfast": { ... },
+        "lunch": { ... },
+        "dinner": { ... }
       }
     }
   ]
@@ -75,6 +81,9 @@ Requirements:
 - Avoid: ${preparedData.dislikes}
 - Target Macros: ${preparedData.macros.protein}% protein, ${preparedData.macros.carbs}% carbs, ${preparedData.macros.fat}% fat
 - Budget: $${preparedData.budget} per day
+- RETURN A "nutrition" OBJECT INSIDE EACH MEAL with EXACTLY these fields: "protein_g", "carbs_g", "fat_g", "calories"
+- Do NOT place nutritional info at the day-level
+- Do NOT rename keys or introduce synonyms
 - Keep all text fields under 200 characters
 - No line breaks in text fields
 - Vary meals between days

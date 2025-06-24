@@ -115,12 +115,12 @@ const Recipe = ({ recipe }) => {
         </div>
 
         {/* Plating Instructions */}
-        {recipe.plating && (
+        {/*recipe.plating && (
           <div className="mt-6">
             <h3 className="text-lg font-semibold text-white mb-3">Plating</h3>
             <p className="text-gray-300 italic">{recipe.plating}</p>
           </div>
-        )}
+        )}*/}
       </div>
 
       <div className="mt-4 flex justify-between items-center">

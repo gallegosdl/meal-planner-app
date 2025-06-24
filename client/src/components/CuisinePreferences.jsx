@@ -5,14 +5,14 @@ const CuisinePreferences = ({ cuisinePreferences, handleCuisineChange }) => {
   const total = Object.values(cuisinePreferences).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="col-span-1 sm:col-span-6 lg:col-span-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">
       <h2 className="text-xl font-semibold text-white mb-4">Cuisine Preferences</h2>
       <p className="text-sm text-gray-400 mb-4">
         Adjust the sliders to set your cuisine preferences (total cannot exceed 100%)
       </p>
 
       {/* Donut Chart */}
-      <div className="h-48 mb-6">
+      <div className="h-[200px] mb-6">
         <Doughnut 
           data={{
             labels: Object.keys(cuisinePreferences).map(cuisine => 
@@ -52,7 +52,7 @@ const CuisinePreferences = ({ cuisinePreferences, handleCuisineChange }) => {
       </div>
 
       {/* Sliders */}
-      <div className="space-y-3">
+      <div className="flex-1 space-y-3">
         {Object.entries(cuisinePreferences).map(([cuisine, value]) => (
           <div key={cuisine} className="flex flex-col">
             <div className="flex justify-between mb-1">
@@ -72,7 +72,7 @@ const CuisinePreferences = ({ cuisinePreferences, handleCuisineChange }) => {
       </div>
 
       {/* Total Display */}
-      <div className="flex justify-between mt-4">
+      <div className="flex justify-between mt-4 pt-4 border-t border-[#ffffff1a]">
         <span className="text-gray-300">Total</span>
         <span className={`font-medium ${
           total === 100 

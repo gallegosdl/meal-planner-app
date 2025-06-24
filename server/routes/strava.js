@@ -39,9 +39,10 @@ router.get('/auth', (req, res) => {
 
 // Callback endpoint for Strava OAuth
 router.get('/callback', async (req, res) => {
+  console.log('\n=== Strava Callback Started ===');
   try {
     const { code, state } = req.query;
-    console.log('Strava callback received:', { 
+    console.log('Strava callback params:', { 
       hasCode: !!code,
       hasState: !!state,
       sessionState: req.session.stravaOauth?.state?.substring(0, 8) + '...',
@@ -53,16 +54,24 @@ router.get('/callback', async (req, res) => {
         !req.session.stravaOauth.state || 
         state !== req.session.stravaOauth.state ||
         Date.now() - req.session.stravaOauth.timestamp > 300000) { // 5 minute expiry
+      console.error('OAuth validation failed:', {
+        hasSession: !!req.session.stravaOauth,
+        hasSessionState: !!req.session.stravaOauth?.state,
+        stateMatch: state === req.session.stravaOauth?.state,
+        timeValid: Date.now() - (req.session.stravaOauth?.timestamp || 0) <= 300000
+      });
       throw new Error('Invalid or expired OAuth session');
     }
 
     delete req.session.stravaOauth; // Clear OAuth session data
+    console.log('OAuth session validated and cleared');
 
     const clientId = process.env.STRAVA_CLIENT_ID;
     const clientSecret = process.env.STRAVA_CLIENT_SECRET;
     const redirectUri = 'http://localhost:3001/api/strava/callback';
 
     console.log('Exchanging code for tokens...');
+    console.log('Using client ID:', clientId);
 
     // Exchange authorization code for tokens
     const tokenResponse = await axios.post('https://www.strava.com/oauth/token',
@@ -74,7 +83,11 @@ router.get('/callback', async (req, res) => {
       }
     );
 
-    console.log('Token exchange successful, received athlete data');
+    console.log('Token exchange successful:', {
+      hasAccessToken: !!tokenResponse.data.access_token,
+      hasRefreshToken: !!tokenResponse.data.refresh_token,
+      hasAthlete: !!tokenResponse.data.athlete
+    });
 
     const {
       access_token,
@@ -84,17 +97,77 @@ router.get('/callback', async (req, res) => {
     } = tokenResponse.data;
 
     // Fetch recent activities
+    console.log('Fetching Strava activities...');
+    // Get start of today in Unix timestamp
+    const todayStart = new Date();
+    todayStart.setHours(0,0,0,0);
+    const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+
     const activitiesResponse = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
       headers: {
         'Authorization': `Bearer ${access_token}`
       },
       params: {
-        per_page: 10, // Get last 10 activities
-        page: 1
+        per_page: 10,
+        page: 1,
+        after: todayTimestamp // Only get activities after start of today
       }
     });
 
-    console.log('Strava activities fetched:', activitiesResponse.data.length);
+    // Fetch detailed data for each activity
+    const activities = activitiesResponse.data;
+    console.log(`Fetching details for ${activities.length} today's activities...`);
+    
+    const detailedActivities = await Promise.all(
+      activities.map(async (activity) => {
+        try {
+          const detailResponse = await axios.get(
+            `https://www.strava.com/api/v3/activities/${activity.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${access_token}`
+              }
+            }
+          );
+
+          // Calculate calories if needed
+          let calories = detailResponse.data.calories;
+          if (!calories && detailResponse.data.kilojoules) {
+            calories = Math.round(detailResponse.data.kilojoules * 0.239); // Convert kJ to kcal
+          }
+          if (!calories) {
+            const duration = detailResponse.data.moving_time; // in seconds
+            const type = detailResponse.data.type.toLowerCase();
+            const metValues = {
+              run: 8,
+              ride: 6,
+              swim: 7,
+              walk: 3.5,
+              hike: 5.3,
+              workout: 5
+            };
+            const met = metValues[type] || 5;
+            const weight = athlete.weight || 70;
+            calories = Math.round((met * weight * (duration / 3600)));
+          }
+
+          return {
+            ...activity,
+            calories,
+            kilojoules: detailResponse.data.kilojoules,
+            average_heartrate: detailResponse.data.average_heartrate,
+            max_heartrate: detailResponse.data.max_heartrate
+          };
+        } catch (error) {
+          console.error(`Error fetching details for activity ${activity.id}:`, error.message);
+          return activity; // Return basic activity data if detail fetch fails
+        }
+      })
+    );
+
+    // Calculate total calories burned today
+    const totalCaloriesToday = detailedActivities.reduce((sum, activity) => sum + (activity.calories || 0), 0);
+    console.log('Total calories burned today:', totalCaloriesToday);
 
     // Store tokens in session
     req.session.strava = {
@@ -105,19 +178,31 @@ router.get('/callback', async (req, res) => {
       obtainedAt: new Date().toISOString()
     };
 
+    console.log('Storing session data...');
     // Save session explicitly
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
-        if (err) reject(err);
-        else resolve();
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully');
+          resolve();
+        }
       });
     });
 
-    // Send HTML that posts message to parent window with all data
     const clientOrigin = process.env.NODE_ENV === 'production' 
       ? 'https://meal-planner-frontend-woan.onrender.com'
       : 'http://localhost:3000';
 
+    console.log('Sending response to client:', {
+      hasAthlete: !!athlete,
+      hasActivities: !!detailedActivities.length,
+      clientOrigin
+    });
+
+    // Send HTML that posts message to parent window with all data
     res.send(`
       <html>
         <body>
@@ -132,7 +217,8 @@ router.get('/callback', async (req, res) => {
                     refreshToken: '${refresh_token}',
                     expiresAt: ${expires_at}
                   },
-                  activities: ${JSON.stringify(activitiesResponse.data)}
+                  activities: ${JSON.stringify(detailedActivities)},
+                  dailyCalories: ${totalCaloriesToday}
                 }
               }, '${clientOrigin}');  // Use specific origin instead of *
               window.close();
@@ -145,7 +231,8 @@ router.get('/callback', async (req, res) => {
                     refreshToken: '${refresh_token}',
                     expiresAt: ${expires_at}
                   },
-                  activities: ${JSON.stringify(activitiesResponse.data)}
+                  activities: ${JSON.stringify(detailedActivities)},
+                  dailyCalories: ${totalCaloriesToday}
                 }));
             }
           </script>
@@ -278,16 +365,65 @@ router.get('/activities', async (req, res) => {
       }
     });
 
+    // Fetch detailed data for each activity
+    const activities = activitiesResponse.data;
+    console.log(`Fetching details for ${activities.length} activities...`);
+    
+    const detailedActivities = await Promise.all(
+      activities.map(async (activity) => {
+        try {
+          const detailResponse = await axios.get(
+            `https://www.strava.com/api/v3/activities/${activity.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              }
+            }
+          );
+
+          // Calculate calories if needed
+          let calories = detailResponse.data.calories;
+          if (!calories && detailResponse.data.kilojoules) {
+            calories = Math.round(detailResponse.data.kilojoules * 0.239); // Convert kJ to kcal
+          }
+          if (!calories) {
+            const duration = detailResponse.data.moving_time; // in seconds
+            const type = detailResponse.data.type.toLowerCase();
+            const metValues = {
+              run: 8,
+              ride: 6,
+              swim: 7,
+              walk: 3.5,
+              hike: 5.3,
+              workout: 5
+            };
+            const met = metValues[type] || 5;
+            const weight = req.session.strava?.athlete?.weight || 70;
+            calories = Math.round((met * weight * (duration / 3600)));
+          }
+
+          return {
+            ...activity,
+            calories,
+            kilojoules: detailResponse.data.kilojoules,
+            average_heartrate: detailResponse.data.average_heartrate,
+            max_heartrate: detailResponse.data.max_heartrate
+          };
+        } catch (error) {
+          console.error(`Error fetching details for activity ${activity.id}:`, error.message);
+          return activity; // Return basic activity data if detail fetch fails
+        }
+      })
+    );
+
     res.json({
-      activities: activitiesResponse.data
+      activities: detailedActivities
     });
 
   } catch (error) {
     console.error('Error fetching Strava activities:', error);
     
-    // Check if token expired
     if (error.response?.status === 401) {
-      // Clear invalid session
       delete req.session.strava;
       return res.status(401).json({ error: 'Strava session expired' });
     }
@@ -295,6 +431,107 @@ router.get('/activities', async (req, res) => {
     res.status(500).json({ 
       error: 'Failed to fetch Strava activities',
       details: error.message
+    });
+  }
+});
+
+// Get detailed activity data including calories
+router.get('/activity/:activityId', async (req, res) => {
+  console.log('\n=== Fetching Activity Details ===');
+  console.log('Activity ID:', req.params.activityId);
+  
+  try {
+    // Check if user is authenticated with Strava
+    if (!req.session.strava?.accessToken) {
+      console.log('No Strava access token in session');
+      return res.status(401).json({ error: 'Not authenticated with Strava' });
+    }
+
+    const accessToken = req.session.strava.accessToken;
+    const activityId = req.params.activityId;
+
+    console.log('Using access token:', accessToken.substring(0, 8) + '...');
+
+    // Get detailed activity data from Strava API
+    const activityResponse = await axios.get(
+      `https://www.strava.com/api/v3/activities/${activityId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    console.log('Activity details received:', {
+      id: activityResponse.data.id,
+      type: activityResponse.data.type,
+      hasCalories: !!activityResponse.data.calories,
+      kilojoules: activityResponse.data.kilojoules
+    });
+
+    // For cycling activities, convert kilojoules to calories (if calories not provided)
+    let calories = activityResponse.data.calories;
+    if (!calories && activityResponse.data.kilojoules) {
+      calories = Math.round(activityResponse.data.kilojoules * 0.239); // Convert kJ to kcal
+    }
+
+    // Estimate calories if not provided (basic estimation)
+    if (!calories) {
+      const duration = activityResponse.data.moving_time; // in seconds
+      const type = activityResponse.data.type.toLowerCase();
+      
+      // Very basic MET-based calculation
+      const metValues = {
+        run: 8,
+        ride: 6,
+        swim: 7,
+        walk: 3.5,
+        hike: 5.3,
+        workout: 5
+      };
+      
+      const met = metValues[type] || 5; // default MET value
+      const weight = req.session.strava?.athlete?.weight || 70; // default weight if not available
+      
+      // Calories = MET * weight in kg * duration in hours
+      calories = Math.round((met * weight * (duration / 3600)));
+    }
+
+    const response = {
+      id: activityResponse.data.id,
+      name: activityResponse.data.name,
+      type: activityResponse.data.type,
+      calories: calories,
+      distance: activityResponse.data.distance,
+      moving_time: activityResponse.data.moving_time,
+      total_elevation_gain: activityResponse.data.total_elevation_gain,
+      start_date: activityResponse.data.start_date,
+      average_speed: activityResponse.data.average_speed,
+      max_speed: activityResponse.data.max_speed,
+      average_heartrate: activityResponse.data.average_heartrate,
+      max_heartrate: activityResponse.data.max_heartrate,
+      kilojoules: activityResponse.data.kilojoules
+    };
+
+    console.log('Sending response with calories:', calories);
+    res.json(response);
+
+  } catch (error) {
+    console.error('Error fetching activity details:', {
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data
+    });
+    
+    if (error.response?.status === 401) {
+      delete req.session.strava;
+      return res.status(401).json({ error: 'Strava session expired' });
+    }
+
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch activity details',
+      details: error.message,
+      strava_error: error.response?.data
     });
   }
 });

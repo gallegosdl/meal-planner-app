@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const StravaDisplay = () => {
+const StravaDisplay = ({ onCaloriesUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -11,27 +11,36 @@ const StravaDisplay = () => {
 
   // Function to handle messages from popup window
   const handleOAuthCallback = async (event) => {
+    console.log('Received postMessage event:', event.data?.type);
     if (!event.data || event.data.type !== 'strava_callback') return;
     
     if (event.data.error) {
+      console.error('Strava OAuth error:', event.data.error);
       setError(event.data.error);
       setLoading(false);
       return;
     }
 
+    console.log('Received Strava callback data:', {
+      hasProfile: !!event.data.data?.profile,
+      hasTokens: !!event.data.data?.tokens,
+      activitiesCount: event.data.data?.activities?.length
+    });
+
     handleStravaData(event.data.data);
   };
 
-  // Common function to handle Strava data
   const handleStravaData = async (responseData) => {
     try {
-      const { profile, tokens, activities } = responseData;
+      const { profile, tokens, activities, dailyCalories } = responseData;
       
       // Store tokens in session
+      console.log('Storing Strava tokens...');
       await axios.post('/api/strava/store-tokens', tokens, {
         withCredentials: true
       });
-      
+      console.log('Strava tokens stored successfully');
+
       // Format the data for display
       setData({
         displayName: `${profile.firstname} ${profile.lastname}`,
@@ -39,30 +48,39 @@ const StravaDisplay = () => {
         activities: activities,
         id: profile.id
       });
+
+      // Pass calories to parent if available
+      if (dailyCalories && onCaloriesUpdate) {
+        console.log('Passing Strava calories to parent:', dailyCalories);
+        onCaloriesUpdate(dailyCalories);
+      }
+
       setError(null);
     } catch (err) {
-      setError('Failed to store Strava tokens');
-      console.error('Strava token storage error:', err);
+      console.error('Failed to process Strava data:', err);
+      setError('Failed to process Strava data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Add message listener for popup callback
     window.addEventListener('message', handleOAuthCallback);
     return () => window.removeEventListener('message', handleOAuthCallback);
   }, []);
 
   const handleStravaLogin = async () => {
     try {
+      console.log('Initiating Strava login...');
       setLoading(true);
       setError(null);
 
       // Get auth URL from backend
+      console.log('Fetching Strava auth URL...');
       const response = await axios.get('/api/strava/auth', { 
         withCredentials: true
       });
+      console.log('Received auth URL from server');
 
       // Try popup first
       const width = 600;
@@ -70,6 +88,7 @@ const StravaDisplay = () => {
       const left = window.screen.width / 2 - width / 2;
       const top = window.screen.height / 2 - height / 2;
       
+      console.log('Opening Strava auth popup...');
       const popup = window.open(
         response.data.authUrl,
         'Strava Authorization',
@@ -78,15 +97,73 @@ const StravaDisplay = () => {
 
       // If popup blocked, fallback to redirect
       if (!popup) {
+        console.log('Popup blocked, falling back to redirect');
         window.location.href = response.data.authUrl;
         return;
       }
 
     } catch (err) {
+      console.error('Strava auth initialization error:', err);
       setError('Failed to initialize Strava authentication');
-      console.error('Strava auth error:', err);
       setLoading(false);
     }
+  };
+
+  // Modify the activities display to show calories
+  const renderActivity = (activity, index) => {
+    // Determine which icon to show
+    let iconPath;
+    const activityType = activity.type?.toLowerCase() || '';
+    const activityName = activity.name?.toLowerCase() || '';
+
+    if (activityName.includes('rowing') || activityType === 'rowing') {
+      iconPath = "/images/rowerWhite64.png";
+    } else if (activityType === 'run' || activityName.includes('run')) {
+      iconPath = "/images/speed.png";
+    } else if (activityType === 'walk' || activityName.includes('walk')) {
+      iconPath = "/images/walking.png";
+    } else if (activityType === 'workout' || activityName.includes('workout')) {
+      iconPath = "/images/workout.png";
+    }
+
+    const isRowing = activityType === 'rowing' || activityName.includes('rowing');
+
+    return (
+      <div 
+        key={index}
+        className={`bg-[#ffffff0a] rounded-lg p-4 flex flex-col ${
+          isRowing ? 'sm:col-span-2 lg:col-span-2' : ''
+        }`}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            {iconPath && (
+              <img 
+                src={iconPath}
+                alt={activity.type}
+                className={`${isRowing ? 'w-12 h-12' : 'w-8 h-8'}`}
+              />
+            )}
+            <h5 className={`${isRowing ? 'text-xl' : 'text-lg'} font-medium`}>{activity.name}</h5>
+          </div>
+        </div>
+        
+        <div className="space-y-2 text-sm text-gray-400">
+          {activity.distance && (
+            <p className="text-[#FC4C02] font-medium">
+              {(activity.distance / 1000).toFixed(2)} km
+            </p>
+          )}
+          {activity.calories && (
+            <p className="text-green-400 font-medium">
+              {activity.calories} cal
+            </p>
+          )}
+          <p>{Math.round(activity.moving_time / 60)} minutes</p>
+          <p className="text-xs">{new Date(activity.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+      </div>
+    );
   };
 
   if (!data) {
@@ -144,39 +221,8 @@ const StravaDisplay = () => {
         {/* Recent Activities */}
         <div className="mt-3 pt-4 border-t border-[#ffffff1a]">
           <h4 className="text-lg font-semibold mb-4">Recent Activities</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {data.activities.map((activity, index) => {
-              const isRowing = activity.type === "Rowing";
-              return (
-                <div 
-                  key={index}
-                  className={`bg-[#ffffff0a] rounded-lg p-4 flex flex-col ${
-                    isRowing ? 'sm:col-span-2 lg:col-span-2' : ''
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <img 
-                        src={isRowing ? "/images/rowerWhite64.png" : "/images/workout.png"}
-                        alt={activity.type}
-                        className={`${isRowing ? 'w-12 h-12' : 'w-8 h-8'}`}
-                      />
-                      <h5 className={`${isRowing ? 'text-xl' : 'text-lg'} font-medium`}>{activity.name}</h5>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm text-gray-400">
-                    {activity.distance && (
-                      <p className="text-[#FC4C02] font-medium">
-                        {(activity.distance / 1000).toFixed(2)} km
-                      </p>
-                    )}
-                    <p>{Math.round(activity.moving_time / 60)} minutes</p>
-                    <p className="text-xs">{new Date(activity.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data?.activities.map((activity, index) => renderActivity(activity, index))}
           </div>
         </div>
       </div>

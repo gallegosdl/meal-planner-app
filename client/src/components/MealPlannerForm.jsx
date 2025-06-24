@@ -116,6 +116,13 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
 
   const [showRecipeList, setShowRecipeList] = useState(false);
 
+  const [dailyCalorieTotals, setDailyCalorieTotals] = useState([]);
+
+  const [activityCalories, setActivityCalories] = useState({
+    strava: 0,
+    fitbit: 0
+  });
+
   const dietOptions = {
     'Diet Types': [
       'High-Protein',
@@ -507,6 +514,21 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     }
   }, [user?.name, user?.picture]);
 
+  const handleDailyTotalsCalculated = (totals) => {
+    console.log('Received daily totals:', totals);
+    setDailyCalorieTotals(totals);
+  };
+
+  const handleStravaCalories = (calories) => {
+    console.log('Received Strava calories in MealPlannerForm:', calories);
+    setActivityCalories(prev => ({ ...prev, strava: calories }));
+  };
+
+  const handleFitbitCalories = (calories) => {
+    console.log('Received Fitbit calories in MealPlannerForm:', calories);
+    setActivityCalories(prev => ({ ...prev, fitbit: calories }));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
       <div className="max-w-[1400px] mx-auto">
@@ -548,28 +570,33 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-8">
+        {/* First grid section */}
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 grid-rows-[auto_1fr] gap-4 sm:gap-6 mb-8">
           {/* Left column (3): Household, Budget */}
-          <div className="col-span-1 sm:col-span-3 lg:col-span-3 flex flex-col gap-6">
-            <HouseholdBox 
-              formData={formData}
-              handlePhotoUpload={handlePhotoUpload}
-              updateHouseholdSize={updateHouseholdSize}
-              handleChange={handleChange}
-              setIsPantryModalOpen={setIsPantryModalOpen}
-            />
-            <BuildMealPlanWithPantryButton
-              onMealPlanGenerated={setMealPlan}
-              cuisinePreferences={cuisinePreferences}
-              formData={formData}
-              detectedItems={detectedItems}
-              isLoading={isLoading}
-              setIsLoading={setIsLoading}
-            />
+          <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
+            <div className="flex-1">
+              <HouseholdBox 
+                formData={formData}
+                handlePhotoUpload={handlePhotoUpload}
+                updateHouseholdSize={updateHouseholdSize}
+                handleChange={handleChange}
+                setIsPantryModalOpen={setIsPantryModalOpen}
+              />
+            </div>
+            <div>
+              <BuildMealPlanWithPantryButton
+                onMealPlanGenerated={setMealPlan}
+                cuisinePreferences={cuisinePreferences}
+                formData={formData}
+                detectedItems={detectedItems}
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
+              />
+            </div>
           </div>
 
           {/* Middle column (6): Cuisine Preferences */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6 flex flex-col gap-6">
+          <div className="col-span-1 sm:col-span-6 lg:col-span-6 row-span-2">
             <CuisinePreferences 
               cuisinePreferences={cuisinePreferences} 
               handleCuisineChange={handleCuisineChange} 
@@ -577,34 +604,46 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           </div>
 
           {/* Right column (3): Macronutrient Split */}
-          <div className="col-span-1 sm:col-span-3 lg:col-span-3 flex flex-col gap-6">
-            <MacronutrientSplit 
-              formData={formData} 
-              handleMacroChange={handleMacroChange} 
-            />
+          <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
+            <div className="flex-1">
+              <MacronutrientSplit 
+                formData={formData} 
+                handleMacroChange={handleMacroChange} 
+              />
+            </div>
+            <div>
+              <MealsPerWeek
+                formData={formData}
+                handleMealsChange={handleMealsChange}
+              />
+            </div>
           </div>
         </div>
 
-        {/* First row: DietaryGoals, DailyCalories, MealsPerWeek in 4-4-4 grid */}
+        {/* First row: DietaryGoals, DailyCalories in 4-8 grid */}
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
           <div className="col-span-1 sm:col-span-6 lg:col-span-4">
             <DietaryGoals dietOptions={dietOptions} formData={formData} toggleDietGoal={toggleDietGoal} />
           </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
-            <DailyCalories formData={formData} handleChange={handleChange} calorieData={calorieData} />
-          </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
-            <MealsPerWeek formData={formData} handleMealsChange={handleMealsChange} />
+          <div className="col-span-1 sm:col-span-6 lg:col-span-8">
+            <DailyCalories 
+              formData={formData}
+              handleChange={handleChange}
+              mealPlan={{ days: mealPlan?.days || [], dailyCalorieTotals }}
+              isFormMode={false}
+              stravaActivities={[{ calories: activityCalories.strava, start_date: new Date() }]}
+              fitbitActivities={[{ calories: activityCalories.fitbit, startTime: new Date() }]}
+            />
           </div>
         </div>
 
         {/* Dietary Goals & Fitbit/Strava side by side */}
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
           <div className="col-span-1 sm:col-span-6 lg:col-span-6">
-            <FitbitDisplay />
+            <FitbitDisplay onCaloriesUpdate={handleFitbitCalories} />
           </div>
           <div className="col-span-1 sm:col-span-6 lg:col-span-6">
-            <StravaDisplay />
+            <StravaDisplay onCaloriesUpdate={handleStravaCalories} />
           </div>
         </div>
 
@@ -724,6 +763,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
               setViewMode={setViewMode}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
+              onDailyTotalsCalculated={handleDailyTotalsCalculated}
             />
           </div>
         )}
