@@ -151,7 +151,8 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
 
   if (!data) {
     return (
-      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">
+      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-center items-center shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+      {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">*/}
         {error && (
           <div className="text-red-400 text-center mb-4">
             <p>{error}</p>
@@ -160,7 +161,8 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
         <button 
           onClick={handleFitbitLogin}
           disabled={loading}
-          className="bg-[#00B0B9] text-white px-6 py-3 rounded-lg hover:bg-[#00919A] transition-colors flex items-center gap-2 disabled:opacity-50"
+          // Old className: "bg-[#00B0B9] text-white px-6 py-3 rounded-lg hover:bg-[#00919A] transition-colors flex items-center gap-2 disabled:opacity-50"
+          className="group px-8 py-4 bg-gradient-to-r from-[#00B0B9]/20 to-[#111827]/60 text-[#00B0B9] font-semibold border-2 border-[#00B0B9]/50 rounded-xl shadow-[0_0_12px_2px_rgba(0,176,185,0.3)] hover:shadow-[0_0_16px_4px_rgba(0,176,185,0.35)] hover:bg-[#1e293b]/60 hover:border-[#00B0B9]/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
         >
           {loading ? (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -178,7 +180,8 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
   const height = formatHeight(data.height);
   
   return (
-    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">
+    //old class name: <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">
+    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#00B0B9]/30 h-full flex flex-col shadow-[0_0_0_1px_rgba(0,176,185,0.6),0_0_12px_3px_rgba(0,176,185,0.25)]">
       <div className="text-white">
         <div className="flex justify-between items-center mb-4">
           <div>

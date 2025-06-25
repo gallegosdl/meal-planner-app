@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -21,177 +21,182 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+import VoiceMicButton from './VoiceMicButton';
 
-const DailyCalories = ({ 
-  formData = { targetCalories: 2000 }, 
+const DailyCalories = React.memo(({ 
+  formData: { targetCalories = 2000 }, 
   handleChange = () => {}, 
   mealPlan, 
   isFormMode = false,
   stravaActivities = [],
   fitbitActivities = []
 }) => {
-  const [activityCalories, setActivityCalories] = useState(0);
+  // Define goal calorie levels
+  const goals = useMemo(() => ({
+    maintain: 2000,
+    lose: 1800,
+    gain: 2300
+  }), []);
+
+  // Handle goal selection change
+  const handleGoalChange = useCallback((e) => {
+    const newGoal = e.target.value;
+    const newTargetCalories = goals[newGoal];
+    // Update parent component's visualData
+    handleChange('targetCalories', newTargetCalories);
+  }, [handleChange, goals]);
+
+  // Get current goal based on target calories
+  const getCurrentGoal = useCallback(() => {
+    return Object.entries(goals).find(([_, value]) => value === targetCalories)?.[0] || 'maintain';
+  }, [goals, targetCalories]);
+
   const [calorieStats, setCalorieStats] = useState({
     meals: 0,
     fitbit: 0,
     strava: 0,
     totalBurned: 0,
-    target: 2000,
+    target: targetCalories,
     net: 0,
     balance: 0
   });
 
-  // Calculate total activity calories whenever activities change
+  // Update calorieStats when targetCalories changes
   useEffect(() => {
+    setCalorieStats(prev => ({
+      ...prev,
+      target: targetCalories,
+      balance: targetCalories - prev.meals
+    }));
+  }, [targetCalories]);
+
+  // Memoize activity calculations
+  const activityCalories = useMemo(() => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    // Sum up Strava calories for today
     const stravaCalories = stravaActivities
       .filter(activity => new Date(activity.start_date) >= todayStart)
       .reduce((sum, activity) => sum + (activity.calories || 0), 0);
 
-    // Sum up Fitbit calories for today
     const fitbitCalories = fitbitActivities
       .filter(activity => new Date(activity.startTime) >= todayStart)
       .reduce((sum, activity) => sum + (activity.calories || 0), 0);
 
-    const totalActivityCalories = stravaCalories + fitbitCalories;
-    
-    if (totalActivityCalories > 0) {
-      console.log('Daily activity calories:', {
-        strava: stravaCalories,
-        fitbit: fitbitCalories,
-        total: totalActivityCalories
-      });
-      setActivityCalories(totalActivityCalories);
-    }
+    return {
+      strava: stravaCalories,
+      fitbit: fitbitCalories,
+      total: stravaCalories + fitbitCalories
+    };
   }, [stravaActivities, fitbitActivities]);
 
-  // Calculate calorie stats whenever activities or meal plan changes
+  // Update calorie stats when activities or meal plan changes
   useEffect(() => {
     const meals = mealPlan?.dailyCalorieTotals?.[0] || 0;
-    const fitbit = fitbitActivities[0]?.calories || 0;
-    const strava = stravaActivities[0]?.calories || 0;
-    const totalBurned = fitbit + strava;
-    const target = formData.targetCalories || 2000;
+    const { strava, fitbit, total: totalBurned } = activityCalories;
     const net = meals - totalBurned;
-    const balance = target - meals;
+    const balance = targetCalories - meals;
 
-    setCalorieStats({
-      meals,
-      fitbit,
-      strava,
-      totalBurned,
-      target,
-      net,
-      balance
+    setCalorieStats(prev => {
+      const newStats = {
+        meals,
+        fitbit,
+        strava,
+        totalBurned,
+        target: targetCalories,
+        net,
+        balance
+      };
+      
+      return JSON.stringify(prev) === JSON.stringify(newStats) ? prev : newStats;
     });
-
-    console.log('Daily activity calories:', {
-      strava,
-      fitbit,
-      total: totalBurned
-    });
-  }, [stravaActivities, fitbitActivities, mealPlan, formData.targetCalories]);
-
-  // Only log when we have actual meal plan data
-  useEffect(() => {
-    if (mealPlan?.dailyCalorieTotals?.length > 0) {
-      console.log('DailyCalories: Updating with new calorie totals:', mealPlan.dailyCalorieTotals);
-    }
-  }, [mealPlan?.dailyCalorieTotals]);
-
-  // Define goal calorie levels
-  const goals = {
-    maintain: 2000,
-    lose: 1800,
-    gain: 2300
-  };
-
-  // Set default target
-  const currentTarget = formData.targetCalories || goals.maintain;
+  }, [mealPlan?.dailyCalorieTotals, activityCalories, targetCalories]);
 
   // Default x-axis labels
   const defaultLabels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5'];
   
-  // Create dataset for the chart
-  const data = {
-    labels: defaultLabels,
-    datasets: [
+  // Memoize chart data
+  const data = useMemo(() => {
+    const datasets = [
       {
         label: 'Target',
-        data: new Array(defaultLabels.length).fill(currentTarget),
-        borderColor: currentTarget === goals.maintain ? '#10b981' : // green for maintain
-                    currentTarget === goals.lose ? '#ef4444' :      // red for lose
-                    '#f59e0b',                                      // yellow for gain
+        data: new Array(defaultLabels.length).fill(targetCalories),
+        borderColor: targetCalories === goals.maintain ? '#10b981' : 
+                    targetCalories === goals.lose ? '#ef4444' : 
+                    '#f59e0b',
         borderDash: [5, 5],
         borderWidth: 2,
         pointRadius: 0,
         tension: 0,
         fill: false
       }
-    ]
-  };
+    ];
 
-  // Add Strava calories dataset if we have any
-  if (stravaActivities.length > 0 && stravaActivities[0].calories > 0) {
-    data.datasets.push({
-      label: 'Strava',
-      data: [stravaActivities[0].calories, ...new Array(defaultLabels.length - 1).fill(null)],
-      borderColor: '#FC4C02', // Strava orange
-      backgroundColor: '#FC4C02',
-      borderWidth: 2,
-      pointRadius: 6,
-      pointHoverRadius: 8,
-      pointStyle: 'circle',
-      pointBackgroundColor: '#FC4C02',
-      pointBorderColor: '#FC4C02',
-      pointBorderWidth: 2,
-      tension: 0.1,
-      fill: false
-    });
-  }
+    // Add Strava calories dataset if we have any
+    if (activityCalories.strava > 0) {
+      datasets.push({
+        label: 'Strava',
+        data: [activityCalories.strava, ...new Array(defaultLabels.length - 1).fill(null)],
+        borderColor: '#FC4C02',
+        backgroundColor: '#FC4C02',
+        borderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointStyle: 'circle',
+        pointBackgroundColor: '#FC4C02',
+        pointBorderColor: '#FC4C02',
+        pointBorderWidth: 2,
+        tension: 0.1,
+        fill: false
+      });
+    }
 
-  // Add Fitbit calories dataset if we have any
-  if (fitbitActivities.length > 0 && fitbitActivities[0].calories > 0) {
-    data.datasets.push({
-      label: 'Fitbit',
-      data: [fitbitActivities[0].calories, ...new Array(defaultLabels.length - 1).fill(null)],
-      borderColor: '#00B0B9', // Fitbit blue
-      backgroundColor: '#00B0B9',
-      borderWidth: 2,
-      pointRadius: 6,
-      pointHoverRadius: 8,
-      pointStyle: 'circle',
-      pointBackgroundColor: '#00B0B9',
-      pointBorderColor: '#00B0B9',
-      pointBorderWidth: 2,
-      tension: 0.1,
-      fill: false
-    });
-  }
+    // Add Fitbit calories dataset if we have any
+    if (activityCalories.fitbit > 0) {
+      datasets.push({
+        label: 'Fitbit',
+        data: [activityCalories.fitbit, ...new Array(defaultLabels.length - 1).fill(null)],
+        borderColor: '#00B0B9',
+        backgroundColor: '#00B0B9',
+        borderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointStyle: 'circle',
+        pointBackgroundColor: '#00B0B9',
+        pointBorderColor: '#00B0B9',
+        pointBorderWidth: 2,
+        tension: 0.1,
+        fill: false
+      });
+    }
 
-  // Only add daily calories dataset if we have meal plan data and not in form mode
-  if (!isFormMode && mealPlan?.dailyCalorieTotals?.length > 0) {
-    data.datasets.unshift({
-      label: 'Meals',
-      data: mealPlan.dailyCalorieTotals,
-      borderColor: '#3b82f6', // blue-500
-      backgroundColor: '#3b82f6',
-      borderWidth: 2,
-      pointRadius: 6,
-      pointHoverRadius: 8,
-      pointStyle: 'circle',
-      pointBackgroundColor: '#fff',
-      pointBorderColor: '#3b82f6',
-      pointBorderWidth: 2,
-      tension: 0.1,
-      fill: false
-    });
-  }
+    // Only add daily calories dataset if we have meal plan data and not in form mode
+    if (!isFormMode && mealPlan?.dailyCalorieTotals?.length > 0) {
+      datasets.unshift({
+        label: 'Meals',
+        data: mealPlan.dailyCalorieTotals,
+        borderColor: '#3b82f6',
+        backgroundColor: '#3b82f6',
+        borderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointStyle: 'circle',
+        pointBackgroundColor: '#fff',
+        pointBorderColor: '#3b82f6',
+        pointBorderWidth: 2,
+        tension: 0.1,
+        fill: false
+      });
+    }
 
-  const options = {
+    return {
+      labels: defaultLabels,
+      datasets
+    };
+  }, [targetCalories, activityCalories, mealPlan?.dailyCalorieTotals, isFormMode, goals.maintain, goals.lose]);
+
+  // Memoize chart options
+  const options = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     scales: {
@@ -206,7 +211,7 @@ const DailyCalories = ({
           }
         },
         min: 0,
-        max: Math.max(2500, currentTarget * 1.2, activityCalories * 1.2, ...(mealPlan?.dailyCalorieTotals || []))
+        max: Math.max(2500, targetCalories * 1.2, activityCalories.total * 1.2, ...(mealPlan?.dailyCalorieTotals || []))
       },
       x: {
         grid: { display: false },
@@ -248,21 +253,18 @@ const DailyCalories = ({
       intersect: false,
       mode: 'index'
     }
-  };
-
-  const getCurrentGoal = () => {
-    return Object.keys(goals).find(key => goals[key] === currentTarget) || 'maintain';
-  };
+  }), [targetCalories, activityCalories.total, mealPlan?.dailyCalorieTotals]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+    {/*<div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full">*/}
       {/* Left Column - Chart */}
       <div className="h-full">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-white">Daily Calories</h3>
           <select 
             className="bg-[#2A3142] text-sm rounded-lg px-3 py-1.5 border-none focus:ring-1 focus:ring-blue-500"
-            onChange={(e) => handleChange('targetCalories', goals[e.target.value])}
+            onChange={handleGoalChange}
             value={getCurrentGoal()}
           >
             <option value="maintain">Maintain Weight</option>
@@ -275,12 +277,20 @@ const DailyCalories = ({
         <div className="h-[300px]">
           <Line data={data} options={options} />
         </div>
+
+        {/* Voice Mic Button */}
+        <div className="mt-6 flex items-center gap-3 mb-4">
+          <VoiceMicButton onVoiceInput={(text) => console.log('User requested route for:', text)} />
+          <p className="text-white text-sm">Speak route preference (e.g., "Find 3-mile walk near me")</p>
+        </div>
       </div>
+
+      
 
       {/* Right Column - Summary */}
       <div className="h-full">
         {/* Calorie Summary Section */}
-        {(calorieStats.meals > 0 || calorieStats.totalBurned > 0) && (
+        {(calorieStats.meals > 0 || calorieStats.totalBurned > 0) ? (
           <div className="space-y-4 h-full">
             {/* Summary Text */}
             <div className="bg-[#1E2433] rounded-lg p-4 border border-[#ffffff0f]">
@@ -349,10 +359,34 @@ const DailyCalories = ({
               </div>
             </div>
           </div>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-center px-6">
+            <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl p-8 border border-blue-500/20">
+              <div className="text-4xl mb-4">🏃‍♂️ 📊</div>
+              <h3 className="text-xl font-semibold text-white mb-3">Ready to Start Your Journey?</h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                Time to turn those goals into reality! Generate your meal plan and connect your fitness trackers to see your daily metrics come to life.
+              </p>
+              <div className="space-y-3 text-sm text-gray-300">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Generate a meal plan to track your nutrition</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Connect Fitbit or Strava to log your activities</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Watch your daily metrics transform!</span>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
-};
+});
 
 export default DailyCalories; 

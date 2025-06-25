@@ -2,10 +2,15 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const socialSharing = require('../services/socialSharing');
+const TogetherAiService = require('../services/togetherAiService');
+const imageStorage = require('../utils/imageStorage');
+
+const togetherAiService = new TogetherAiService();
 
 // GET /api/recipes - Get all recipes
 router.get('/', async (req, res) => {
   try {
+    // First get all recipes with ratings as before
     const result = await db.query(`
       SELECT r.*, 
              COALESCE(AVG(rr.rating), 0) as average_rating,
@@ -15,7 +20,34 @@ router.get('/', async (req, res) => {
       GROUP BY r.id
       ORDER BY r.created_at DESC
     `);
-    res.json(result.rows);
+
+    let recipes = result.rows;
+
+    // Only process the last 3 recipes for image generation
+    if (process.env.TOGETHER_API_KEY) {
+      try {
+        // Process recent recipes for image generation
+        recipes = await togetherAiService.processRecentRecipes(recipes, 3);
+        
+        // Save any generated images
+        recipes = await imageStorage.processGeneratedImages(recipes);
+
+        // Update database with new image URLs
+        for (const recipe of recipes) {
+          if (recipe.image_url) {
+            await db.query(
+              'UPDATE recipes SET image_url = $1 WHERE id = $2',
+              [recipe.image_url, recipe.id]
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Image generation process failed:', error);
+        // Continue with regular recipe data even if image generation fails
+      }
+    }
+
+    res.json(recipes);
   } catch (error) {
     console.error('Failed to fetch recipes:', error);
     res.status(500).json({ 
@@ -28,12 +60,12 @@ router.get('/', async (req, res) => {
 // POST /api/recipes - Save a new recipe
 router.post('/', async (req, res) => {
   try {
-    const { name, difficulty, prepTime, ingredients, instructions, plating } = req.body;
+    const { name, difficulty, prepTime, ingredients, instructions } = req.body;
     const result = await db.query(
-      `INSERT INTO recipes (name, difficulty, prep_time, ingredients, instructions, plating) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
+      `INSERT INTO recipes (name, difficulty, prep_time, ingredients, instructions) 
+       VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
-      [name, difficulty, prepTime, JSON.stringify(ingredients), instructions, plating]
+      [name, difficulty, prepTime, JSON.stringify(ingredients), instructions]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {

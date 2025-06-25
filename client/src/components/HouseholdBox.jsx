@@ -1,10 +1,11 @@
 import React from 'react';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
-const HouseholdBox = ({ formData, handlePhotoUpload, updateHouseholdSize, handleChange, setIsPantryModalOpen }) => (
+const HouseholdBox = ({ householdData, handlePhotoUpload, updateHouseholdSize, handleChange, setIsPantryModalOpen }) => (
   
   <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between 
   shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+    {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">*/}
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-white">Household</h2>
@@ -30,12 +31,12 @@ const HouseholdBox = ({ formData, handlePhotoUpload, updateHouseholdSize, handle
         </div>
         <div>
           <span className="text-sm text-gray-400">Household</span>
-          <div className="text-2xl font-semibold">{formData.householdSize}</div>
+          <div className="text-2xl font-semibold">{householdData.householdSize}</div>
         </div>
       </div>
       {/* Member Photos Grid */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        {formData.householdMembers.map((member) => (
+        {householdData.householdMembers.map((member) => (
           <div key={member.id} className="relative group">
             <label 
               className={`block w-full aspect-square rounded-xl cursor-pointer overflow-hidden
@@ -72,13 +73,13 @@ const HouseholdBox = ({ formData, handlePhotoUpload, updateHouseholdSize, handle
       <div className="flex justify-between items-center mt-4">
         <button 
           className="w-12 h-12 bg-[#2A3142] rounded-xl flex items-center justify-center hover:bg-[#313d4f] transition-colors" 
-          onClick={() => updateHouseholdSize(Math.max(1, formData.householdSize - 1))}
+          onClick={() => updateHouseholdSize(Math.max(1, householdData.householdSize - 1))}
         >
           -
         </button>
         <button 
           className="w-12 h-12 bg-[#2A3142] rounded-xl flex items-center justify-center hover:bg-[#313d4f] transition-colors"
-          onClick={() => updateHouseholdSize(formData.householdSize + 1)}
+          onClick={() => updateHouseholdSize(householdData.householdSize + 1)}
         >
           +
         </button>
@@ -89,13 +90,13 @@ const HouseholdBox = ({ formData, handlePhotoUpload, updateHouseholdSize, handle
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm text-gray-400">Weekly Budget</span>
         </div>
-        <div className="text-2xl mb-2">${formData.budget}</div>
+        <div className="text-2xl mb-2">${householdData.budget || 75}</div>
         <input 
           type="range"
           min="30"
           max="300"
           className="w-full accent-blue-500"
-          value={formData.budget}
+          value={householdData.budget || 75}
           onChange={(e) => handleChange('budget', parseInt(e.target.value))}
         />
       </div>

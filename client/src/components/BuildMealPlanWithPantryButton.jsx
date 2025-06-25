@@ -112,7 +112,8 @@ const BuildMealPlanWithPantryButton = ({
   };
 
   return (
-    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
+    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+    {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">*/}
       <h3 className="text-lg font-semibold text-white mb-2">🍽️ Build with Pantry Items</h3>
       <p className="text-sm text-gray-400 mb-4">
         Generate a meal plan using your pantry items as preferred ingredients

@@ -6,7 +6,9 @@ const crypto = require('crypto');
 // Endpoint to initiate Strava OAuth
 router.get('/auth', (req, res) => {
   const clientId = process.env.STRAVA_CLIENT_ID;
-  const redirectUri = 'http://localhost:3001/api/strava/callback';
+  const redirectUri = process.env.NODE_ENV === 'production'
+    ? 'https://meal-planner-app-backend.onrender.com/api/strava/callback'
+    : 'http://localhost:3001/api/strava/callback';
   
   // Generate state for CSRF protection
   const state = crypto.randomBytes(32).toString('hex');
@@ -192,7 +194,7 @@ router.get('/callback', async (req, res) => {
       });
     });
 
-    const clientOrigin = process.env.NODE_ENV === 'production' 
+    const clientOrigin = process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-frontend-woan.onrender.com'
       : 'http://localhost:3000';
 
@@ -220,7 +222,7 @@ router.get('/callback', async (req, res) => {
                   activities: ${JSON.stringify(detailedActivities)},
                   dailyCalories: ${totalCaloriesToday}
                 }
-              }, '${clientOrigin}');  // Use specific origin instead of *
+              }, '${clientOrigin}');
               window.close();
             } else {
               window.location.href = '${clientOrigin}/strava/success?data=' + 

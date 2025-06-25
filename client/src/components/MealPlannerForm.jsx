@@ -35,6 +35,8 @@ import MealPlanResults from './MealPlanResults';
 import BuildMealPlanWithPantryButton from './BuildMealPlanWithPantryButton';
 import FitbitDisplay from './FitbitDisplay';
 import StravaDisplay from './StravaDisplay';
+import ApiKeyInput from './ApiKeyInput';
+import Header from './Header';
 // Register ChartJS components
 ChartJS.register(
   ArcElement,
@@ -48,27 +50,35 @@ ChartJS.register(
 );
 
 const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
-  const [preferences, setPreferences] = useState({
-    preferences: {
-      dietGoals: [], // From diet type checkboxes
-      likes: [], // From user input
-      dislikes: [], // From user input
-      macros: {
-        protein: 0,
-        carbs: 0,
-        fat: 0
-      },
-      budget: 75, // From budget slider
-      cuisinePreferences: {}, // From cuisine preference sliders
-      mealsPerWeek: {
-        breakfast: 0,
-        lunch: 0,
-        dinner: 0
-      }
+  // Meal plan generation inputs
+  const [mealPlanInputs, setMealPlanInputs] = useState({
+    dietGoals: [],
+    likes: '',
+    dislikes: '',
+    macros: {
+      protein: 30,
+      carbs: 40,
+      fat: 30
     },
-    ingredients: [] // From receipt parsing or manual input
+    mealsPerWeek: {
+      breakfast: 5,
+      lunch: 5,
+      dinner: 5
+    },
+    budget: 75
   });
 
+  // UI/Visualization specific state
+  const [visualData, setVisualData] = useState({
+    householdSize: 1,
+    householdMembers: [{ id: 1, name: 'Member 1', photo: null }],
+    store: 'Smiths',
+    targetCalories: 2000,
+    actualCalories: 1800,
+    budget: 75
+  });
+
+  // Keep existing formData for backward compatibility during transition
   const [formData, setFormData] = useState({
     householdSize: 1,
     householdMembers: [{ id: 1, name: 'Member 1', photo: null }],
@@ -93,7 +103,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   const [mealPlan, setMealPlan] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const [cuisinePreferences, setCuisinePreferences] = useState({
     cajun: 0,
@@ -106,8 +115,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     thai: 0,
     middleEastern: 0
   });
-
-  const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
 
   const [activeTab, setActiveTab] = useState(1);
   const [viewMode, setViewMode] = useState('tabs'); // 'tabs', 'tiles', 'calendar', or 'recipes'
@@ -148,18 +155,94 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     ]
   };
 
-  const handleChange = (field, value) => {
+  // New handlers for mealPlanInputs
+  const handleMealPlanChange = (field, value) => {
+    setMealPlanInputs(prev => ({ ...prev, [field]: value }));
+    // Keep formData in sync during transition
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleMealsChange = (type, value) => {
+  const handleMacroChange = (macro, value) => {
+    const newValue = parseInt(value);
+    const oldValue = mealPlanInputs.macros[macro];
+    const difference = newValue - oldValue;
+    const otherMacros = Object.keys(mealPlanInputs.macros).filter(m => m !== macro);
+    const totalOtherMacros = otherMacros.reduce((sum, m) => sum + mealPlanInputs.macros[m], 0);
+    const newMacros = { ...mealPlanInputs.macros };
+    newMacros[macro] = newValue;
+
+    if (totalOtherMacros === 0 && difference < 0) {
+      const firstOther = otherMacros[0];
+      newMacros[firstOther] = Math.abs(difference);
+    } else {
+      otherMacros.forEach(m => {
+        const proportion = totalOtherMacros === 0 ? 0 : mealPlanInputs.macros[m] / totalOtherMacros;
+        newMacros[m] = Math.max(0, Math.round(mealPlanInputs.macros[m] - (difference * proportion)));
+      });
+    }
+
+    const total = Object.values(newMacros).reduce((sum, val) => sum + val, 0);
+    if (total !== 100) {
+      const lastMacro = otherMacros[otherMacros.length - 1];
+      newMacros[lastMacro] += (100 - total);
+    }
+
+    setMealPlanInputs(prev => ({
+      ...prev,
+      macros: newMacros
+    }));
+    // Keep formData in sync during transition
     setFormData(prev => ({
       ...prev,
-      mealsPerWeek: { ...prev.mealsPerWeek, [type]: value }
+      macros: newMacros
     }));
   };
 
+  const handleMealsChange = (type, value) => {
+    const newMealsPerWeek = {
+      ...mealPlanInputs.mealsPerWeek,
+      [type]: value
+    };
+    setMealPlanInputs(prev => ({
+      ...prev,
+      mealsPerWeek: newMealsPerWeek
+    }));
+    // Keep formData in sync during transition
+    setFormData(prev => ({
+      ...prev,
+      mealsPerWeek: newMealsPerWeek
+    }));
+  };
+
+  // New handler for visual data changes that also updates formData
+  const handleVisualChange = (field, value) => {
+    setVisualData(prev => {
+      const newData = { ...prev, [field]: value };
+      // Keep formData in sync during transition
+      setFormData(prevForm => ({ ...prevForm, [field]: value }));
+      return newData;
+    });
+  };
+
+  // Update existing handlers to use new state
+  const handleChange = (field, value) => {
+    if (field in mealPlanInputs) {
+      handleMealPlanChange(field, value);
+    } else if (field in visualData) {
+      handleVisualChange(field, value);
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
   const toggleDietGoal = (goal) => {
+    setMealPlanInputs(prev => {
+      const newGoals = prev.dietGoals.includes(goal)
+        ? prev.dietGoals.filter(g => g !== goal)
+        : [...prev.dietGoals, goal];
+      return { ...prev, dietGoals: newGoals };
+    });
+    // Keep formData in sync during transition
     setFormData(prev => {
       const newGoals = prev.dietGoals.includes(goal)
         ? prev.dietGoals.filter(g => g !== goal)
@@ -191,41 +274,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleMacroChange = (macro, value) => {
-    const newValue = parseInt(value);
-    const oldValue = formData.macros[macro];
-    const difference = newValue - oldValue;
-    const otherMacros = Object.keys(formData.macros).filter(m => m !== macro);
-    const totalOtherMacros = otherMacros.reduce((sum, m) => sum + formData.macros[m], 0);
-    const newMacros = { ...formData.macros };
-    newMacros[macro] = newValue;
-
-    if (totalOtherMacros === 0 && difference < 0) {
-      // All other macros are 0, and we're reducing the current macro
-      // Assign the freed value to the first other macro
-      const firstOther = otherMacros[0];
-      newMacros[firstOther] = Math.abs(difference);
-    } else {
-      // Proportionally adjust other macros
-      otherMacros.forEach(m => {
-        const proportion = totalOtherMacros === 0 ? 0 : formData.macros[m] / totalOtherMacros;
-        newMacros[m] = Math.max(0, Math.round(formData.macros[m] - (difference * proportion)));
-      });
-    }
-
-    // Ensure total is 100%
-    const total = Object.values(newMacros).reduce((sum, val) => sum + val, 0);
-    if (total !== 100) {
-      const lastMacro = otherMacros[otherMacros.length - 1];
-      newMacros[lastMacro] += (100 - total);
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      macros: newMacros
-    }));
   };
 
   const handleCuisineChange = (cuisine, value) => {
@@ -271,7 +319,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   const macroData = {
     labels: ['Protein', 'Carbs', 'Fat'],
     datasets: [{
-      data: [formData.macros.protein, formData.macros.carbs, formData.macros.fat],
+      data: [mealPlanInputs.macros.protein, mealPlanInputs.macros.carbs, mealPlanInputs.macros.fat],
       backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
       borderWidth: 0
     }]
@@ -280,7 +328,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   const calorieData = {
     labels: ['Target', 'Current'],
     datasets: [{
-      data: [formData.targetCalories, formData.actualCalories],
+      data: [visualData.targetCalories, visualData.actualCalories],
       backgroundColor: ['#3b82f6', '#f59e0b'],
       borderRadius: 8,
       barThickness: 20
@@ -378,20 +426,9 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           cuisinePreferences: Object.fromEntries(
             Object.entries(cuisinePreferences).filter(([_, value]) => value > 0)
           ),
-          dietGoals: formData.dietGoals || [],
-          likes: formData.likes.split(',').map(item => item.trim()).filter(Boolean),
-          dislikes: formData.dislikes.split(',').map(item => item.trim()).filter(Boolean),
-          macros: {
-            protein: formData.macros.protein || 30,
-            carbs: formData.macros.carbs || 40,
-            fat: formData.macros.fat || 30
-          },
-          mealsPerWeek: {
-            breakfast: formData.mealsPerWeek.breakfast || 5,
-            lunch: formData.mealsPerWeek.lunch || 5,
-            dinner: formData.mealsPerWeek.dinner || 5
-          },
-          budget: formData.budget || 75
+          ...mealPlanInputs,
+          likes: mealPlanInputs.likes.split(',').map(item => item.trim()).filter(Boolean),
+          dislikes: mealPlanInputs.dislikes.split(',').map(item => item.trim()).filter(Boolean)
         },
         ingredients: detectedItems || []
       };
@@ -428,43 +465,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     }
   };
 
-  const handleApiKeyChange = async (value) => {
-    setApiKey(value);
-    setError(null); // Reset error state on new attempt
-    
-    if (value) {
-      setIsAuthenticating(true); // Show loading state
-      try {
-        // Attempt to authenticate with the API key
-        await authenticate(value);
-        localStorage.setItem('openai_api_key', value);
-        toast.success('API key validated successfully');
-        
-      } catch (error) {
-        // Handle different error scenarios with specific messages
-        let errorMessage;
-        if (error.response?.status === 401) {
-          errorMessage = 'Invalid API key. Please check your key and try again.';
-        } else if (error.response?.status === 429) {
-          errorMessage = 'Too many attempts. Please wait a moment and try again.';
-        } else {
-          errorMessage = 'Failed to validate API key. Please try again later.';
-        }
-        setError(errorMessage);
-        toast.error(errorMessage);
-        console.error('Authentication error:', error);
-        localStorage.removeItem('openai_api_key');
-      } finally {
-        setIsAuthenticating(false);
-      }
-    } else {
-      // If value is empty, clear everything
-      localStorage.removeItem('openai_api_key');
-      clearSession();
-    }
-  };
-
-  // Add logout handler
   const handleLogout = async () => {
     try {
       await api.post('/api/auth/logout');
@@ -481,16 +481,29 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   // Update preferences when user data is available
   useEffect(() => {
     if (user) {
-      // Set initial preferences based on user data
-      setPreferences(prev => ({
+      // Update mealPlanInputs with user data
+      setMealPlanInputs(prev => ({
         ...prev,
         email: user.email,
         userId: user.id
       }));
-      setFormData(prev => ({
+
+      // Update visualData with user data
+      setVisualData(prev => ({
         ...prev,
         householdMembers: [
-          { id: 1, name: user.name, photo: null },
+          { id: 1, name: user.name, photo: user.picture || null },
+          ...prev.householdMembers.slice(1)
+        ]
+      }));
+
+      // Keep formData in sync during transition
+      setFormData(prev => ({
+        ...prev,
+        email: user.email,
+        userId: user.id,
+        householdMembers: [
+          { id: 1, name: user.name, photo: user.picture || null },
           ...prev.householdMembers.slice(1)
         ]
       }));
@@ -500,13 +513,26 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   // Update member name and photo when user data is available
   useEffect(() => {
     if (user?.name) {
+      setVisualData(prev => ({
+        ...prev,
+        householdMembers: [
+          { 
+            id: 1, 
+            name: user.name, 
+            photo: user.picture || null
+          },
+          ...prev.householdMembers.slice(1)
+        ]
+      }));
+
+      // Keep formData in sync during transition
       setFormData(prev => ({
         ...prev,
         householdMembers: [
           { 
             id: 1, 
             name: user.name, 
-            photo: user.picture || null  // Use Google profile picture
+            photo: user.picture || null
           },
           ...prev.householdMembers.slice(1)
         ]
@@ -514,61 +540,25 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     }
   }, [user?.name, user?.picture]);
 
-  const handleDailyTotalsCalculated = (totals) => {
-    console.log('Received daily totals:', totals);
-    setDailyCalorieTotals(totals);
-  };
+  const handleDailyTotalsCalculated = React.useCallback((totals) => {
+    // Only update if the totals have actually changed
+    if (JSON.stringify(dailyCalorieTotals) !== JSON.stringify(totals)) {
+      setDailyCalorieTotals(totals);
+    }
+  }, [dailyCalorieTotals]);
 
-  const handleStravaCalories = (calories) => {
-    console.log('Received Strava calories in MealPlannerForm:', calories);
+  const handleStravaCalories = React.useCallback((calories) => {
     setActivityCalories(prev => ({ ...prev, strava: calories }));
-  };
+  }, []);
 
-  const handleFitbitCalories = (calories) => {
-    console.log('Received Fitbit calories in MealPlannerForm:', calories);
+  const handleFitbitCalories = React.useCallback((calories) => {
     setActivityCalories(prev => ({ ...prev, fitbit: calories }));
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
       <div className="max-w-[1400px] mx-auto">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <img 
-              src="/images/DGMealPlanner.png" 
-              alt="Meal Planner Logo" 
-              className="w-16 h-16 rounded-xl"
-            />
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                Meal Planner AI
-              </h1>
-              <p className="text-gray-400 mt-2">Personalized nutrition planning powered by AI</p>
-            </div>
-          </div>
-          {user && (
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 bg-[#2A3142] px-4 py-2 rounded-lg border border-[#ffffff1a] hover:bg-[#313d4f] transition-colors group"
-            >
-              <svg className="w-5 h-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-              </svg>
-              <div className="flex flex-col items-start">
-                <span className="text-gray-400 text-xs">Logged in as</span>
-                <span className="text-white font-medium group-hover:text-blue-400 transition-colors">{user.name}</span>
-              </div>
-              <svg 
-                className="w-4 h-4 text-gray-400 group-hover:text-blue-400 transition-colors ml-2" 
-                viewBox="0 0 20 20" 
-                fill="currentColor"
-              >
-                <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd"/>
-              </svg>
-            </button>
-          )}
-        </div>
+        <Header user={user} handleLogout={handleLogout} />
 
         {/* First grid section */}
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 grid-rows-[auto_1fr] gap-4 sm:gap-6 mb-8">
@@ -576,10 +566,10 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
             <div className="flex-1">
               <HouseholdBox 
-                formData={formData}
+                householdData={visualData}
                 handlePhotoUpload={handlePhotoUpload}
                 updateHouseholdSize={updateHouseholdSize}
-                handleChange={handleChange}
+                handleChange={handleVisualChange}
                 setIsPantryModalOpen={setIsPantryModalOpen}
               />
             </div>
@@ -607,13 +597,13 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
             <div className="flex-1">
               <MacronutrientSplit 
-                formData={formData} 
+                formData={mealPlanInputs} 
                 handleMacroChange={handleMacroChange} 
               />
             </div>
             <div>
               <MealsPerWeek
-                formData={formData}
+                formData={mealPlanInputs}
                 handleMealsChange={handleMealsChange}
               />
             </div>
@@ -623,13 +613,16 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         {/* First row: DietaryGoals, DailyCalories in 4-8 grid */}
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
           <div className="col-span-1 sm:col-span-6 lg:col-span-4">
-            <DietaryGoals dietOptions={dietOptions} formData={formData} toggleDietGoal={toggleDietGoal} />
+            <DietaryGoals dietOptions={dietOptions} formData={mealPlanInputs} toggleDietGoal={toggleDietGoal} />
           </div>
           <div className="col-span-1 sm:col-span-6 lg:col-span-8">
             <DailyCalories 
-              formData={formData}
-              handleChange={handleChange}
-              mealPlan={{ days: mealPlan?.days || [], dailyCalorieTotals }}
+              formData={{ targetCalories: visualData.targetCalories }}
+              handleChange={handleVisualChange}
+              mealPlan={mealPlan ? {
+                days: mealPlan.days || [],
+                dailyCalorieTotals: dailyCalorieTotals
+              } : null}
               isFormMode={false}
               stravaActivities={[{ calories: activityCalories.strava, start_date: new Date() }]}
               fitbitActivities={[{ calories: activityCalories.fitbit, startTime: new Date() }]}
@@ -649,13 +642,13 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
           <div className="col-span-1 sm:col-span-6 lg:col-span-4">
-            <MealPreferences formData={formData} handleChange={handleChange} />
+            <MealPreferences formData={mealPlanInputs} handleChange={handleChange} />
           </div>
           <div className="col-span-1 sm:col-span-6 lg:col-span-4">
-            <PreferredFoods formData={formData} />
+            <PreferredFoods formData={mealPlanInputs} />
           </div>
           <div className="col-span-1 sm:col-span-6 lg:col-span-4">
-            <AvoidedFoods formData={formData} />
+            <AvoidedFoods formData={mealPlanInputs} />
           </div>
         </div>
 
@@ -670,56 +663,9 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-12 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] mb-8">
-            <h3 className="text-sm text-gray-400 mb-4">OpenAI API Key</h3>
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-4">
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => handleApiKeyChange(e.target.value)}
-                  placeholder="Enter your OpenAI API key"
-                  className={`flex-1 px-4 py-2 bg-[#2A3142] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 ${
-                    error ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
-                  }`}
-                  disabled={isAuthenticating}
-                />
-                <button
-                  onClick={() => handleApiKeyChange('')}
-                  className="px-4 py-2 bg-[#2A3142] text-gray-400 rounded-lg hover:bg-[#313748]"
-                  disabled={isAuthenticating}
-                >
-                  Clear
-                </button>
-              </div>
-              
-              {/* Error message */}
-              {error && (
-                <div className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg flex items-start gap-2">
-                  <svg className="w-5 h-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  {error}
-                </div>
-              )}
-
-              {/* Loading state */}
-              {isAuthenticating && (
-                <div className="text-sm text-blue-400 bg-blue-400/10 p-3 rounded-lg flex items-center gap-2">
-                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Validating API key...
-                </div>
-              )}
-
-              <p className="text-xs text-gray-500">
-                Your API key is stored locally and never sent to our servers
-              </p>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
+          
+          <ApiKeyInput />
         </div>
 
         {/* Action Buttons Row */}
@@ -727,7 +673,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           <div className="col-span-1 sm:col-span-6 lg:col-span-6">
             <button
               onClick={handleGenerateMealPlan}
-              className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow hover:from-blue-600 hover:to-purple-600 transition-all"
+              // old className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow hover:from-blue-600 hover:to-purple-600 transition-all"
+              className="w-full group px-8 py-4 bg-[#111827]/50 text-blue-400 font-semibold border-2 border-blue-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(59,130,246,0.3)] hover:shadow-[0_0_16px_4px_rgba(59,130,246,0.35)] hover:bg-[#1e293b]/60 hover:border-blue-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
               disabled={isLoading}
             >
               {isLoading ? 'Generating...' : 'Generate Your Meal Plan'}
@@ -736,7 +683,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           <div className="col-span-1 sm:col-span-6 lg:col-span-6">
             <button
               onClick={() => setShowRecipeList((prev) => !prev)}
-              className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:from-green-600 hover:to-teal-600 transition-all"
+              // old className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:from-green-600 hover:to-teal-600 transition-all"
+              className="w-full group px-8 py-4 bg-[#111827]/50 text-emerald-400 font-semibold border-2 border-emerald-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(16,185,129,0.3)] hover:shadow-[0_0_16px_4px_rgba(16,185,129,0.35)] hover:bg-[#1e293b]/60 hover:border-emerald-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
             >
               {showRecipeList ? 'Hide Recipe List' : 'View Recipe List'}
             </button>

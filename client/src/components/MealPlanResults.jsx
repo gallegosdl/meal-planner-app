@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import SendToInstacartButton from './SendToInstacartButton';
 import RecipeList from './RecipeList';
 import DraggableMealPlan from './DraggableMealPlan';
@@ -34,6 +34,7 @@ const MealPlanResults = ({
   stravaActivities = [],
   fitbitActivities = []
 }) => {
+  const [imageErrors, setImageErrors] = useState({});
   
   // Calculate and pass up daily totals whenever mealPlan changes
   useEffect(() => {
@@ -127,7 +128,7 @@ const MealPlanResults = ({
               <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">
                 {/* Day heading and badge with nutrition summary */}
                 <div className="flex items-center gap-3 mb-4">
-                  <h3 className="text-xl font-semibold flex flex-wrap items-center gap-4">
+                  <h3 className="text-3xl font-semibold flex flex-wrap items-center gap-4">
                     Day {day.day}
                     <span className="text-sm font-normal text-gray-400 flex gap-3">
                       <span className="text-blue-400">{getDailyTotals(day.meals).calories} kcal</span>
@@ -143,35 +144,57 @@ const MealPlanResults = ({
                   )}
                 </div>
                 {Object.entries(day.meals).map(([mealType, meal]) => (
-                  <div key={mealType} className="mb-6">
-                    <h4 className="text-lg font-medium capitalize mb-3">
+                  <div key={mealType} className="mb-12 pb-12 border-b border-[#ffffff1a] last:border-0 last:mb-0 last:pb-0">
+                    <h4 className="text-2xl font-medium capitalize mb-6">
                       {mealType}: {meal.name}
                     </h4>
-                    <div className="ml-4 space-y-4">
-                      {meal.nutrition && (
-                        <div className="bg-[#2A3142] rounded-lg p-3 mb-4">
-                          <div className="grid grid-cols-4 gap-2 text-sm">
-                            <div className="text-blue-400">Calories: {meal.nutrition.calories}</div>
-                            <div className="text-green-400">Protein: {meal.nutrition.protein_g}g</div>
-                            <div className="text-yellow-400">Carbs: {meal.nutrition.carbs_g}g</div>
-                            <div className="text-red-400">Fat: {meal.nutrition.fat_g}g</div>
+                    <div className="flex gap-8">
+                      {/* Image on the left */}
+                      {meal.image_url && !imageErrors[`${day.day}-${mealType}`] && (
+                        <div className="w-1/3">
+                          <div className="relative rounded-lg overflow-hidden">
+                            <img
+                              src={meal.image_url}
+                              alt={meal.name}
+                              className="rounded-lg"
+                              onError={() => setImageErrors(prev => ({ 
+                                ...prev, 
+                                [`${day.day}-${mealType}`]: true 
+                              }))}
+                            />
                           </div>
                         </div>
                       )}
-                      <div>
-                        <h5 className="font-medium mb-2">Ingredients:</h5>
-                        <ul className="list-disc ml-4 space-y-1">
-                          {meal.ingredients.map((ing, i) => (
-                            <li key={i}>
-                              {ing.name} - {ing.amount}
-                              {ing.cost && ` ($${ing.cost})`}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <h5 className="font-medium mb-2">Instructions:</h5>
-                        <p className="ml-4 text-gray-300">{meal.instructions}</p>
+                      
+                      {/* Content on the right */}
+                      <div className={meal.image_url && !imageErrors[`${day.day}-${mealType}`] ? "w-2/3" : "w-full"}>
+                        {meal.nutrition && (
+                          <div className="bg-[#2A3142] rounded-lg p-4 mb-6">
+                            <div className="grid grid-cols-4 gap-4 text-sm">
+                              <div className="text-blue-400">Calories: {meal.nutrition.calories}</div>
+                              <div className="text-green-400">Protein: {meal.nutrition.protein_g}g</div>
+                              <div className="text-yellow-400">Carbs: {meal.nutrition.carbs_g}g</div>
+                              <div className="text-red-400">Fat: {meal.nutrition.fat_g}g</div>
+                            </div>
+                          </div>
+                        )}
+                        <div className="space-y-6">
+                          <div>
+                            <h5 className="font-medium mb-3">Ingredients:</h5>
+                            <ul className="list-disc ml-4 space-y-2">
+                              {meal.ingredients.map((ing, i) => (
+                                <li key={i}>
+                                  {ing.name} - {ing.amount}
+                                  {ing.cost && ` ($${ing.cost})`}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <h5 className="font-medium mb-3">Instructions:</h5>
+                            <p className="ml-4 text-gray-300">{meal.instructions}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

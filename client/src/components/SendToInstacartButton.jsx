@@ -165,7 +165,7 @@ const SendToInstacartButton = ({ mealPlan }) => {
       <button
         onClick={handleOpenConfirmation}
         disabled={isCreatingList || isCheckingPrices}
-        className="mt-6 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isCreatingList ? 'Creating List...' : 'Send to Instacart Shopping List'}
       </button>

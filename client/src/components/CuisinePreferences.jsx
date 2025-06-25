@@ -1,11 +1,51 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 
 const CuisinePreferences = ({ cuisinePreferences, handleCuisineChange }) => {
-  const total = Object.values(cuisinePreferences).reduce((a, b) => a + b, 0);
+  const total = useMemo(() => 
+    Object.values(cuisinePreferences).reduce((a, b) => a + b, 0),
+    [cuisinePreferences]
+  );
+
+  const chartData = useMemo(() => ({
+    labels: Object.keys(cuisinePreferences).map(cuisine => 
+      cuisine.replace(/([A-Z])/g, ' $1').trim()
+    ),
+    datasets: [{
+      data: Object.values(cuisinePreferences),
+      backgroundColor: [
+        '#FF6384', // cajun
+        '#36A2EB', // creole
+        '#FFCE56', // mexican
+        '#4BC0C0', // italian
+        '#9966FF', // greek
+        '#FF9F40', // chinese
+        '#EA80FC', // japanese
+        '#00E676', // thai
+        '#FF5252'  // middleEastern
+      ],
+      borderWidth: 0
+    }]
+  }), [cuisinePreferences]);
+
+  const chartOptions = useMemo(() => ({
+    maintainAspectRatio: false,
+    cutout: '70%',
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          color: '#9ca3af',
+          font: { size: 11 },
+          padding: 10
+        }
+      }
+    }
+  }), []);
 
   return (
-    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">
+    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+      {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">*/}
       <h2 className="text-xl font-semibold text-white mb-4">Cuisine Preferences</h2>
       <p className="text-sm text-gray-400 mb-4">
         Adjust the sliders to set your cuisine preferences (total cannot exceed 100%)
@@ -14,40 +54,8 @@ const CuisinePreferences = ({ cuisinePreferences, handleCuisineChange }) => {
       {/* Donut Chart */}
       <div className="h-[200px] mb-6">
         <Doughnut 
-          data={{
-            labels: Object.keys(cuisinePreferences).map(cuisine => 
-              cuisine.replace(/([A-Z])/g, ' $1').trim()
-            ),
-            datasets: [{
-              data: Object.values(cuisinePreferences),
-              backgroundColor: [
-                '#FF6384', // cajun
-                '#36A2EB', // creole
-                '#FFCE56', // mexican
-                '#4BC0C0', // italian
-                '#9966FF', // greek
-                '#FF9F40', // chinese
-                '#EA80FC', // japanese
-                '#00E676', // thai
-                '#FF5252'  // middleEastern
-              ],
-              borderWidth: 0
-            }]
-          }}
-          options={{
-            maintainAspectRatio: false,
-            cutout: '70%',
-            plugins: {
-              legend: {
-                position: 'right',
-                labels: {
-                  color: '#9ca3af',
-                  font: { size: 11 },
-                  padding: 10
-                }
-              }
-            }
-          }}
+          data={chartData}
+          options={chartOptions}
         />
       </div>
 
@@ -86,4 +94,4 @@ const CuisinePreferences = ({ cuisinePreferences, handleCuisineChange }) => {
   );
 };
 
-export default CuisinePreferences; 
+export default React.memo(CuisinePreferences); 

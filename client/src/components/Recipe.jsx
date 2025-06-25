@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 const Recipe = ({ recipe }) => {
   const [rating, setRating] = useState(recipe.average_rating || 0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const handleRate = async (newRating) => {
     try {
@@ -46,6 +47,18 @@ const Recipe = ({ recipe }) => {
 
   return (
     <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] transition-all duration-300 hover:border-blue-500/30">
+      {/* Optional Recipe Image */}
+      {recipe.image_url && !imageError && (
+        <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
+          <img
+            src={recipe.image_url}
+            alt={recipe.name}
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        </div>
+      )}
+
       <div className="flex justify-between items-start">
         <h2 className="text-2xl font-bold mb-4 text-white">{recipe.name}</h2>
         <button 

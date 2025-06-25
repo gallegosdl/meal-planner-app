@@ -166,7 +166,9 @@ async function fetchAllFitbitData(accessToken, scope) {
 // Endpoint to initiate Fitbit OAuth
 router.get('/auth', (req, res) => {
   const clientId = process.env.FITBIT_CLIENT_ID;
-  const redirectUri = 'http://localhost:3001/api/fitbit/callback';
+  const redirectUri = process.env.NODE_ENV === 'production'
+    ? 'https://meal-planner-app-backend.onrender.com/api/fitbit/callback'
+    : 'http://localhost:3001/api/fitbit/callback';
   
   // All available Fitbit scopes as of 2024
   // Only request what your app needs - requesting all scopes may reduce user trust
@@ -241,7 +243,9 @@ router.get('/callback', async (req, res) => {
 
     const clientId = process.env.FITBIT_CLIENT_ID;
     const clientSecret = process.env.FITBIT_CLIENT_SECRET;
-    const redirectUri = 'http://localhost:3001/api/fitbit/callback';
+    const redirectUri = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-backend.onrender.com/api/fitbit/callback'
+      : 'http://localhost:3001/api/fitbit/callback';
 
     // Exchange authorization code for tokens using PKCE verification
     // We include the original code_verifier to prove we're the same app that initiated the flow
@@ -289,6 +293,10 @@ router.get('/callback', async (req, res) => {
     });
 
     // Send HTML that posts message to parent window with all data
+    const clientOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000';
+
     res.send(`
       <html>
         <body>
@@ -309,10 +317,10 @@ router.get('/callback', async (req, res) => {
                   },
                   allData: ${JSON.stringify(allFitbitData)}
                 }
-              }, 'http://localhost:3000');
+              }, '${clientOrigin}');
               window.close();
             } else {
-              window.location.href = 'http://localhost:3000/fitbit/success?data=' + 
+              window.location.href = '${clientOrigin}/fitbit/success?data=' + 
                 encodeURIComponent(JSON.stringify({
                   profile: ${JSON.stringify({
                     ...allFitbitData.profile.user,

@@ -81,12 +81,19 @@ app.use((req, res, next) => {
 
 // Near the top after imports
 const uploadDir = path.join(__dirname, 'uploads');
+const recipeUploadsDir = path.join(uploadDir, 'recipes');
 
-// Create uploads directory if it doesn't exist
+// Create uploads directories if they don't exist
 const fs = require('fs');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+if (!fs.existsSync(recipeUploadsDir)) {
+  fs.mkdirSync(recipeUploadsDir, { recursive: true });
+}
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(uploadDir));
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

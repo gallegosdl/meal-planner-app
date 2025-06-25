@@ -3,12 +3,15 @@ require('dotenv').config();
 const db = require('../services/database');
 const { jsonrepair } = require('jsonrepair');
 const { encode } = require('gpt-3-encoder');
+const TogetherAiService = require('./togetherAiService');
+const imageStorage = require('../utils/imageStorage');
 
 class MealPlanGenerator {
   constructor(apiKey) {
     this.openai = new OpenAI({
       apiKey: apiKey
     });
+    this.togetherAiService = new TogetherAiService();
   }
 
   // Data preparation moved to separate method
@@ -160,6 +163,32 @@ Requirements:
         mealPlan.generatedWithPantry = hasPantryItems;
         if (hasPantryItems) {
           mealPlan.pantryItemCount = preparedData.pantryItems.length;
+        }
+
+        // Generate images for each meal if Together API key is available
+        if (process.env.TOGETHER_API_KEY) {
+          console.log('Starting image generation for meal plan...');
+          for (const day of mealPlan.days) {
+            console.log(`Processing day ${day.day} meals for images...`);
+            for (const [mealType, meal] of Object.entries(day.meals)) {
+              try {
+                console.log(`Generating image for ${mealType} on day ${day.day}...`);
+                const imageData = await this.togetherAiService.generateRecipeImage(meal);
+                
+                const fileName = imageStorage.generateFileName(`meal-${day.day}-${mealType}`);
+                console.log(`Saving image as ${fileName}...`);
+                const imageUrl = await imageStorage.saveBase64Image(imageData, fileName);
+                
+                meal.image_url = imageUrl;
+                console.log(`Successfully added image_url to ${mealType} on day ${day.day}`);
+              } catch (error) {
+                console.error(`Failed to generate image for ${mealType} on day ${day.day}:`, error);
+                // Continue with other meals even if one fails
+              }
+            }
+          }
+        } else {
+          console.log('Skipping image generation - TOGETHER_API_KEY not found in environment');
         }
         
         return mealPlan;
