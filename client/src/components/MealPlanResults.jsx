@@ -36,6 +36,15 @@ const MealPlanResults = ({
 }) => {
   const [imageErrors, setImageErrors] = useState({});
   
+  // Helper function to get correct image URL
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return '';
+    const baseUrl = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com'
+      : '';
+    return `${baseUrl}${imageUrl}`;
+  };
+
   // Calculate and pass up daily totals whenever mealPlan changes
   useEffect(() => {
     if (mealPlan?.days) {
@@ -154,7 +163,7 @@ const MealPlanResults = ({
                         <div className="w-1/3">
                           <div className="relative rounded-lg overflow-hidden">
                             <img
-                              src={meal.image_url}
+                              src={getImageUrl(meal.image_url)}
                               alt={meal.name}
                               className="rounded-lg"
                               onError={() => setImageErrors(prev => ({ 

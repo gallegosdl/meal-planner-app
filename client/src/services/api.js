@@ -1,14 +1,15 @@
 import axios from 'axios';
 
-// Get API URL from environment variables or use localhost as fallback
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const baseURL = process.env.NODE_ENV === 'production'
+  ? 'https://meal-planner-app-backend.onrender.com'
+  : 'http://localhost:3001';
 
-console.log('API_URL in use:', API_URL);
+console.log('API_URL in use:', baseURL);
 
 // Creates ONE reusable axios instance for the entire app
 // This ensures consistent configuration and interceptors across all API calls
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL,
   headers: {
     'Content-Type': 'application/json'  // Set default content type for all requests
   },

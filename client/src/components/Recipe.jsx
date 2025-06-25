@@ -3,6 +3,13 @@ import { StarIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 
+const getImageUrl = (imageUrl) => {
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://meal-planner-app-3m20.onrender.com'
+    : '';
+  return `${baseUrl}${imageUrl}`;
+};
+
 const Recipe = ({ recipe }) => {
   const [rating, setRating] = useState(recipe.average_rating || 0);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -51,7 +58,7 @@ const Recipe = ({ recipe }) => {
       {recipe.image_url && !imageError && (
         <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
           <img
-            src={recipe.image_url}
+            src={getImageUrl(recipe.image_url)}
             alt={recipe.name}
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}

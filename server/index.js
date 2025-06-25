@@ -36,7 +36,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://www.fitbit.com',
-  'https://www.strava.com'
+  'https://www.strava.com',
+  'https://meal-planner-app-3m20.onrender.com'
 ];
 
 app.use(cors({
@@ -92,8 +93,14 @@ if (!fs.existsSync(recipeUploadsDir)) {
   fs.mkdirSync(recipeUploadsDir, { recursive: true });
 }
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(uploadDir));
+// Serve static files from uploads directory with proper CORS
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' 
+    ? 'https://meal-planner-frontend-woan.onrender.com'
+    : 'http://localhost:3000');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+}, express.static(uploadDir));
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
