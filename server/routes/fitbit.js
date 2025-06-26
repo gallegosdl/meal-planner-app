@@ -70,13 +70,13 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Activity data
   if (scopes.includes('activity')) {
     console.log('Fetching activities with:', {
-      date: today,
+      date: yesterday,
       tokenPrefix: accessToken.substring(0, 10) + '...'
     });
     
     const [activities, lifetime] = await Promise.all([
       safeFitbitFetch(
-        `https://api.fitbit.com/1/user/-/activities/date/${today}.json`,
+        `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,
         headers
       ),
       safeFitbitFetch(
@@ -498,6 +498,31 @@ router.get('/debug-activities', async (req, res) => {
     );
 
     console.log('Raw activities response:', JSON.stringify(activities, null, 2));
+    
+    res.json(activities);
+  } catch (error) {
+    console.error('Error fetching activities:', error);
+    res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+// Debug endpoint to test specific date
+router.get('/debug-activities/:date', async (req, res) => {
+  try {
+    if (!req.session.fitbit?.accessToken) {
+      return res.status(401).json({ error: 'No Fitbit token in session' });
+    }
+
+    const accessToken = req.session.fitbit.accessToken;
+    const date = req.params.date;  // e.g. 2025-06-25
+
+    // Get activities data for specific date
+    const activities = await safeFitbitFetch(
+      `https://api.fitbit.com/1/user/-/activities/date/${date}.json`,
+      { 'Authorization': `Bearer ${accessToken}` }
+    );
+
+    console.log('Activities response for', date, ':', JSON.stringify(activities, null, 2));
     
     res.json(activities);
   } catch (error) {
