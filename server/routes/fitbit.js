@@ -221,30 +221,38 @@ router.get('/auth', async (req, res) => {
       ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
       : 'http://localhost:3001/api/fitbit/callback'
     );
-    authUrl.searchParams.append('scope', [
-      'activity',
-      'cardio_fitness',
-      'electrocardiogram',
-      'heartrate',
-      'irregular_rhythm_notifications',
-      'location',
-      'nutrition',
-      'oxygen_saturation',
-      'profile',
-      'respiratory_rate',
-      'settings',
-      'sleep',
-      'social',
-      'temperature',
-      'weight'
-    ].join(' '));
+    
+    // Use correct Fitbit scope format with r/w prefixes
+    const scopes = [
+      'profile',     // Basic profile
+      'activity',    // Activity data
+      'heartrate',   // Heart rate data
+      'location',    // Location data
+      'nutrition',   // Nutrition data
+      'settings',    // User settings
+      'sleep',       // Sleep data
+      'social',      // Social data
+      'weight'       // Weight data
+    ].map(scope => `r${scope}`); // Add 'r' prefix for read access
+
+    // Special cases that need different prefixes
+    scopes.push(
+      'ract',      // Activity data
+      'rcf',       // Cardio fitness
+      'roxy',      // Oxygen saturation
+      'rres',      // Respiratory rate
+      'rtem',      // Temperature
+      'rprof'      // Profile data
+    );
+
+    authUrl.searchParams.append('scope', scopes.join(' '));
 
     console.log('Initiating Fitbit OAuth with:', {
       clientId: process.env.FITBIT_CLIENT_ID,
       redirectUri: process.env.NODE_ENV === 'production'
         ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
         : 'http://localhost:3001/api/fitbit/callback',
-      scopes: authUrl.searchParams.get('scope').split(' '),
+      scopes: scopes,
       state: state.substring(0, 8) + '...',
       hasCodeChallenge: true,
       sessionID: req.sessionID

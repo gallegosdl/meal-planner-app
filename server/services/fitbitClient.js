@@ -43,13 +43,11 @@ class FitbitClient {
       return {
         accessToken: response.data.access_token,
         refreshToken: response.data.refresh_token,
-        expiresIn: response.data.expires_in
+        expiresIn: response.data.expires_in,
+        scope: response.data.scope
       };
     } catch (error) {
-      console.error('Error getting access token:', {
-        status: error.response?.status,
-        data: error.response?.data
-      });
+      console.error('Error getting access token:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -63,7 +61,7 @@ class FitbitClient {
       });
       return response.data.user;
     } catch (error) {
-      console.error('Error getting profile:', error.response?.data);
+      console.error('Error getting profile:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -81,8 +79,8 @@ class FitbitClient {
       );
       return response.data;
     } catch (error) {
-      console.error('Error getting activities:', error.response?.data);
-      throw error;
+      console.error('Error getting activities:', error.response?.data || error.message);
+      return null;
     }
   }
 }
