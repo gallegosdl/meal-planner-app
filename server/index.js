@@ -1,9 +1,12 @@
 const express = require('express');
+const session = require('express-session');
+const RedisStore = require('connect-redis').default;
+const { createClient } = require('redis');
+const crypto = require('crypto');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const ReceiptParser = require('./services/receiptParser');
-const crypto = require('crypto');
 const instacartRoutes = require('./routes/instacart');
 const recipesRouter = require('./routes/recipes');
 const apiRoutes = require('./routes/api');
@@ -13,9 +16,6 @@ const OpenAI = require('openai');
 const pantryRoutes = require('./routes/pantry');
 const fitbitRoutes = require('./routes/fitbit');
 const stravaRoutes = require('./routes/strava');
-const session = require('express-session');
-const RedisStore = require('connect-redis').default;
-const { createClient } = require('redis');
 require('dotenv').config({ path: './server/.env' });
 
 const app = express();
@@ -91,11 +91,16 @@ const upload = multer({ storage: storage });
 
 // Initialize Redis client
 const redisClient = createClient({
-  url: process.env.REDIS_URL
+  url: process.env.REDIS_URL,
+  socket: {
+    tls: true,
+    rejectUnauthorized: false
+  }
 });
 
 redisClient.on('error', err => console.log('Redis Client Error', err));
 redisClient.on('connect', () => console.log('Connected to Redis'));
+redisClient.on('ready', () => console.log('Redis client ready'));
 
 // Connect to Redis and initialize session store
 const initializeRedis = async () => {
@@ -107,24 +112,24 @@ const initializeRedis = async () => {
     const redisStore = new RedisStore({
       client: redisClient,
       prefix: "mealplanner:",
-      ttl: 86400 // 24 hours
+      ttl: 86400, // 24 hours
+      disableTouch: false
     });
 
     // Use Redis-backed session store
     app.use(session({
       store: redisStore,
       secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-      resave: true, // Changed to true to ensure session is saved
-      saveUninitialized: true, // Changed to true to ensure new sessions are saved
+      resave: false,
+      saveUninitialized: false,
       name: 'mealplanner.sid',
-      proxy: true, // Required for secure cookies behind proxy
-      rolling: true, // Refresh session with each request
+      proxy: true,
+      rolling: true,
       cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined,
         path: '/'
       }
     }));

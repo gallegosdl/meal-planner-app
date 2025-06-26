@@ -3,6 +3,7 @@ const axios = require('axios');
 const router = express.Router();
 const crypto = require('crypto');
 const moment = require('moment');
+const fitbitClient = require('../services/fitbitClient');
 
 /**
  * Generate a PKCE code verifier and challenge
@@ -174,7 +175,7 @@ router.get('/auth', async (req, res) => {
       .digest('base64url');
 
     // Store OAuth state in session
-    req.session.oauth = {
+    req.session.fitbitOauth = {
       state,
       code_verifier,
       timestamp: Date.now()
@@ -183,8 +184,9 @@ router.get('/auth', async (req, res) => {
     // Debug session before save
     console.log('Session before save:', {
       id: req.sessionID,
-      oauth: req.session.oauth,
-      cookie: req.session.cookie
+      oauth: req.session.fitbitOauth,
+      cookie: req.session.cookie,
+      hasSession: !!req.session
     });
 
     // Save session explicitly before redirect
@@ -197,8 +199,9 @@ router.get('/auth', async (req, res) => {
           // Debug session after save
           console.log('Session after save:', {
             id: req.sessionID,
-            oauth: req.session.oauth,
-            cookie: req.session.cookie
+            oauth: req.session.fitbitOauth,
+            cookie: req.session.cookie,
+            hasSession: !!req.session
           });
           console.log('Session saved successfully. Session ID:', req.sessionID);
           resolve();
@@ -299,7 +302,7 @@ router.get('/callback', async (req, res) => {
     }
 
     // Try to find OAuth state in session
-    const oauthState = req.session.oauth;
+    const oauthState = req.session.fitbitOauth;
     console.log('OAuth state from session:', oauthState);
 
     if (!oauthState || oauthState.state !== queryState) {
@@ -333,13 +336,23 @@ router.get('/callback', async (req, res) => {
     });
 
     // Get user profile
-    const profile = await fitbitClient.getProfile(tokenResponse.access_token);
+    const profile = await fitbitClient.getProfile(tokenResponse.accessToken);
 
     // Get activities
-    const activities = await fitbitClient.getActivities(tokenResponse.access_token);
+    const activities = await fitbitClient.getActivities(tokenResponse.accessToken);
+
+    // Store tokens in session
+    req.session.fitbit = {
+      accessToken: tokenResponse.accessToken,
+      refreshToken: tokenResponse.refreshToken,
+      expiresIn: tokenResponse.expiresIn,
+      obtainedAt: new Date().toISOString()
+    };
 
     // Clear OAuth state from session
-    delete req.session.oauth;
+    delete req.session.fitbitOauth;
+
+    // Save session explicitly
     await new Promise((resolve, reject) => {
       req.session.save(err => {
         if (err) reject(err);
@@ -354,8 +367,12 @@ router.get('/callback', async (req, res) => {
           type: 'fitbit_callback',
           data: {
             profile: ${JSON.stringify(profile)},
-            tokens: ${JSON.stringify(tokenResponse)},
-            allData: ${JSON.stringify(activities)}
+            tokens: ${JSON.stringify({
+              accessToken: tokenResponse.accessToken,
+              refreshToken: tokenResponse.refreshToken,
+              expiresIn: tokenResponse.expiresIn
+            })},
+            allData: ${JSON.stringify({ activities })}
           }
         }, '*');
         window.close();
@@ -387,16 +404,10 @@ router.get('/profile', async (req, res) => {
     const accessToken = req.session.fitbit.accessToken;
 
     // Get user's Fitbit profile
-    const profileResponse = await axios.get('https://api.fitbit.com/1/user/-/profile.json', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
+    const profile = await fitbitClient.getProfile(accessToken);
 
     // Return relevant profile data
-    res.json({
-      profile: profileResponse.data.user
-    });
+    res.json({ profile });
 
   } catch (error) {
     console.error('Error fetching Fitbit profile:', error);
@@ -431,6 +442,14 @@ router.post('/store-tokens', async (req, res) => {
       expiresIn,
       obtainedAt: new Date().toISOString()
     };
+
+    // Save session explicitly
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
     res.json({ success: true });
 
