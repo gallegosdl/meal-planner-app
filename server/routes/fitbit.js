@@ -52,10 +52,14 @@ async function fetchAllFitbitData(accessToken, scope) {
   };
   
   // Get date ranges
+  console.log('Current moment():', moment().format());
+  console.log('Current system time:', new Date().toISOString());
   const today = moment().format('YYYY-MM-DD');
   const yesterday = moment().subtract(1, 'days').format('YYYY-MM-DD');
   const lastMonth = moment().subtract(1, 'month').format('YYYY-MM-DD');
   
+  console.log('Date values:', { today, yesterday, lastMonth });
+
   const data = {};
   const scopes = scope.split(' ');
   
@@ -70,13 +74,13 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Activity data
   if (scopes.includes('activity')) {
     console.log('Fetching activities with:', {
-      date: yesterday,
+      date: today,  // Use today's date from system time
       tokenPrefix: accessToken.substring(0, 10) + '...'
     });
     
     const [activities, lifetime] = await Promise.all([
       safeFitbitFetch(
-        `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,
+        `https://api.fitbit.com/1/user/-/activities/date/${today}.json`,  // Use today's date
         headers
       ),
       safeFitbitFetch(
@@ -489,7 +493,9 @@ router.get('/debug-activities', async (req, res) => {
     }
 
     const accessToken = req.session.fitbit.accessToken;
-    const today = moment().format('YYYY-MM-DD');
+    const today = moment().format('YYYY-MM-DD');  // Use system time
+
+    console.log('Fetching activities with system date:', today);
 
     // Get raw activities data
     const activities = await safeFitbitFetch(
