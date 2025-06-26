@@ -10,6 +10,32 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Handle redirect flow
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const responseData = params.get('data');
+    const errorMessage = params.get('message');
+
+    console.log('Checking URL params:', { responseData, errorMessage });
+
+    if (responseData) {
+      try {
+        console.log('Parsing response data from URL');
+        const parsedData = JSON.parse(decodeURIComponent(responseData));
+        console.log('Successfully parsed data:', parsedData);
+        handleStravaData(parsedData);
+        navigate(location.pathname, { replace: true });
+      } catch (err) {
+        console.error('Failed to parse Strava data:', err);
+        setError('Failed to process Strava data');
+      }
+    } else if (errorMessage) {
+      console.log('Found error message in URL:', errorMessage);
+      setError(decodeURIComponent(errorMessage));
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
+
   // Function to handle messages from popup window
   const handleOAuthCallback = async (event) => {
     console.log('Received postMessage event:', event.data?.type);
@@ -33,12 +59,20 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
 
   const handleStravaData = async (responseData) => {
     try {
+      console.log('handleStravaData called with:', responseData);
       const { profile, tokens, activities, dailyCalories } = responseData;
       
       // Store tokens in session
       console.log('Storing Strava tokens...');
       await api.post('/api/strava/store-tokens', tokens);
       console.log('Strava tokens stored successfully');
+      console.log('Activities data structure:', activities);
+
+      // Pass calories to parent if available
+      if (dailyCalories && onCaloriesUpdate) {
+        console.log('Passing Strava daily calories to parent:', dailyCalories);
+        onCaloriesUpdate(dailyCalories);
+      }
 
       // Format the data for display
       setData({
@@ -48,11 +82,13 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
         id: profile.id
       });
 
+      {/*
       // Pass calories to parent if available
       if (dailyCalories && onCaloriesUpdate) {
         console.log('Passing Strava calories to parent:', dailyCalories);
         onCaloriesUpdate(dailyCalories);
       }
+      */}
 
       setError(null);
     } catch (err) {

@@ -4,44 +4,82 @@ const router = express.Router();
 const crypto = require('crypto');
 
 // Endpoint to initiate Strava OAuth
-router.get('/auth', (req, res) => {
-  const clientId = process.env.STRAVA_CLIENT_ID;
-  const redirectUri = process.env.NODE_ENV === 'production'
-    ? 'https://meal-planner-app-3m20.onrender.com/api/strava/callback'
-    : 'http://localhost:3001/api/strava/callback';
-  
-  // Generate state for CSRF protection
-  const state = crypto.randomBytes(32).toString('hex');
-  
-  // Store state in session for verification
-  req.session.stravaOauth = {
-    state,
-    timestamp: Date.now()
-  };
+router.get('/auth', async (req, res) => {
+  try {
+    const clientId = process.env.STRAVA_CLIENT_ID;
+    const redirectUri = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com/api/strava/callback'
+      : 'http://localhost:3001/api/strava/callback';
+    
+    // Generate state for CSRF protection
+    const state = crypto.randomBytes(32).toString('hex');
+    
+    // Store state in session for verification
+    req.session.stravaOauth = {
+      state,
+      timestamp: Date.now()
+    };
 
-  // Construct Strava authorization URL
-  const authUrl = `https://www.strava.com/oauth/authorize?` + 
-    `client_id=${clientId}&` +
-    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-    `response_type=code&` +
-    `scope=read,activity:read_all,profile:read_all&` +
-    `state=${state}&` +
-    `approval_prompt=force`;
+    // Debug session before save
+    console.log('Session before save:', {
+      id: req.sessionID,
+      oauth: req.session.stravaOauth,
+      cookie: req.session.cookie,
+      hasSession: !!req.session
+    });
 
-  // Log the OAuth request for debugging
-  console.log('Initiating Strava OAuth with:', {
-    clientId,
-    redirectUri,
-    state: state.substring(0, 8) + '...',
-    authUrl
-  });
+    // Save session explicitly before sending response
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) {
+          console.error('Failed to save session:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully. Session ID:', req.sessionID);
+          resolve();
+        }
+      });
+    });
 
-  res.json({ authUrl });
+    // Construct Strava authorization URL
+    const authUrl = `https://www.strava.com/oauth/authorize?` + 
+      `client_id=${clientId}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `response_type=code&` +
+      `scope=read,activity:read_all,profile:read_all&` +
+      `state=${state}&` +
+      `approval_prompt=force`;
+
+    // Log the OAuth request for debugging
+    console.log('Initiating Strava OAuth with:', {
+      clientId,
+      redirectUri,
+      state: state.substring(0, 8) + '...',
+      authUrl
+    });
+
+    res.json({ authUrl });
+  } catch (error) {
+    console.error('Strava OAuth error:', error);
+    res.status(500).json({ error: 'Failed to initiate Strava OAuth' });
+  }
 });
 
 // Callback endpoint for Strava OAuth
 router.get('/callback', async (req, res) => {
   console.log('\n=== Strava Callback Started ===');
+  console.log('Callback received. Session debug:', {
+    id: req.sessionID,
+    hasSession: !!req.session,
+    sessionData: req.session,
+    cookies: req.cookies,
+    headers: {
+      cookie: req.headers.cookie,
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    }
+  });
+
   try {
     const { code, state } = req.query;
     console.log('Strava callback params:', { 
@@ -70,7 +108,9 @@ router.get('/callback', async (req, res) => {
 
     const clientId = process.env.STRAVA_CLIENT_ID;
     const clientSecret = process.env.STRAVA_CLIENT_SECRET;
-    const redirectUri = 'http://localhost:3001/api/strava/callback';
+    const redirectUri = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com/api/strava/callback'
+      : 'http://localhost:3001/api/strava/callback';
 
     console.log('Exchanging code for tokens...');
     console.log('Using client ID:', clientId);
