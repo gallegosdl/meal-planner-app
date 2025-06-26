@@ -457,4 +457,47 @@ router.post('/store-tokens', async (req, res) => {
   }
 });
 
+// Debug endpoint to get current token (TEMPORARY)
+router.get('/debug-token', (req, res) => {
+  if (!req.session.fitbit?.accessToken) {
+    return res.status(401).json({ error: 'No Fitbit token in session' });
+  }
+  
+  console.log('Current session data:', {
+    hasToken: !!req.session.fitbit.accessToken,
+    tokenPrefix: req.session.fitbit.accessToken.substring(0, 10) + '...',
+    obtainedAt: req.session.fitbit.obtainedAt
+  });
+  
+  res.json({ 
+    token: req.session.fitbit.accessToken,
+    obtainedAt: req.session.fitbit.obtainedAt
+  });
+});
+
+// Debug endpoint to get raw activities
+router.get('/debug-activities', async (req, res) => {
+  try {
+    if (!req.session.fitbit?.accessToken) {
+      return res.status(401).json({ error: 'No Fitbit token in session' });
+    }
+
+    const accessToken = req.session.fitbit.accessToken;
+    const today = moment().format('YYYY-MM-DD');
+
+    // Get raw activities data
+    const activities = await safeFitbitFetch(
+      `https://api.fitbit.com/1/user/-/activities/date/${today}.json`,
+      { 'Authorization': `Bearer ${accessToken}` }
+    );
+
+    console.log('Raw activities response:', JSON.stringify(activities, null, 2));
+    
+    res.json(activities);
+  } catch (error) {
+    console.error('Error fetching activities:', error);
+    res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
 module.exports = router; 
