@@ -68,12 +68,6 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
       console.log('Strava tokens stored successfully');
       console.log('Activities data structure:', activities);
 
-      // Pass calories to parent if available
-      if (dailyCalories && onCaloriesUpdate) {
-        console.log('Passing Strava daily calories to parent:', dailyCalories);
-        onCaloriesUpdate(dailyCalories);
-      }
-
       // Format the data for display
       setData({
         displayName: `${profile.firstname} ${profile.lastname}`,
@@ -82,13 +76,11 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
         id: profile.id
       });
 
-      {/*
       // Pass calories to parent if available
       if (dailyCalories && onCaloriesUpdate) {
-        console.log('Passing Strava calories to parent:', dailyCalories);
+        console.log('Passing Strava daily calories to parent:', dailyCalories);
         onCaloriesUpdate(dailyCalories);
       }
-      */}
 
       setError(null);
     } catch (err) {
@@ -148,6 +140,13 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
     let iconPath;
     const activityType = activity.type?.toLowerCase() || '';
     const activityName = activity.name?.toLowerCase() || '';
+
+    console.log('Rendering activity:', {
+      type: activity.type,
+      name: activity.name,
+      activityType,
+      activityName
+    });
 
     if (activityName.includes('rowing') || activityType === 'Rowing') {
       iconPath = "/images/rowerWhite64.png";
