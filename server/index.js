@@ -14,7 +14,7 @@ const pantryRoutes = require('./routes/pantry');
 const fitbitRoutes = require('./routes/fitbit');
 const stravaRoutes = require('./routes/strava');
 const session = require('express-session');
-const RedisStore = require('connect-redis')(session);
+const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
 require('dotenv').config({ path: './server/.env' });
 
@@ -76,72 +76,136 @@ app.use(express.urlencoded({ extended: true }));
 
 // Initialize Redis client
 const redisClient = createClient({
-  url: process.env.REDIS_URL,
-  legacyMode: true  // Needed for connect-redis compatibility
+  url: process.env.REDIS_URL
 });
 
-redisClient.connect().catch(console.error);
+redisClient.on('error', err => console.log('Redis Client Error', err));
+redisClient.on('connect', () => console.log('Connected to Redis'));
 
-// Use Redis-backed session store
-app.use(session({
-  store: new RedisStore({ client: redisClient }),
-  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-  resave: false,
-  saveUninitialized: false,
-  name: 'mealplanner.sid',
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'none',
-    maxAge: 24 * 60 * 60 * 1000,
-    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
+// Connect to Redis and initialize session store
+const initializeRedis = async () => {
+  try {
+    await redisClient.connect();
+    console.log('Redis client connected successfully');
+
+    // Create Redis store
+    const redisStore = new RedisStore({
+      client: redisClient,
+      prefix: "mealplanner:"
+    });
+
+    // Use Redis-backed session store
+    app.use(session({
+      store: redisStore,
+      secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+      resave: false,
+      saveUninitialized: false,
+      name: 'mealplanner.sid',
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'none',
+        maxAge: 24 * 60 * 60 * 1000,
+        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
+      }
+    }));
+
+    // Add cookie parser before routes
+    app.use(cookieParser());
+
+    // Add request logging
+    app.use((req, res, next) => {
+      console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'no origin'}`);
+      console.log('Session ID:', req.sessionID);
+      console.log('Session Data:', req.session);
+      next();
+    });
+
+    // Near the top after imports
+    const uploadDir = path.join(__dirname, 'uploads');
+    const recipeUploadsDir = path.join(uploadDir, 'recipes');
+
+    // Create uploads directories if they don't exist
+    const fs = require('fs');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    if (!fs.existsSync(recipeUploadsDir)) {
+      fs.mkdirSync(recipeUploadsDir, { recursive: true });
+    }
+
+    // Serve static files from uploads directory with proper CORS
+    app.use('/uploads', (req, res, next) => {
+      res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' 
+        ? 'https://meal-planner-frontend-woan.onrender.com'
+        : 'http://localhost:3000');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      next();
+    }, express.static(uploadDir));
+
+    // Configure multer for file uploads
+    const storage = multer.diskStorage({
+      destination: function (req, file, cb) {
+        cb(null, uploadDir);
+      },
+      filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname));
+      }
+    });
+
+    const upload = multer({ storage: storage });
+
+    // Mount routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/recipes', recipesRouter);
+    app.use('/api/instacart', instacartRoutes);
+    app.use('/api', apiRoutes);
+    app.use('/api/pantry', pantryRoutes);
+    app.use('/api/fitbit', fitbitRoutes);
+    app.use('/api/strava', stravaRoutes);
+
+    // Add route logging
+    app.use((req, res, next) => {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+      next();
+    });
+
+    // Add near the top of your routes
+    app.get('/health', (req, res) => {
+      res.json({ 
+        status: 'ok',
+        routes: {
+          instacart: {
+            create_link: 'POST /api/instacart/create-link',
+            scrape_prices: 'POST /api/instacart/scrape-prices'
+          }
+        }
+      });
+    });
+
+    // Add a port configuration
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+    // Error handling middleware
+    app.use((err, req, res, next) => {
+      console.error(err.stack);
+      res.status(500).json({ error: 'Something went wrong!' });
+    });
+
+  } catch (error) {
+    console.error('Failed to initialize Redis:', error);
+    process.exit(1);
   }
-}));
+};
 
-// Add cookie parser before routes
-app.use(cookieParser());
-
-// Add request logging
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'no origin'}`);
-  console.log('Session ID:', req.sessionID);
-  console.log('Session Data:', req.session);
-  next();
+// Start the server
+initializeRedis().catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
-
-// Near the top after imports
-const uploadDir = path.join(__dirname, 'uploads');
-const recipeUploadsDir = path.join(uploadDir, 'recipes');
-
-// Create uploads directories if they don't exist
-const fs = require('fs');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-if (!fs.existsSync(recipeUploadsDir)) {
-  fs.mkdirSync(recipeUploadsDir, { recursive: true });
-}
-
-// Serve static files from uploads directory with proper CORS
-app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' 
-    ? 'https://meal-planner-frontend-woan.onrender.com'
-    : 'http://localhost:3000');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  next();
-}, express.static(uploadDir));
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage: storage });
 
 // Add this near the top after loading env vars
 console.log('Server starting with env vars:', {
@@ -261,16 +325,6 @@ app.post('/api/parse-receipt', upload.single('receipt'), async (req, res) => {
   }
 });
 
-// Mount routes
-app.use('/api/auth', authRoutes);
-app.use('/api/recipes', recipesRouter);
-app.use('/api/instacart', instacartRoutes);
-app.use('/api', apiRoutes);
-app.use('/api/pantry', pantryRoutes);
-app.use('/api/fitbit', fitbitRoutes);
-app.use('/api/strava', stravaRoutes);
-console.log('Registering /api/pantry routes');
-
 // Authentication endpoint with OpenAI validation
 app.post('/api/auth', async (req, res) => {
   const { apiKey } = req.body;
@@ -333,37 +387,6 @@ app.post('/api/auth/logout', (req, res) => {
     sessions.delete(token);
   }
   res.json({ success: true });
-});
-
-// Add route logging
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
-  next();
-});
-
-// Add near the top of your routes
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok',
-    routes: {
-      instacart: {
-        create_link: 'POST /api/instacart/create-link',
-        scrape_prices: 'POST /api/instacart/scrape-prices'
-      }
-    }
-  });
-});
-
-// Add a port configuration
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
 });
 
 // Add debug logging for Strava env vars
