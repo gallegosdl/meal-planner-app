@@ -198,11 +198,16 @@ router.post('/google', async (req, res) => {
   const client = await pool.connect();
   try {
     const { credential: accessToken } = req.body;
-    console.log('Request body:', req.body);
     
+    // Set CORS headers explicitly for this route
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000'
+    );
+
     if (!accessToken) {
-      console.log('Missing access token in request');
-      return res.status(400).json({ error: 'Missing access token' });
+      return res.status(400).json({ error: 'No access token provided' });
     }
 
     // Get user info from Google's userinfo endpoint

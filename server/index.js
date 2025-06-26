@@ -36,10 +36,10 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://www.fitbit.com',
-  'https://www.strava.com',
-  'https://meal-planner-app-3m20.onrender.com'
+  'https://www.strava.com'
 ];
 
+// Add CORS configuration before routes
 app.use(cors({
   origin: function(origin, callback) {
     // Always allow requests with no origin (like OAuth redirects)
@@ -59,15 +59,21 @@ app.use(cors({
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
     'x-openai-key',
     'x-session-token',
     'Authorization',
-    'Cookie'
-  ]
+    'Cookie',
+    'Origin',
+    'Accept'
+  ],
+  exposedHeaders: ['Set-Cookie']
 }));
+
+// Add preflight handler for all routes
+app.options('*', cors());
 
 // Body parsing middleware
 app.use(express.json());
@@ -333,9 +339,6 @@ app.get('/health', (req, res) => {
     }
   });
 });
-
-// Add preflight handler for multipart/form-data
-app.options('/api/parse-receipt', cors());
 
 // Add a port configuration
 const PORT = process.env.PORT || 3001;

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const baseURL = process.env.NODE_ENV === 'production'
-  ? 'https://meal-planner-app-backend.onrender.com'
+  ? 'https://meal-planner-app-3m20.onrender.com'
   : 'http://localhost:3001';
 
 console.log('API_URL in use:', baseURL);
@@ -10,10 +10,15 @@ console.log('API_URL in use:', baseURL);
 // This ensures consistent configuration and interceptors across all API calls
 const api = axios.create({
   baseURL,
+  withCredentials: true,
   headers: {
-    'Content-Type': 'application/json'  // Set default content type for all requests
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   },
-  withCredentials: true
+  // Ensure cookies are sent with requests
+  xhrFields: {
+    withCredentials: true
+  }
 });
 
 // Store session token in browser's sessionStorage
