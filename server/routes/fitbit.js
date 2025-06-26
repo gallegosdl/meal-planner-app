@@ -3,7 +3,6 @@ const axios = require('axios');
 const router = express.Router();
 const crypto = require('crypto');
 const moment = require('moment');
-const fitbitClient = require('../services/fitbitClient');
 
 /**
  * Generate a PKCE code verifier and challenge
@@ -122,38 +121,6 @@ async function fetchAllFitbitData(accessToken, scope) {
     );
   }
 
-  // Oxygen saturation data
-  if (scopes.includes('oxygen_saturation')) {
-    data.oxygenSaturation = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/spo2/date/${yesterday}/${today}.json`,
-      headers
-    );
-  }
-
-  // Temperature data
-  if (scopes.includes('temperature')) {
-    data.temperature = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/temp/core/date/${yesterday}/${today}.json`,
-      headers
-    );
-  }
-
-  // Respiratory rate data
-  if (scopes.includes('respiratory_rate')) {
-    data.respiratoryRate = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/br/date/${yesterday}/${today}.json`,
-      headers
-    );
-  }
-
-  // Cardio fitness data
-  if (scopes.includes('cardio_fitness')) {
-    data.cardioFitness = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/cardio-fitness/date/${yesterday}/${today}.json`,
-      headers
-    );
-  }
-
   // Log all collected data
   Object.entries(data).forEach(([key, value]) => {
     if (value) {
@@ -196,13 +163,6 @@ router.get('/auth', async (req, res) => {
           console.error('Failed to save session:', err);
           reject(err);
         } else {
-          // Debug session after save
-          console.log('Session after save:', {
-            id: req.sessionID,
-            oauth: req.session.fitbitOauth,
-            cookie: req.session.cookie,
-            hasSession: !!req.session
-          });
           console.log('Session saved successfully. Session ID:', req.sessionID);
           resolve();
         }
@@ -326,25 +286,58 @@ router.get('/callback', async (req, res) => {
     }
 
     // Exchange code for token
-    const tokenResponse = await fitbitClient.getAccessToken({
-      code,
-      code_verifier: oauthState.code_verifier,
+    const tokenUrl = 'https://api.fitbit.com/oauth2/token';
+    const auth = Buffer.from(`${process.env.FITBIT_CLIENT_ID}:${process.env.FITBIT_CLIENT_SECRET}`).toString('base64');
+    
+    console.log('Getting access token with:', {
+      code: code.substring(0, 10) + '...',
+      code_verifier: oauthState.code_verifier.substring(0, 10) + '...',
       redirect_uri: process.env.NODE_ENV === 'production'
         ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
         : 'http://localhost:3001/api/fitbit/callback'
     });
 
-    // Get user profile
-    const profile = await fitbitClient.getProfile(tokenResponse.accessToken);
+    const tokenResponse = await axios.post(tokenUrl,
+      new URLSearchParams({
+        code,
+        grant_type: 'authorization_code',
+        code_verifier: oauthState.code_verifier,
+        redirect_uri: process.env.NODE_ENV === 'production'
+          ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
+          : 'http://localhost:3001/api/fitbit/callback',
+        client_id: process.env.FITBIT_CLIENT_ID
+      }).toString(),
+      {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
 
-    // Get activities
-    const activities = await fitbitClient.getActivities(tokenResponse.accessToken);
+    console.log('Token response received:', {
+      hasAccessToken: !!tokenResponse.data.access_token,
+      hasRefreshToken: !!tokenResponse.data.refresh_token,
+      expiresIn: tokenResponse.data.expires_in
+    });
+
+    // Get all Fitbit data
+    const allFitbitData = await fetchAllFitbitData(
+      tokenResponse.data.access_token,
+      tokenResponse.data.scope
+    );
+    
+    console.log('Fetched Fitbit data:', {
+      hasProfile: !!allFitbitData.profile,
+      hasActivities: !!allFitbitData.activities,
+      activitiesData: allFitbitData.activities
+    });
 
     // Store tokens in session
     req.session.fitbit = {
-      accessToken: tokenResponse.accessToken,
-      refreshToken: tokenResponse.refreshToken,
-      expiresIn: tokenResponse.expiresIn,
+      accessToken: tokenResponse.data.access_token,
+      refreshToken: tokenResponse.data.refresh_token,
+      expiresIn: tokenResponse.data.expires_in,
       obtainedAt: new Date().toISOString()
     };
 
@@ -361,33 +354,33 @@ router.get('/callback', async (req, res) => {
 
     // Send success response
     res.send(`
-      <script>
-        window.opener.postMessage({
-          type: 'fitbit_callback',
-          data: {
-            profile: ${JSON.stringify(profile)},
-            tokens: ${JSON.stringify({
-              accessToken: tokenResponse.accessToken,
-              refreshToken: tokenResponse.refreshToken,
-              expiresIn: tokenResponse.expiresIn
-            })},
-            allData: ${JSON.stringify({ activities })}
-          }
-        }, '*');
-        window.close();
-      </script>
+          <script>
+              window.opener.postMessage({
+                type: 'fitbit_callback',
+                data: {
+                  profile: ${JSON.stringify(allFitbitData.profile?.user || {})},
+                  tokens: ${JSON.stringify({
+                    accessToken: tokenResponse.data.access_token,
+                    refreshToken: tokenResponse.data.refresh_token,
+                    expiresIn: tokenResponse.data.expires_in
+                  })},
+                  allData: ${JSON.stringify(allFitbitData)}
+                }
+              }, '*');
+              window.close();
+          </script>
     `);
 
   } catch (error) {
     console.error('Fitbit OAuth error:', error);
     res.send(`
-      <script>
-        window.opener.postMessage({
-          type: 'fitbit_callback',
-          error: 'Failed to complete authentication'
-        }, '*');
-        window.close();
-      </script>
+          <script>
+              window.opener.postMessage({
+                type: 'fitbit_callback',
+                error: 'Failed to complete authentication'
+              }, '*');
+              window.close();
+          </script>
     `);
   }
 });
@@ -403,10 +396,16 @@ router.get('/profile', async (req, res) => {
     const accessToken = req.session.fitbit.accessToken;
 
     // Get user's Fitbit profile
-    const profile = await fitbitClient.getProfile(accessToken);
+    const profileResponse = await axios.get('https://api.fitbit.com/1/user/-/profile.json', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
 
     // Return relevant profile data
-    res.json({ profile });
+    res.json({
+      profile: profileResponse.data.user
+    });
 
   } catch (error) {
     console.error('Error fetching Fitbit profile:', error);
