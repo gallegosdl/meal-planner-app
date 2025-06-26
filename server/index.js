@@ -18,21 +18,14 @@ require('dotenv').config({ path: './server/.env' });
 
 const app = express();
 
-// Session configuration - Keep it simple!
-app.use(session({
-  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-  resave: true,
-  saveUninitialized: true,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
+// Define the frontend origin based on environment
+const FRONTEND_ORIGIN = process.env.NODE_ENV === 'production'
+  ? 'https://meal-planner-frontend-woan.onrender.com'
+  : 'http://localhost:3000';
 
 // Middleware
 const allowedOrigins = [
-  'https://meal-planner-frontend-woan.onrender.com',
+  FRONTEND_ORIGIN,
   'http://localhost:3000',
   'http://localhost:3001',
   'https://www.fitbit.com',
@@ -78,11 +71,30 @@ app.options('*', cors());
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+  resave: true,
+  saveUninitialized: true,
+  name: 'mealplanner.sid', // Custom cookie name
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
+    httpOnly: true,
+    sameSite: 'none', // Required for cross-origin cookies
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined // Allow cookies across subdomains in production
+  }
+}));
+
+// Add cookie parser before routes
 app.use(cookieParser());
 
 // Add request logging
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'no origin'}`);
+  console.log('Session ID:', req.sessionID);
+  console.log('Session Data:', req.session);
   next();
 });
 
