@@ -222,28 +222,18 @@ router.get('/auth', async (req, res) => {
       : 'http://localhost:3001/api/fitbit/callback'
     );
     
-    // Use correct Fitbit scope format with r/w prefixes
+    // Correct Fitbit scope format
     const scopes = [
-      'profile',     // Basic profile
-      'activity',    // Activity data
+      'activity',    // Activity and exercise data
       'heartrate',   // Heart rate data
       'location',    // Location data
-      'nutrition',   // Nutrition data
+      'nutrition',   // Food logging data
+      'profile',     // Basic user info
       'settings',    // User settings
-      'sleep',       // Sleep data
-      'social',      // Social data
+      'sleep',       // Sleep logs
+      'social',      // Friend data
       'weight'       // Weight data
-    ].map(scope => `r${scope}`); // Add 'r' prefix for read access
-
-    // Special cases that need different prefixes
-    scopes.push(
-      'ract',      // Activity data
-      'rcf',       // Cardio fitness
-      'roxy',      // Oxygen saturation
-      'rres',      // Respiratory rate
-      'rtem',      // Temperature
-      'rprof'      // Profile data
-    );
+    ];
 
     authUrl.searchParams.append('scope', scopes.join(' '));
 
