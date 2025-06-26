@@ -14,6 +14,8 @@ const pantryRoutes = require('./routes/pantry');
 const fitbitRoutes = require('./routes/fitbit');
 const stravaRoutes = require('./routes/strava');
 const session = require('express-session');
+const RedisStore = require('connect-redis')(session);
+const { createClient } = require('redis');
 require('dotenv').config({ path: './server/.env' });
 
 const app = express();
@@ -72,18 +74,27 @@ app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
+// Initialize Redis client
+const redisClient = createClient({
+  url: process.env.REDIS_URL,
+  legacyMode: true  // Needed for connect-redis compatibility
+});
+
+redisClient.connect().catch(console.error);
+
+// Use Redis-backed session store
 app.use(session({
+  store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-  resave: true,
-  saveUninitialized: true,
-  name: 'mealplanner.sid', // Custom cookie name
+  resave: false,
+  saveUninitialized: false,
+  name: 'mealplanner.sid',
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: 'none', // Required for cross-origin cookies
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined // Allow cookies across subdomains in production
+    sameSite: 'none',
+    maxAge: 24 * 60 * 60 * 1000,
+    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
   }
 }));
 
