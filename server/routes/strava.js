@@ -156,6 +156,9 @@ router.get('/callback', async (req, res) => {
       }
     });
 
+    // Log raw activities response
+    console.log('Raw Strava activities response:', JSON.stringify(activitiesResponse.data, null, 2));
+
     // Fetch detailed data for each activity
     const activities = activitiesResponse.data;
     console.log(`Fetching details for ${activities.length} today's activities...`);
@@ -171,6 +174,14 @@ router.get('/callback', async (req, res) => {
               }
             }
           );
+
+          console.log('Detailed activity response:', {
+            id: activity.id,
+            type: detailResponse.data.type,
+            name: detailResponse.data.name,
+            sport_type: detailResponse.data.sport_type,
+            full_response: JSON.stringify(detailResponse.data, null, 2)
+          });
 
           // Calculate calories if needed
           let calories = detailResponse.data.calories;

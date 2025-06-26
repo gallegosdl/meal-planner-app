@@ -59,14 +59,21 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
 
   const handleStravaData = async (responseData) => {
     try {
-      console.log('handleStravaData called with:', responseData);
+      console.log('Full Strava response data:', responseData);
       const { profile, tokens, activities, dailyCalories } = responseData;
       
+      // Log activities in detail
+      console.log('Activities detail:', activities?.map(activity => ({
+        id: activity.id,
+        type: activity.type,
+        name: activity.name,
+        sport_type: activity.sport_type
+      })));
+
       // Store tokens in session
       console.log('Storing Strava tokens...');
       await api.post('/api/strava/store-tokens', tokens);
       console.log('Strava tokens stored successfully');
-      console.log('Activities data structure:', activities);
 
       // Format the data for display
       setData({
@@ -136,37 +143,65 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
 
   // Modify the activities display to show calories
   const renderActivity = (activity, index) => {
-    // Determine which icon to show
-    let iconPath;
-    const activityType = activity.type?.toLowerCase() || '';
-    const activityName = activity.name?.toLowerCase() || '';
-
-    console.log('Rendering activity:', {
+    // Log the exact activity data we're trying to render
+    console.log('Rendering activity data:', {
+      id: activity.id,
       type: activity.type,
       name: activity.name,
-      activityType,
-      activityName
+      sport_type: activity.sport_type,
+      raw: activity
     });
 
-    if (activityName.includes('rowing') || activityType === 'Rowing') {
+    // Determine which icon to show
+    let iconPath;
+    const activityType = activity.type;
+    const activityName = activity.name?.toLowerCase() || '';
+
+    console.log('Activity debug:', {
+      type: activityType,
+      name: activityName,
+      originalType: activity.type,
+      originalName: activity.name
+    });
+
+    // Group activities by icon type
+    const workoutActivities = [
+      'WeightTraining',
+      'Crossfit',
+      'Workout',
+      'Yoga',
+      'StairStepper',
+      'Elliptical',
+      'RockClimbing'
+    ];
+
+    const runningActivities = [
+      'Run',
+      'VirtualRun'
+    ];
+
+    const walkingActivities = [
+      'Walk',
+      'Hike'
+    ];
+
+    if (activityType === 'Rowing' || activityName.includes('rowing')) {
       iconPath = "/images/rowerWhite64.png";
-    } else if (activityType === 'Run' || activityName.includes('run')) {
+    } else if (runningActivities.includes(activityType) || activityName.includes('run')) {
       iconPath = "/images/speed.png";
-    } else if (activityType === 'Walk' || activityName.includes('walk')) {
+    } else if (walkingActivities.includes(activityType) || activityName.includes('walk')) {
       iconPath = "/images/walking.png";
-    } else if (
-      activityType === 'WeightTraining' || 
-      activityType === 'Crossfit' || 
-      activityType === 'Workout' || 
-      activityType === 'Yoga' ||
-      activityName.includes('weight') || 
-      activityName.includes('gym') || 
-      activityName.includes('training')
-    ) {
+    } else if (workoutActivities.includes(activityType) || activityName.includes('training')) {
       iconPath = "/images/workout.png";
+    } else {
+      // Default icon for other activities
+      iconPath = "/images/workout.png";
+      console.log('Using default icon for activity type:', activityType);
     }
 
-    const isRowing = activityType === 'rowing' || activityName.includes('rowing');
+    console.log('Selected icon path:', iconPath, 'for activity type:', activityType);
+
+    const isRowing = activityType === 'Rowing';
 
     return (
       <div 
