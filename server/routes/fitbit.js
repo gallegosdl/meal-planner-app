@@ -51,16 +51,16 @@ async function fetchAllFitbitData(accessToken, scope) {
     'Authorization': `Bearer ${accessToken}`
   };
   
-  // Get date ranges using UTC to match Fitbit's timezone
-  console.log('Current moment UTC:', moment().utc().format());
+  // Get date ranges in local time - force moment to use local timezone
+  console.log('Current moment (local):', moment().local().format());
   console.log('Current system time:', new Date().toISOString());
   
-  // Since Fitbit API uses dates in UTC/GMT, we need to use UTC dates
-  const today = moment().utc().format('YYYY-MM-DD');
-  const yesterday = moment().utc().subtract(1, 'days').format('YYYY-MM-DD');
-  const lastMonth = moment().utc().subtract(1, 'month').format('YYYY-MM-DD');
+  // Force moment to use local timezone
+  const today = moment().local().format('YYYY-MM-DD');
+  const yesterday = moment().local().subtract(1, 'days').format('YYYY-MM-DD');
+  const lastMonth = moment().local().subtract(1, 'month').format('YYYY-MM-DD');
   
-  console.log('UTC Date values:', { today, yesterday, lastMonth });
+  console.log('Local date values:', { today, yesterday, lastMonth });
   
   const data = {};
   const scopes = scope.split(' ');
@@ -76,13 +76,13 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Activity data
   if (scopes.includes('activity')) {
     console.log('Fetching activities with:', {
-      date: yesterday,  // Use yesterday's date since we're in UTC and activities are likely from previous day
+      date: yesterday,  // Use yesterday since we're seeing activities from previous day
       tokenPrefix: accessToken.substring(0, 10) + '...'
     });
     
     const [activities, lifetime] = await Promise.all([
       safeFitbitFetch(
-        `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json?timezone=UTC`,  // Add timezone parameter and use yesterday
+        `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,  // Use yesterday to match when activities were recorded
         headers
       ),
       safeFitbitFetch(
@@ -97,7 +97,7 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Heart rate data
   if (scopes.includes('heartrate')) {
     data.heartRate = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/activities/heart/date/${yesterday}/1d.json?timezone=UTC`,
+      `https://api.fitbit.com/1/user/-/activities/heart/date/${yesterday}/1d.json`,
       headers
     );
   }
@@ -105,7 +105,7 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Sleep data
   if (scopes.includes('sleep')) {
     data.sleep = await safeFitbitFetch(
-      `https://api.fitbit.com/1.2/user/-/sleep/date/${yesterday}.json?timezone=UTC`,
+      `https://api.fitbit.com/1.2/user/-/sleep/date/${yesterday}.json`,
       headers
     );
   }
@@ -114,11 +114,11 @@ async function fetchAllFitbitData(accessToken, scope) {
   if (scopes.includes('nutrition')) {
     const [foods, water] = await Promise.all([
       safeFitbitFetch(
-        `https://api.fitbit.com/1/user/-/foods/log/date/${yesterday}.json?timezone=UTC`,
+        `https://api.fitbit.com/1/user/-/foods/log/date/${yesterday}.json`,
         headers
       ),
       safeFitbitFetch(
-        `https://api.fitbit.com/1/user/-/foods/log/water/date/${yesterday}.json?timezone=UTC`,
+        `https://api.fitbit.com/1/user/-/foods/log/water/date/${yesterday}.json`,
         headers
       )
     ]);
@@ -128,7 +128,7 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Weight data
   if (scopes.includes('weight')) {
     data.weight = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/body/log/weight/date/${lastMonth}/${today}.json?timezone=UTC`,
+      `https://api.fitbit.com/1/user/-/body/log/weight/date/${lastMonth}/${today}.json`,
       headers
     );
   }
@@ -495,16 +495,16 @@ router.get('/debug-activities', async (req, res) => {
     }
 
     const accessToken = req.session.fitbit.accessToken;
-    const yesterday = moment().utc().subtract(1, 'days').format('YYYY-MM-DD');  // Use UTC time and yesterday
+    const yesterday = moment().local().subtract(1, 'days').format('YYYY-MM-DD');  // Use local time and yesterday
 
-    console.log('Fetching activities with UTC time:', {
+    console.log('Fetching activities with local time:', {
       date: yesterday,
-      currentUTC: moment().utc().format()
+      currentLocal: moment().local().format()
     });
 
     // Get raw activities data
     const activities = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json?timezone=UTC`,
+      `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,
       { 'Authorization': `Bearer ${accessToken}` }
     );
 
