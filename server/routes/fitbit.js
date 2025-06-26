@@ -164,65 +164,83 @@ async function fetchAllFitbitData(accessToken, scope) {
 }
 
 // Endpoint to initiate Fitbit OAuth
-router.get('/auth', (req, res) => {
-  const clientId = process.env.FITBIT_CLIENT_ID;
-  const redirectUri = process.env.FITBIT_REDIRECT_URI || (process.env.NODE_ENV === 'production'
-    ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
-    : 'http://localhost:3001/api/fitbit/callback');
-  
-  // All available Fitbit scopes as of 2024
-  // Only request what your app needs - requesting all scopes may reduce user trust
-  const scopes = [
-    'activity',          // Activity data (steps, distance, calories, active minutes)
-    'cardio_fitness',    // Cardio fitness score (VO2 Max)
-    'electrocardiogram', // ECG readings from Fitbit devices
-    'heartrate',         // Heart rate data
-    'irregular_rhythm_notifications', // AFib notifications
-    'location',          // GPS and location data
-    'nutrition',         // Food logging and nutrition data
-    'oxygen_saturation', // Blood oxygen saturation data
-    'profile',          // Basic profile information
-    'respiratory_rate',  // Breathing rate data
-    'settings',         // Device and app settings
-    'sleep',            // Sleep tracking data
-    'social',           // Social features (friends, sharing)
-    'temperature',      // Body temperature data
-    'weight'            // Weight, BMI, body fat percentage
-  ];
+router.get('/auth', async (req, res) => {
+  try {
+    const clientId = process.env.FITBIT_CLIENT_ID;
+    const redirectUri = process.env.FITBIT_REDIRECT_URI || (process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
+      : 'http://localhost:3001/api/fitbit/callback');
+    
+    // All available Fitbit scopes as of 2024
+    const scopes = [
+      'activity',          // Activity data (steps, distance, calories, active minutes)
+      'cardio_fitness',    // Cardio fitness score (VO2 Max)
+      'electrocardiogram', // ECG readings from Fitbit devices
+      'heartrate',         // Heart rate data
+      'irregular_rhythm_notifications', // AFib notifications
+      'location',          // GPS and location data
+      'nutrition',         // Food logging and nutrition data
+      'oxygen_saturation', // Blood oxygen saturation data
+      'profile',          // Basic profile information
+      'respiratory_rate',  // Breathing rate data
+      'settings',         // Device and app settings
+      'sleep',            // Sleep tracking data
+      'social',           // Social features (friends, sharing)
+      'temperature',      // Body temperature data
+      'weight'            // Weight, BMI, body fat percentage
+    ];
 
-  // Generate PKCE values for enhanced OAuth security
-  const { code_verifier, code_challenge } = generatePKCE();
+    // Generate PKCE values for enhanced OAuth security
+    const { code_verifier, code_challenge } = generatePKCE();
 
-  // Store PKCE code_verifier and state in session for later verification
-  // code_verifier must be sent in token exchange to prove we're the same app
-  const state = crypto.randomBytes(32).toString('hex');
-  req.session.oauth = {
-    state,                    // Anti-CSRF token
-    code_verifier,           // PKCE verifier for token exchange
-    timestamp: Date.now()     // For session expiry
-  };
+    // Store PKCE code_verifier and state in session for later verification
+    const state = crypto.randomBytes(32).toString('hex');
+    req.session.oauth = {
+      state,                    // Anti-CSRF token
+      code_verifier,           // PKCE verifier for token exchange
+      timestamp: Date.now()     // For session expiry
+    };
 
-  // Construct Fitbit authorization URL with all parameters
-  const authUrl = `https://www.fitbit.com/oauth2/authorize?` + 
-    `response_type=code&` +
-    `client_id=${clientId}&` +
-    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-    `scope=${encodeURIComponent(scopes.join(' '))}&` +
-    `state=${state}&` +
-    `code_challenge=${code_challenge}&` +
-    `code_challenge_method=S256&` +
-    `prompt=consent`; // Force consent screen
+    // Save session explicitly and wait for it to complete
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Failed to save session:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully. Session ID:', req.sessionID);
+          console.log('OAuth state:', req.session.oauth);
+          resolve();
+        }
+      });
+    });
 
-  // Log the OAuth request for debugging
-  console.log('Initiating Fitbit OAuth with:', {
-    clientId,
-    redirectUri,
-    scopes,
-    state: state.substring(0, 8) + '...', // Log partial state for security
-    hasCodeChallenge: !!code_challenge
-  });
+    // Construct Fitbit authorization URL with all parameters
+    const authUrl = `https://www.fitbit.com/oauth2/authorize?` + 
+      `response_type=code&` +
+      `client_id=${clientId}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `scope=${encodeURIComponent(scopes.join(' '))}&` +
+      `state=${state}&` +
+      `code_challenge=${code_challenge}&` +
+      `code_challenge_method=S256&` +
+      `prompt=consent`; // Force consent screen
 
-  res.json({ authUrl });
+    // Log the OAuth request for debugging
+    console.log('Initiating Fitbit OAuth with:', {
+      clientId,
+      redirectUri,
+      scopes,
+      state: state.substring(0, 8) + '...', // Log partial state for security
+      hasCodeChallenge: !!code_challenge,
+      sessionID: req.sessionID
+    });
+
+    res.json({ authUrl });
+  } catch (error) {
+    console.error('Error in Fitbit auth:', error);
+    res.status(500).json({ error: 'Failed to initialize Fitbit authentication' });
+  }
 });
 
 // Update the callback endpoint to use the new function
@@ -234,13 +252,35 @@ router.get('/callback', async (req, res) => {
 
   try {
     const { code, state } = req.query;
+    console.log('Callback received. Session ID:', req.sessionID);
+    console.log('Session data:', req.session);
+    console.log('OAuth state from query:', state);
 
     // Validate state and ensure OAuth session exists
-    if (!req.session.oauth || 
-        !req.session.oauth.state || 
-        state !== req.session.oauth.state ||
-        Date.now() - req.session.oauth.timestamp > 300000) { // 5 minute expiry
-      throw new Error('Invalid or expired OAuth session');
+    if (!req.session.oauth) {
+      console.error('No OAuth session found');
+      throw new Error('No OAuth session found');
+    }
+
+    if (!req.session.oauth.state) {
+      console.error('No state in OAuth session');
+      throw new Error('Invalid OAuth session - no state');
+    }
+
+    if (state !== req.session.oauth.state) {
+      console.error('State mismatch:', {
+        expected: req.session.oauth.state,
+        received: state
+      });
+      throw new Error('Invalid OAuth state');
+    }
+
+    if (Date.now() - req.session.oauth.timestamp > 300000) {
+      console.error('Session expired:', {
+        started: new Date(req.session.oauth.timestamp).toISOString(),
+        now: new Date().toISOString()
+      });
+      throw new Error('OAuth session expired');
     }
 
     const { code_verifier } = req.session.oauth;
