@@ -20,6 +20,9 @@ require('dotenv').config({ path: './server/.env' });
 
 const app = express();
 
+const sessions = new Map();
+app.set('sessions', sessions); // Used for OpenAI sessionToken logic only
+
 // Define the frontend origin based on environment
 const FRONTEND_ORIGIN = process.env.NODE_ENV === 'production'
   ? 'https://meal-planner-frontend-woan.onrender.com'
