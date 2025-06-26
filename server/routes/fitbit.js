@@ -69,6 +69,11 @@ async function fetchAllFitbitData(accessToken, scope) {
 
   // Activity data
   if (scopes.includes('activity')) {
+    console.log('Fetching activities with:', {
+      date: today,
+      tokenPrefix: accessToken.substring(0, 10) + '...'
+    });
+    
     const [activities, lifetime] = await Promise.all([
       safeFitbitFetch(
         `https://api.fitbit.com/1/user/-/activities/date/${today}.json`,
@@ -79,6 +84,7 @@ async function fetchAllFitbitData(accessToken, scope) {
         headers
       )
     ]);
+    console.log('Raw activities response:', JSON.stringify(activities, null, 2));
     data.activities = { daily: activities, lifetime };
   }
 
