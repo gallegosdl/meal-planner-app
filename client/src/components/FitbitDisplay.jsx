@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const FitbitDisplay = ({ onCaloriesUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -62,9 +63,7 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
       
       // Store tokens in session
       console.log('Storing Fitbit tokens...');
-      await axios.post('/api/fitbit/store-tokens', tokens, {
-        withCredentials: true
-      });
+      await api.post('/api/fitbit/store-tokens', tokens);
       console.log('Fitbit tokens stored successfully');
       console.log('Activities data structure:', allData);
 
@@ -110,10 +109,8 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
       setLoading(true);
       setError(null);
 
-      // Get auth URL from backend
-      const response = await axios.get('/api/fitbit/auth', { 
-        withCredentials: true
-      });
+      // Get auth URL from backend using api service
+      const response = await api.get('/api/fitbit/auth');
 
       // Try popup first
       const width = 600;

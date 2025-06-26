@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const StravaDisplay = ({ onCaloriesUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -36,9 +37,7 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
       
       // Store tokens in session
       console.log('Storing Strava tokens...');
-      await axios.post('/api/strava/store-tokens', tokens, {
-        withCredentials: true
-      });
+      await api.post('/api/strava/store-tokens', tokens);
       console.log('Strava tokens stored successfully');
 
       // Format the data for display
@@ -75,11 +74,9 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
       setLoading(true);
       setError(null);
 
-      // Get auth URL from backend
+      // Get auth URL from backend using api service
       console.log('Fetching Strava auth URL...');
-      const response = await axios.get('/api/strava/auth', { 
-        withCredentials: true
-      });
+      const response = await api.get('/api/strava/auth');
       console.log('Received auth URL from server');
 
       // Try popup first
