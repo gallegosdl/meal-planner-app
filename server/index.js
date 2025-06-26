@@ -143,15 +143,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-const sessions = new Map();
-app.set('sessions', sessions); // Make sessions available to routes
-
-const getApiKey = (req) => {
-  const sessionToken = req.headers['x-session-token'];
-  const session = sessions.get(sessionToken);
-  return session?.apiKey;
-};
-
 // Add this near the top after loading env vars
 console.log('Server starting with env vars:', {
   INSTACART_API_KEY: process.env.INSTACART_API_KEY ? 'Present' : 'Missing',
