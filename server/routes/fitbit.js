@@ -163,92 +163,109 @@ async function fetchAllFitbitData(accessToken, scope) {
   return data;
 }
 
-// Endpoint to initiate Fitbit OAuth
+// OAuth authorization endpoint
 router.get('/auth', async (req, res) => {
   try {
-    const clientId = process.env.FITBIT_CLIENT_ID;
-    const redirectUri = process.env.FITBIT_REDIRECT_URI || (process.env.NODE_ENV === 'production'
-      ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
-      : 'http://localhost:3001/api/fitbit/callback');
-    
-    // All available Fitbit scopes as of 2024
-    const scopes = [
-      'activity',          // Activity data (steps, distance, calories, active minutes)
-      'cardio_fitness',    // Cardio fitness score (VO2 Max)
-      'electrocardiogram', // ECG readings from Fitbit devices
-      'heartrate',         // Heart rate data
-      'irregular_rhythm_notifications', // AFib notifications
-      'location',          // GPS and location data
-      'nutrition',         // Food logging and nutrition data
-      'oxygen_saturation', // Blood oxygen saturation data
-      'profile',          // Basic profile information
-      'respiratory_rate',  // Breathing rate data
-      'settings',         // Device and app settings
-      'sleep',            // Sleep tracking data
-      'social',           // Social features (friends, sharing)
-      'temperature',      // Body temperature data
-      'weight'            // Weight, BMI, body fat percentage
-    ];
-
-    // Generate PKCE values for enhanced OAuth security
-    const { code_verifier, code_challenge } = generatePKCE();
-
-    // Store PKCE code_verifier and state in session for later verification
+    // Generate PKCE code verifier and challenge
     const state = crypto.randomBytes(32).toString('hex');
+    const code_verifier = crypto.randomBytes(32).toString('base64url');
+    const code_challenge = crypto.createHash('sha256')
+      .update(code_verifier)
+      .digest('base64url');
+
+    // Store OAuth state in session
     req.session.oauth = {
-      state,                    // Anti-CSRF token
-      code_verifier,           // PKCE verifier for token exchange
-      timestamp: Date.now()     // For session expiry
+      state,
+      code_verifier,
+      timestamp: Date.now()
     };
 
-    // Save session explicitly and wait for it to complete
+    // Debug session before save
+    console.log('Session before save:', {
+      id: req.sessionID,
+      oauth: req.session.oauth,
+      cookie: req.session.cookie
+    });
+
+    // Save session explicitly before redirect
     await new Promise((resolve, reject) => {
-      req.session.save((err) => {
+      req.session.save(err => {
         if (err) {
           console.error('Failed to save session:', err);
           reject(err);
         } else {
+          // Debug session after save
+          console.log('Session after save:', {
+            id: req.sessionID,
+            oauth: req.session.oauth,
+            cookie: req.session.cookie
+          });
           console.log('Session saved successfully. Session ID:', req.sessionID);
-          console.log('OAuth state:', req.session.oauth);
           resolve();
         }
       });
     });
 
-    // Construct Fitbit authorization URL with all parameters
-    const authUrl = `https://www.fitbit.com/oauth2/authorize?` + 
-      `response_type=code&` +
-      `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `scope=${encodeURIComponent(scopes.join(' '))}&` +
-      `state=${state}&` +
-      `code_challenge=${code_challenge}&` +
-      `code_challenge_method=S256&` +
-      `prompt=consent`; // Force consent screen
+    // Build authorization URL
+    const authUrl = new URL('https://www.fitbit.com/oauth2/authorize');
+    authUrl.searchParams.append('client_id', process.env.FITBIT_CLIENT_ID);
+    authUrl.searchParams.append('response_type', 'code');
+    authUrl.searchParams.append('code_challenge', code_challenge);
+    authUrl.searchParams.append('code_challenge_method', 'S256');
+    authUrl.searchParams.append('state', state);
+    authUrl.searchParams.append('redirect_uri', process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
+      : 'http://localhost:3001/api/fitbit/callback'
+    );
+    authUrl.searchParams.append('scope', [
+      'activity',
+      'cardio_fitness',
+      'electrocardiogram',
+      'heartrate',
+      'irregular_rhythm_notifications',
+      'location',
+      'nutrition',
+      'oxygen_saturation',
+      'profile',
+      'respiratory_rate',
+      'settings',
+      'sleep',
+      'social',
+      'temperature',
+      'weight'
+    ].join(' '));
 
-    // Log the OAuth request for debugging
     console.log('Initiating Fitbit OAuth with:', {
-      clientId,
-      redirectUri,
-      scopes,
-      state: state.substring(0, 8) + '...', // Log partial state for security
-      hasCodeChallenge: !!code_challenge,
+      clientId: process.env.FITBIT_CLIENT_ID,
+      redirectUri: process.env.NODE_ENV === 'production'
+        ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
+        : 'http://localhost:3001/api/fitbit/callback',
+      scopes: authUrl.searchParams.get('scope').split(' '),
+      state: state.substring(0, 8) + '...',
+      hasCodeChallenge: true,
       sessionID: req.sessionID
     });
 
-    res.json({ authUrl });
+    res.json({ authUrl: authUrl.toString() });
   } catch (error) {
-    console.error('Error in Fitbit auth:', error);
-    res.status(500).json({ error: 'Failed to initialize Fitbit authentication' });
+    console.error('Failed to initialize OAuth:', error);
+    res.status(500).json({ error: 'Failed to initialize OAuth' });
   }
 });
 
 // OAuth callback endpoint
 router.get('/callback', async (req, res) => {
-  console.log('Callback received. Session ID:', req.sessionID);
-  console.log('Session data:', req.session);
-  console.log('Cookies:', req.cookies);
-  console.log('Query params:', req.query);
+  console.log('Callback received. Session debug:', {
+    id: req.sessionID,
+    hasSession: !!req.session,
+    sessionData: req.session,
+    cookies: req.cookies,
+    headers: {
+      cookie: req.headers.cookie,
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    }
+  });
 
   try {
     const { code, state: queryState, error: queryError } = req.query;
@@ -282,14 +299,17 @@ router.get('/callback', async (req, res) => {
     }
 
     // Try to find OAuth state in session
-    const oauthState = req.session.fitbitOAuth;
+    const oauthState = req.session.oauth;
     console.log('OAuth state from session:', oauthState);
 
     if (!oauthState || oauthState.state !== queryState) {
       console.error('OAuth state mismatch or missing:', {
         sessionState: oauthState?.state,
         queryState,
-        sessionID: req.sessionID
+        sessionID: req.sessionID,
+        hasSession: !!req.session,
+        sessionKeys: req.session ? Object.keys(req.session) : [],
+        cookies: req.cookies
       });
       
       return res.send(`
@@ -319,7 +339,7 @@ router.get('/callback', async (req, res) => {
     const activities = await fitbitClient.getActivities(tokenResponse.access_token);
 
     // Clear OAuth state from session
-    delete req.session.fitbitOAuth;
+    delete req.session.oauth;
     await new Promise((resolve, reject) => {
       req.session.save(err => {
         if (err) reject(err);

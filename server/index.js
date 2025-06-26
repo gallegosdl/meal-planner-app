@@ -103,23 +103,26 @@ const initializeRedis = async () => {
     // Create Redis store
     const redisStore = new RedisStore({
       client: redisClient,
-      prefix: "mealplanner:"
+      prefix: "mealplanner:",
+      ttl: 86400 // 24 hours
     });
 
     // Use Redis-backed session store
     app.use(session({
       store: redisStore,
       secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-      resave: true,
-      saveUninitialized: true,
+      resave: true, // Changed to true to ensure session is saved
+      saveUninitialized: true, // Changed to true to ensure new sessions are saved
       name: 'mealplanner.sid',
-      proxy: true, // Required for Render deployment
+      proxy: true, // Required for secure cookies behind proxy
+      rolling: true, // Refresh session with each request
       cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
+        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined,
+        path: '/'
       }
     }));
 
@@ -129,12 +132,14 @@ const initializeRedis = async () => {
     // Debug middleware for session tracking
     app.use((req, res, next) => {
       console.log('Session Debug:', {
-        sessionID: req.sessionID,
+        id: req.sessionID,
         hasSession: !!req.session,
-        sessionData: req.session,
-        cookies: req.cookies,
-        path: req.path,
-        method: req.method
+        cookie: req.session?.cookie,
+        headers: {
+          cookie: req.headers.cookie,
+          origin: req.headers.origin,
+          referer: req.headers.referer
+        }
       });
       next();
     });
