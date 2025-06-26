@@ -227,6 +227,11 @@ router.get('/auth', (req, res) => {
 
 // Update the callback endpoint to use the new function
 router.get('/callback', async (req, res) => {
+  // Define clientOrigin at the start of the route handler
+  const clientOrigin = process.env.NODE_ENV === 'production'
+    ? 'https://meal-planner-frontend-woan.onrender.com'
+    : 'http://localhost:3000';
+
   try {
     const { code, state } = req.query;
 
@@ -293,10 +298,6 @@ router.get('/callback', async (req, res) => {
     });
 
     // Send HTML that posts message to parent window with all data
-    const clientOrigin = process.env.NODE_ENV === 'production'
-      ? 'https://meal-planner-frontend-woan.onrender.com'
-      : 'http://localhost:3000';
-
     res.send(`
       <html>
         <body>

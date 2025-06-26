@@ -19,16 +19,39 @@ require('dotenv').config({ path: './server/.env' });
 const app = express();
 
 // Session configuration
-app.use(session({
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-  resave: true,  // Force session to be saved back to the session store
+  resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+};
+
+// In production, use Redis for session storage
+if (process.env.NODE_ENV === 'production') {
+  const RedisStore = require('connect-redis').default;
+  const { createClient } = require('redis');
+
+  // Create Redis client
+  const redisClient = createClient({
+    url: process.env.REDIS_URL || 'redis://localhost:6379'
+  });
+
+  redisClient.connect().catch(console.error);
+
+  // Configure session with Redis
+  sessionConfig.store = new RedisStore({
+    client: redisClient,
+    prefix: 'mealplanner:'
+  });
+} else {
+  console.warn('Using MemoryStore for sessions - not suitable for production');
+}
+
+app.use(session(sessionConfig));
 
 // Middleware
 const allowedOrigins = [
