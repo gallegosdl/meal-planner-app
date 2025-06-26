@@ -130,6 +130,15 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
         return;
       }
 
+      // Monitor popup window
+      const checkPopup = setInterval(() => {
+        if (!popup || popup.closed) {
+          console.log('Popup window was closed');
+          clearInterval(checkPopup);
+          setLoading(false);
+        }
+      }, 1000);
+
     } catch (err) {
       setError('Failed to initialize Fitbit authentication');
       console.error('Fitbit auth error:', err);
