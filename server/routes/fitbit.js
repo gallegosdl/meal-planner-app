@@ -216,6 +216,7 @@ router.get('/auth', async (req, res) => {
     authUrl.searchParams.append('code_challenge', code_challenge);
     authUrl.searchParams.append('code_challenge_method', 'S256');
     authUrl.searchParams.append('state', state);
+    authUrl.searchParams.append('prompt', 'consent');
     authUrl.searchParams.append('redirect_uri', process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
       : 'http://localhost:3001/api/fitbit/callback'
