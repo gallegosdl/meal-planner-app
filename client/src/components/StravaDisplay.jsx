@@ -149,13 +149,21 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
     const activityType = activity.type?.toLowerCase() || '';
     const activityName = activity.name?.toLowerCase() || '';
 
-    if (activityName.includes('rowing') || activityType === 'rowing') {
+    if (activityName.includes('rowing') || activityType === 'Rowing') {
       iconPath = "/images/rowerWhite64.png";
-    } else if (activityType === 'run' || activityName.includes('run')) {
+    } else if (activityType === 'Run' || activityName.includes('run')) {
       iconPath = "/images/speed.png";
-    } else if (activityType === 'walk' || activityName.includes('walk')) {
+    } else if (activityType === 'Walk' || activityName.includes('walk')) {
       iconPath = "/images/walking.png";
-    } else if (activityType === 'workout' || activityName.includes('workout')) {
+    } else if (
+      activityType === 'WeightTraining' || 
+      activityType === 'Crossfit' || 
+      activityType === 'Workout' || 
+      activityType === 'Yoga' ||
+      activityName.includes('weight') || 
+      activityName.includes('gym') || 
+      activityName.includes('training')
+    ) {
       iconPath = "/images/workout.png";
     }
 
@@ -201,7 +209,7 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
 
   if (!data) {
     return (
-      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-center items-center shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex-col justify-center items-center shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
       {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">*/}
         {error && (
           <div className="text-red-400 text-center mb-4">
