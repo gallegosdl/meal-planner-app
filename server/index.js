@@ -32,16 +32,16 @@ const sessionConfig = {
 
 // In production, use Redis for session storage
 if (process.env.NODE_ENV === 'production') {
-  const { createClient } = require('redis');
-  const RedisStore = require('connect-redis').default;
+  const Redis = require('redis');
+  const ConnectRedis = require('connect-redis');
 
   // Create Redis client
-  const redisClient = createClient({
+  const redisClient = Redis.createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
   });
 
   // Initialize store
-  const redisStore = new RedisStore({
+  const redisStore = new (ConnectRedis(session))({
     client: redisClient,
     prefix: 'mealplanner:'
   });
@@ -51,6 +51,10 @@ if (process.env.NODE_ENV === 'production') {
 
   // Add store to the session config
   sessionConfig.store = redisStore;
+
+  // Log Redis connection status
+  redisClient.on('connect', () => console.log('Redis client connected'));
+  redisClient.on('error', (err) => console.error('Redis Client Error', err));
 } else {
   console.warn('Using MemoryStore for sessions - not suitable for production');
 }
