@@ -85,7 +85,7 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Heart rate data
   if (scopes.includes('heartrate')) {
     data.heartRate = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/activities/heart/date/${today}/1day.json`,
+      `https://api.fitbit.com/1/user/-/activities/heart/date/${today}/1d.json`,
       headers
     );
   }
