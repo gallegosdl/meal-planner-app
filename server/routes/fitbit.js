@@ -167,7 +167,7 @@ async function fetchAllFitbitData(accessToken, scope) {
 router.get('/auth', (req, res) => {
   const clientId = process.env.FITBIT_CLIENT_ID;
   const redirectUri = process.env.NODE_ENV === 'production'
-    ? 'https://meal-planner-app-backend.onrender.com/api/fitbit/callback'
+    ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
     : 'http://localhost:3001/api/fitbit/callback';
   
   // All available Fitbit scopes as of 2024
@@ -244,7 +244,7 @@ router.get('/callback', async (req, res) => {
     const clientId = process.env.FITBIT_CLIENT_ID;
     const clientSecret = process.env.FITBIT_CLIENT_SECRET;
     const redirectUri = process.env.NODE_ENV === 'production'
-      ? 'https://meal-planner-app-backend.onrender.com/api/fitbit/callback'
+      ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
       : 'http://localhost:3001/api/fitbit/callback';
 
     // Exchange authorization code for tokens using PKCE verification

@@ -7,7 +7,7 @@ const crypto = require('crypto');
 router.get('/auth', (req, res) => {
   const clientId = process.env.STRAVA_CLIENT_ID;
   const redirectUri = process.env.NODE_ENV === 'production'
-    ? 'https://meal-planner-app-backend.onrender.com/api/strava/callback'
+    ? 'https://meal-planner-app-3m20.onrender.com/api/strava/callback'
     : 'http://localhost:3001/api/strava/callback';
   
   // Generate state for CSRF protection
