@@ -243,170 +243,115 @@ router.get('/auth', async (req, res) => {
   }
 });
 
-// Update the callback endpoint to use the new function
+// OAuth callback endpoint
 router.get('/callback', async (req, res) => {
-  // Define clientOrigin at the start of the route handler
-  const clientOrigin = process.env.NODE_ENV === 'production'
-    ? 'https://meal-planner-frontend-woan.onrender.com'
-    : 'http://localhost:3000';
+  console.log('Callback received. Session ID:', req.sessionID);
+  console.log('Session data:', req.session);
+  console.log('Cookies:', req.cookies);
+  console.log('Query params:', req.query);
 
   try {
-    const { code, state } = req.query;
-    console.log('Callback received. Session ID:', req.sessionID);
-    console.log('Session data:', req.session);
-    console.log('OAuth state from query:', state);
+    const { code, state: queryState, error: queryError } = req.query;
 
-    // Validate state and ensure OAuth session exists
-    if (!req.session.oauth) {
-      console.error('No OAuth session found');
-      throw new Error('No OAuth session found');
+    // Handle OAuth errors
+    if (queryError) {
+      console.error('Fitbit OAuth error from query:', queryError);
+      return res.send(`
+        <script>
+          window.opener.postMessage(
+            { type: 'fitbit_callback', error: '${queryError}' },
+            '*'
+          );
+          window.close();
+        </script>
+      `);
     }
 
-    if (!req.session.oauth.state) {
-      console.error('No state in OAuth session');
-      throw new Error('Invalid OAuth session - no state');
+    // Validate state
+    if (!queryState) {
+      console.error('No state parameter in callback');
+      return res.send(`
+        <script>
+          window.opener.postMessage(
+            { type: 'fitbit_callback', error: 'Invalid OAuth state' },
+            '*'
+          );
+          window.close();
+        </script>
+      `);
     }
 
-    if (state !== req.session.oauth.state) {
-      console.error('State mismatch:', {
-        expected: req.session.oauth.state,
-        received: state
+    // Try to find OAuth state in session
+    const oauthState = req.session.fitbitOAuth;
+    console.log('OAuth state from session:', oauthState);
+
+    if (!oauthState || oauthState.state !== queryState) {
+      console.error('OAuth state mismatch or missing:', {
+        sessionState: oauthState?.state,
+        queryState,
+        sessionID: req.sessionID
       });
-      throw new Error('Invalid OAuth state');
+      
+      return res.send(`
+        <script>
+          window.opener.postMessage(
+            { type: 'fitbit_callback', error: 'No OAuth session found' },
+            '*'
+          );
+          window.close();
+        </script>
+      `);
     }
 
-    if (Date.now() - req.session.oauth.timestamp > 300000) {
-      console.error('Session expired:', {
-        started: new Date(req.session.oauth.timestamp).toISOString(),
-        now: new Date().toISOString()
-      });
-      throw new Error('OAuth session expired');
-    }
+    // Exchange code for token
+    const tokenResponse = await fitbitClient.getAccessToken({
+      code,
+      code_verifier: oauthState.code_verifier,
+      redirect_uri: process.env.NODE_ENV === 'production'
+        ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
+        : 'http://localhost:3001/api/fitbit/callback'
+    });
 
-    const { code_verifier } = req.session.oauth;
-    delete req.session.oauth; // Clear OAuth session data
+    // Get user profile
+    const profile = await fitbitClient.getProfile(tokenResponse.access_token);
 
-    const clientId = process.env.FITBIT_CLIENT_ID;
-    const clientSecret = process.env.FITBIT_CLIENT_SECRET;
-    const redirectUri = process.env.FITBIT_REDIRECT_URI || (process.env.NODE_ENV === 'production'
-      ? 'https://meal-planner-app-3m20.onrender.com/api/fitbit/callback'
-      : 'http://localhost:3001/api/fitbit/callback');
+    // Get activities
+    const activities = await fitbitClient.getActivities(tokenResponse.access_token);
 
-    // Exchange authorization code for tokens using PKCE verification
-    // We include the original code_verifier to prove we're the same app that initiated the flow
-    const tokenResponse = await axios.post('https://api.fitbit.com/oauth2/token',
-      new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,                    // The auth code from Fitbit
-        redirect_uri: redirectUri,
-        client_id: clientId,
-        code_verifier            // PKCE verification - must match the challenge we sent
-      }).toString(),
-      {
-        headers: {
-          'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
-    );
-
-    const {
-      access_token,
-      refresh_token,
-      expires_in,
-      scope
-    } = tokenResponse.data;
-
-    // Fetch all available data
-    const allFitbitData = await fetchAllFitbitData(access_token, scope);
-
-    // Store tokens and scope in session
-    req.session.fitbit = {
-      accessToken: access_token,
-      refreshToken: refresh_token,
-      expiresIn: expires_in,
-      scope,
-      obtainedAt: new Date().toISOString()
-    };
-
-    // Save session explicitly
+    // Clear OAuth state from session
+    delete req.session.fitbitOAuth;
     await new Promise((resolve, reject) => {
-      req.session.save((err) => {
+      req.session.save(err => {
         if (err) reject(err);
         else resolve();
       });
     });
 
-    // Send HTML that posts message to parent window with all data
+    // Send success response
     res.send(`
-      <html>
-        <body>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'fitbit_callback',
-                data: {
-                  profile: ${JSON.stringify({
-                    ...allFitbitData.profile.user,
-                    scope
-                  })},
-                  tokens: {
-                    accessToken: '${access_token}',
-                    refreshToken: '${refresh_token}',
-                    expiresIn: ${expires_in},
-                    scope: '${scope}'
-                  },
-                  allData: ${JSON.stringify(allFitbitData)}
-                }
-              }, '${clientOrigin}');
-              window.close();
-            } else {
-              window.location.href = '${clientOrigin}/fitbit/success?data=' + 
-                encodeURIComponent(JSON.stringify({
-                  profile: ${JSON.stringify({
-                    ...allFitbitData.profile.user,
-                    scope
-                  })},
-                  tokens: {
-                    accessToken: '${access_token}',
-                    refreshToken: '${refresh_token}',
-                    expiresIn: ${expires_in},
-                    scope: '${scope}'
-                  },
-                  allData: ${JSON.stringify(allFitbitData)}
-                }));
-            }
-          </script>
-        </body>
-      </html>
+      <script>
+        window.opener.postMessage({
+          type: 'fitbit_callback',
+          data: {
+            profile: ${JSON.stringify(profile)},
+            tokens: ${JSON.stringify(tokenResponse)},
+            allData: ${JSON.stringify(activities)}
+          }
+        }, '*');
+        window.close();
+      </script>
     `);
 
   } catch (error) {
     console.error('Fitbit OAuth error:', error);
-    
-    const errorMessage = error.response?.data?.errors?.[0]?.message 
-      || error.message 
-      || 'Failed to authenticate with Fitbit';
-
-    // Send error HTML that handles both popup and redirect cases
     res.send(`
-      <html>
-        <body>
-          <script>
-            const errorMessage = ${JSON.stringify(errorMessage)};
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'fitbit_callback',
-                error: errorMessage
-              }, '${clientOrigin}');
-              window.close();
-            } else {
-              window.location.href = '${clientOrigin}/fitbit/error?message=' + 
-                encodeURIComponent(errorMessage);
-            }
-          </script>
-        </body>
-      </html>
+      <script>
+        window.opener.postMessage({
+          type: 'fitbit_callback',
+          error: 'Failed to complete authentication'
+        }, '*');
+        window.close();
+      </script>
     `);
   }
 });

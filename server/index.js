@@ -74,6 +74,18 @@ app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
+
 // Initialize Redis client
 const redisClient = createClient({
   url: process.env.REDIS_URL
@@ -98,14 +110,15 @@ const initializeRedis = async () => {
     app.use(session({
       store: redisStore,
       secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-      resave: false,
-      saveUninitialized: false,
+      resave: true,
+      saveUninitialized: true,
       name: 'mealplanner.sid',
+      proxy: true, // Required for Render deployment
       cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: 'none',
-        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
         domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
       }
     }));
@@ -113,11 +126,16 @@ const initializeRedis = async () => {
     // Add cookie parser before routes
     app.use(cookieParser());
 
-    // Add request logging
+    // Debug middleware for session tracking
     app.use((req, res, next) => {
-      console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'no origin'}`);
-      console.log('Session ID:', req.sessionID);
-      console.log('Session Data:', req.session);
+      console.log('Session Debug:', {
+        sessionID: req.sessionID,
+        hasSession: !!req.session,
+        sessionData: req.session,
+        cookies: req.cookies,
+        path: req.path,
+        method: req.method
+      });
       next();
     });
 
@@ -142,18 +160,6 @@ const initializeRedis = async () => {
       res.header('Access-Control-Allow-Credentials', 'true');
       next();
     }, express.static(uploadDir));
-
-    // Configure multer for file uploads
-    const storage = multer.diskStorage({
-      destination: function (req, file, cb) {
-        cb(null, uploadDir);
-      },
-      filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname));
-      }
-    });
-
-    const upload = multer({ storage: storage });
 
     // Mount routes
     app.use('/api/auth', authRoutes);
