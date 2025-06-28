@@ -1,5 +1,31 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="32" height="32" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="16" cy="16" r="16" fill="#252B3B"/>
-  <text x="16" y="22" font-family="Arial" font-size="20" fill="white" text-anchor="middle">M</text>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+  viewBox="0 0 100 100"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <rect width="100" height="100" fill="#1a1f2b"/>
+  <!-- Main N strokes -->
+  <path
+    d="M 20 80 L 20 20 L 80 80 L 80 20"
+    fill="none"
+    stroke="#00BFFF"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Node connections (extra branch in N) -->
+  <path
+    d="M 45 55 L 65 35"
+    fill="none"
+    stroke="#00BFFF"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <!-- Node circles -->
+  <circle cx="20" cy="20" r="5" fill="#00BFFF"/>
+  <circle cx="20" cy="80" r="5" fill="#00BFFF"/>
+  <circle cx="80" cy="20" r="5" fill="#00BFFF"/>
+  <circle cx="80" cy="80" r="5" fill="#00BFFF"/>
+  <circle cx="45" cy="55" r="4" fill="#00BFFF"/>
+  <circle cx="65" cy="35" r="4" fill="#00BFFF"/>
 </svg> 

@@ -79,12 +79,12 @@ const WelcomeModal = ({ onClose }) => {
           <div className="flex-shrink-0">
             <div className="flex items-center gap-4 mb-6">
               <img 
-                src="/images/DGMealPlanner.png" 
-                alt="Meal Planner Logo" 
+                src="/images/NutriSyncAI-logo.png" 
+                alt="NutriSync AI Logo" 
                 className="w-16 h-16 rounded-xl"
               />
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                Welcome to Meal Planner AI
+              <h2 className="text-2xl font-bold text-white">
+                Welcome to <span className="text-white">NutriSync</span> <span className="text-blue-400">AI</span>
               </h2>
             </div>
 
@@ -99,9 +99,9 @@ const WelcomeModal = ({ onClose }) => {
           <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
             <div className="space-y-4 text-gray-300 text-sm sm:text-base">
               <section>
-                <h3 className="text-lg font-semibold text-white mb-2">About Meal Planner</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">About NutriSync AI</h3>
                 <p>
-                  Meal Planner AI is designed to help you achieve your health and dietary goals 
+                  NutriSync AI is designed to help you achieve your health and dietary goals 
                   through personalized meal planning. Our AI-powered system takes into account your:
                 </p>
                 <ul className="list-disc ml-6 mt-2 space-y-1">
@@ -119,7 +119,7 @@ const WelcomeModal = ({ onClose }) => {
                 <div className="bg-[#1a1f2b] rounded-lg p-4 border border-[#ffffff1a] bg-[#151922]">
                   <p className="text-yellow-400 mb-2">⚠️ Important:</p>
                   <p>
-                    To use Meal Planner AI, you'll need to provide your OpenAI API key. 
+                    To use NutriSync AI, you'll need to provide your OpenAI API key. 
                     This key allows our system to generate personalized meal plans using AI technology.
                   </p>
                 </div>
