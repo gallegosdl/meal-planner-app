@@ -264,9 +264,9 @@ router.post('/google', async (req, res) => {
           created_at,
           name,
           last_login
-        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
+        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP) 
         RETURNING *`,
-        [userData.email, userData.id, 'google']
+        [userData.email, userData.id, 'google', userData.name]
       );
       user = result.rows[0];
       // Create default preferences
@@ -578,6 +578,32 @@ function authenticateToken(req, res, next) {
 router.get('/', (req, res) => {
   console.log('Pantry route HIT!');
   res.json({ test: 'ok' });
+});
+
+// Add API key validation endpoint
+router.post('/', async (req, res) => {
+  const { apiKey } = req.body;
+  
+  if (!apiKey) {
+    return res.status(400).json({ error: 'API key is required' });
+  }
+
+  try {
+    // Generate a session token
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    
+    // Store the session with the API key
+    const sessions = req.app.get('sessions');
+    sessions.set(sessionToken, {
+      apiKey,
+      createdAt: Date.now()
+    });
+
+    res.json({ sessionToken });
+  } catch (error) {
+    console.error('API key validation error:', error);
+    res.status(500).json({ error: 'Failed to validate API key' });
+  }
 });
 
 module.exports = router;
