@@ -16,8 +16,8 @@ const OpenAI = require('openai');
 const pantryRoutes = require('./routes/pantry');
 const fitbitRoutes = require('./routes/fitbit');
 const stravaRoutes = require('./routes/strava');
-const mapMyFitnessRoutes = require('./routes/mapmyfitness');
-const parseIntentRoutes = require('./routes/parseIntentRoutes');
+//const mapMyFitnessRoutes = require('./routes/mapmyfitness');
+//const parseIntentRoutes = require('./routes/parseIntentRoutes');
 require('dotenv').config({ path: './server/.env' });
 
 const app = express();
