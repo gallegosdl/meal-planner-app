@@ -175,8 +175,8 @@ const initializeApp = () => {
   app.use('/api/pantry', pantryRoutes);
   app.use('/api/fitbit', fitbitRoutes);
   app.use('/api/strava', stravaRoutes);
-  app.use('/api/mapmyfitness', mapMyFitnessRoutes);
-  app.use('/api/parse-intent', parseIntentRoutes);
+  //app.use('/api/mapmyfitness', mapMyFitnessRoutes);
+  //app.use('/api/parse-intent', parseIntentRoutes);
   
 
   app.use((req, res, next) => {
