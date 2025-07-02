@@ -16,6 +16,7 @@ const OpenAI = require('openai');
 const pantryRoutes = require('./routes/pantry');
 const fitbitRoutes = require('./routes/fitbit');
 const stravaRoutes = require('./routes/strava');
+const mealPlanRoutes = require('./routes/mealPlan');
 //const mapMyFitnessRoutes = require('./routes/mapmyfitness');
 //const parseIntentRoutes = require('./routes/parseIntentRoutes');
 require('dotenv').config({ path: './server/.env' });
@@ -168,13 +169,17 @@ const initializeApp = () => {
     next();
   }, express.static(uploadDir));
 
+  // Mount auth routes on both paths to handle callbacks
+  app.use('/auth', authRoutes);
   app.use('/api/auth', authRoutes);
+
   app.use('/api/recipes', recipesRouter);
   app.use('/api/instacart', instacartRoutes);
   app.use('/api', apiRoutes);
   app.use('/api/pantry', pantryRoutes);
   app.use('/api/fitbit', fitbitRoutes);
   app.use('/api/strava', stravaRoutes);
+  app.use('/api/meal-plans', mealPlanRoutes);
   //app.use('/api/mapmyfitness', mapMyFitnessRoutes);
   //app.use('/api/parse-intent', parseIntentRoutes);
   

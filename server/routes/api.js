@@ -63,7 +63,19 @@ router.post('/generate-meal-plan', async (req, res) => {
 
   try {
     const generator = new MealPlanGenerator(session.apiKey);
-    const mealPlan = await generator.generateMealPlan(req.body);
+    // Add userId to the request body
+    // Get userId from either session or request body
+    const userId = session.userId || req.body.userId;
+    if (!userId) {
+      console.warn('No userId found in session or request');
+    }
+    
+    const requestWithUserId = {
+      ...req.body,
+      userId // Use userId from either source
+    };
+    console.log('Generating meal plan with user ID:', userId);
+    const mealPlan = await generator.generateMealPlan(requestWithUserId);
     res.json(mealPlan);
   } catch (error) {
     console.error('Meal plan generation error:', error);

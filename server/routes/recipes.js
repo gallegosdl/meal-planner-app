@@ -4,14 +4,16 @@ const db = require('../services/database');
 const socialSharing = require('../services/socialSharing');
 const TogetherAiService = require('../services/togetherAiService');
 const imageStorage = require('../utils/imageStorage');
+const { Pool } = require('pg');
 
 const togetherAiService = new TogetherAiService();
+const pool = new Pool();
 
 // GET /api/recipes - Get all recipes
 router.get('/', async (req, res) => {
   try {
     // First get all recipes with ratings as before
-    const result = await db.query(`
+    const query = `
       SELECT r.*, 
              COALESCE(AVG(rr.rating), 0) as average_rating,
              COUNT(rr.rating) as rating_count
@@ -19,7 +21,10 @@ router.get('/', async (req, res) => {
       LEFT JOIN recipe_ratings rr ON r.id = rr.recipe_id
       GROUP BY r.id
       ORDER BY r.created_at DESC
-    `);
+    `;
+    console.log('Executing main recipes query:', query);
+    const result = await db.query(query);
+    console.log('Main recipes result:', result.rows);
 
     let recipes = result.rows;
 
@@ -108,6 +113,67 @@ router.post('/:id/share', async (req, res) => {
   } catch (error) {
     console.error('Share error:', error);
     res.json({ success: false, error: 'Failed to share recipe' });
+  }
+});
+
+// Get a random meal of the day with image
+router.get('/meal-of-day', async (req, res) => {
+  try {
+    const query = `
+      SELECT r.*, 
+             COALESCE(AVG(rr.rating), 0) as average_rating,
+             COUNT(rr.rating) as rating_count
+      FROM recipes r
+      LEFT JOIN recipe_ratings rr ON r.id = rr.recipe_id
+      WHERE r.image_url LIKE '/uploads/recipes/%'
+      GROUP BY r.id
+      ORDER BY RANDOM()
+      LIMIT 1
+    `;
+    console.log('Executing query:', query);
+    const result = await db.query(query);
+    console.log('Query result:', result.rows);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No meals with images found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching meal of the day:', error);
+    res.status(500).json({ error: 'Failed to fetch meal of the day' });
+  }
+});
+
+// Get a random meal of the day
+router.get('/random-meal', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        id,
+        name,
+        description,
+        prep_time,
+        calories,
+        image_url,
+        cuisine_type,
+        meal_type
+      FROM recipes 
+      WHERE image_url IS NOT NULL 
+        AND cuisine_type IS NOT NULL 
+        AND meal_type IS NOT NULL
+      ORDER BY RANDOM() 
+      LIMIT 1
+    `);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No meals found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching random meal:', error);
+    res.status(500).json({ error: 'Failed to fetch random meal' });
   }
 });
 

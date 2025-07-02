@@ -252,35 +252,34 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
 
   if (!data) {
     return (
-      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-center items-center shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
-      {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">*/}
+      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
         {error && (
           <div className="text-red-400 text-center mb-4">
             <p>{error}</p>
           </div>
         )}
-        <button 
-          onClick={handleStravaLogin}
-          disabled={loading}
-          // Old className: className="flex items-center gap-2 bg-[#FC4C02] hover:bg-[#ff6934] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-          className="group px-8 py-4 bg-gradient-to-r from-[#FC4C02]/20 to-[#111827]/60 text-[#FC4C02] font-semibold border-2 border-[#FC4C02]/50 rounded-xl shadow-[0_0_12px_2px_rgba(252,76,2,0.3)] hover:shadow-[0_0_16px_4px_rgba(252,76,2,0.35)] hover:bg-[#1e293b]/60 hover:border-[#FC4C02]/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
-        >
-          {loading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          ) : (
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          )}
-          {loading ? 'Connecting...' : 'Connect Strava'}
-        </button>
+        <div className="flex justify-center items-center h-full">
+          <button 
+            onClick={handleStravaLogin}
+            disabled={loading}
+            className="group px-8 py-4 bg-gradient-to-r from-[#FC4C02]/20 to-[#111827]/60 text-[#FC4C02] font-semibold border-2 border-[#FC4C02]/50 rounded-xl shadow-[0_0_12px_2px_rgba(252,76,2,0.3)] hover:shadow-[0_0_16px_4px_rgba(252,76,2,0.35)] hover:bg-[#1e293b]/60 hover:border-[#FC4C02]/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+            {loading ? 'Connecting...' : 'Connect Strava'}
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-center items-center shadow-[0_0_0_1px_rgba(252,76,2,0.6),0_0_12px_3px_rgba(252,76,2,0.25)]">
-    {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">*/}
+    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full shadow-[0_0_0_1px_rgba(252,76,2,0.6),0_0_12px_3px_rgba(252,76,2,0.25)]">
       <div className="text-white">
         <div className="flex justify-between items-center mb-4">
           <div>

@@ -1,21 +1,37 @@
 import React from 'react';
+import VoiceIntentMealPlanButton from './VoiceIntentMealPlanButton';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
-const HouseholdBox = ({ householdData, handlePhotoUpload, updateHouseholdSize, handleChange, setIsPantryModalOpen }) => (
+const HouseholdBox = ({ 
+  householdData, 
+  handlePhotoUpload, 
+  updateHouseholdSize, 
+  handleChange, 
+  setIsPantryModalOpen,
+  onMealPlanGenerated,
+  isLoading,
+  setIsLoading 
+}) => (
   
   <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between 
   shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
     {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">*/}
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-white">Household</h2>
-        <button
+        <h2 className="text-2xl font-semibold text-white">
+          Welcome, {householdData.householdMembers[0]?.name ? (
+            <>
+              {householdData.householdMembers[0].name.split(' ')[0]} {/* First name */}
+            </>
+          ) : 'Guest'}
+        </h2>
+        {/*<button
           onClick={() => setIsPantryModalOpen(true)}
           className="px-4 py-2 bg-[#111827]/50 text-blue-200 font-semibold border border-blue-400/40 rounded-lg shadow-[0_0_8px_1px_rgba(100,180,255,0.25)] hover:bg-[#1e293b]/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 backdrop-blur"
         >
           <ClipboardDocumentListIcon className="w-5 h-5 text-white" />
           Pantry
-        </button>
+        </button>*/}
       </div>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -36,7 +52,7 @@ const HouseholdBox = ({ householdData, handlePhotoUpload, updateHouseholdSize, h
       </div>
       {/* Member Photos Grid */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        {householdData.householdMembers.map((member) => (
+        {householdData.householdMembers.slice(0, 1).map((member) => (
           <div key={member.id} className="relative group">
             <label 
               className={`block w-full aspect-square rounded-xl cursor-pointer overflow-hidden
@@ -73,13 +89,24 @@ const HouseholdBox = ({ householdData, handlePhotoUpload, updateHouseholdSize, h
       <div className="flex justify-between items-center mt-4">
         <button 
           className="w-12 h-12 bg-[#2A3142] rounded-xl flex items-center justify-center hover:bg-[#313d4f] transition-colors" 
-          onClick={() => updateHouseholdSize(Math.max(1, householdData.householdSize - 1))}
+          onClick={() => {
+            const newSize = Math.max(1, householdData.householdSize - 1);
+            handleChange('householdSize', newSize);
+            handleChange('householdMembers', householdData.householdMembers.slice(0, newSize));
+          }}
         >
           -
         </button>
         <button 
           className="w-12 h-12 bg-[#2A3142] rounded-xl flex items-center justify-center hover:bg-[#313d4f] transition-colors"
-          onClick={() => updateHouseholdSize(householdData.householdSize + 1)}
+          onClick={() => {
+            const newSize = householdData.householdSize + 1;
+            handleChange('householdSize', newSize);
+            handleChange('householdMembers', [
+              ...householdData.householdMembers,
+              { id: newSize, name: `Member ${newSize}`, photo: null }
+            ]);
+          }}
         >
           +
         </button>
@@ -98,6 +125,13 @@ const HouseholdBox = ({ householdData, handlePhotoUpload, updateHouseholdSize, h
           className="w-full accent-blue-500"
           value={householdData.budget || 75}
           onChange={(e) => handleChange('budget', parseInt(e.target.value))}
+        />
+      </div>
+      <div className="mt-8">
+        <VoiceIntentMealPlanButton
+          onMealPlanGenerated={onMealPlanGenerated}
+          isLoading={isLoading}
+          setIsLoading={setIsLoading}
         />
       </div>
     </div>

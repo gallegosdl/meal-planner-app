@@ -106,14 +106,78 @@ const SendToInstacartButton = ({ mealPlan }) => {
   const handleConfirmShoppingList = async (filteredIngredients) => {
     setIsCreatingList(true);
     try {
-      await createShoppingList(filteredIngredients);
-      setIsConfirmationModalOpen(false);
-      toast.success('Shopping list created!');
+      // Create the Instacart list
+      const instacartUrl = await createShoppingList(filteredIngredients);
+      
+      if (instacartUrl) {
+        // Add items to pantry
+        await api.post('/api/pantry/bulk', {
+          items: filteredIngredients.map(ingredient => ({
+            item_name: ingredient.name,
+            quantity: 1,
+            category: determineCategory(ingredient.name)
+          }))
+        });
+
+        setIsConfirmationModalOpen(false);
+        toast.success(
+          <>
+            <div className="flex flex-col items-start">
+              <span className="font-semibold text-base">Shopping list created!</span>
+              <span className="text-sm">Items added to your pantry.</span>
+            </div>
+          </>,
+          {
+            duration: 6000,
+            position: 'bottom-center',
+            style: {
+              background: '#22c55e',    // Tailwind green-500
+              color: '#ffffff',
+              padding: '16px',
+              borderRadius: '12px',
+              fontSize: '16px',
+              maxWidth: '90vw',
+            },
+          }
+        );
+      }
     } catch (error) {
+      console.error('Error:', error);
       toast.error('Failed to create shopping list');
     } finally {
       setIsCreatingList(false);
     }
+  };
+
+  // Helper function to determine category for new pantry items
+  const determineCategory = (itemName) => {
+    const lowercaseName = itemName.toLowerCase();
+    
+    // Check if it's a protein/meat item
+    if (lowercaseName.includes('chicken') || 
+        lowercaseName.includes('beef') || 
+        lowercaseName.includes('fish') || 
+        lowercaseName.includes('pork')) {
+      return 'meat';
+    }
+    
+    // Check if it's a spice
+    if (lowercaseName.includes('powder') || 
+        lowercaseName.includes('spice') || 
+        lowercaseName.includes('seasoning')) {
+      return 'spices';
+    }
+    
+    // Check if it's a grain
+    if (lowercaseName.includes('rice') || 
+        lowercaseName.includes('pasta') || 
+        lowercaseName.includes('bread') || 
+        lowercaseName.includes('flour')) {
+      return 'grains';
+    }
+    
+    // Default to vegetables category for produce and other items
+    return 'vegetables';
   };
 
   // Then check prices at each store
@@ -214,6 +278,18 @@ const SendToInstacartButton = ({ mealPlan }) => {
                 ))}
             </div>
           )}
+
+          {/* Success Message */}
+          {/*{shoppingListUrl && (
+            <div className="mt-4 bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                <span className="text-sm text-green-400">
+                  Shopping list created! These items will be added to your pantry.
+                </span>
+              </div>
+            </div>
+          )}*/}
         </div>
       )}
 

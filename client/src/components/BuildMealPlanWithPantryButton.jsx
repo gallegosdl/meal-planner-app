@@ -8,9 +8,11 @@ const BuildMealPlanWithPantryButton = ({
   formData, 
   detectedItems,
   isLoading,
-  setIsLoading 
+  setIsLoading,
+  setIsPantryModalOpen 
 }) => {
   const [isBuildingWithPantry, setIsBuildingWithPantry] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleBuildMealPlanWithPantry = async () => {
     try {
@@ -114,9 +116,19 @@ const BuildMealPlanWithPantryButton = ({
   return (
     <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
     {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f]">*/}
-      <h3 className="text-lg font-semibold text-white mb-2">🍽️ Build with Pantry Items</h3>
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-white">Plan with Pantry</h3>
+        <button 
+          onClick={() => setIsPantryModalOpen(true)}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          className="px-4 py-2 bg-[#111827]/50 text-blue-200 font-semibold border border-blue-400/40 rounded-lg shadow-[0_0_8px_1px_rgba(100,180,255,0.25)] hover:bg-[#1e293b]/60 transition-all"
+        >
+          Open Pantry
+        </button>
+      </div>
       <p className="text-sm text-gray-400 mb-4">
-        Generate a meal plan using your pantry items as preferred ingredients
+        🍽️ Manage your pantry items and generate meal plans with them as preferred ingredients.
       </p>
       <button
         onClick={handleBuildMealPlanWithPantry}

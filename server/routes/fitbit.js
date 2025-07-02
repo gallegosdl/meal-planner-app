@@ -76,13 +76,18 @@ async function fetchAllFitbitData(accessToken, scope) {
   // Activity data
   if (scopes.includes('activity')) {
     console.log('Fetching activities with:', {
-      date: yesterday,  // Use yesterday since we're seeing activities from previous day
+      today,
+      yesterday,
       tokenPrefix: accessToken.substring(0, 10) + '...'
     });
     
-    const [activities, lifetime] = await Promise.all([
+    const [todayActivities, yesterdayActivities, lifetime] = await Promise.all([
       safeFitbitFetch(
-        `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,  // Use yesterday to match when activities were recorded
+        `https://api.fitbit.com/1/user/-/activities/date/${today}.json`,
+        headers
+      ),
+      safeFitbitFetch(
+        `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,
         headers
       ),
       safeFitbitFetch(
@@ -90,6 +95,17 @@ async function fetchAllFitbitData(accessToken, scope) {
         headers
       )
     ]);
+
+    // Merge activities from both days
+    const activities = {
+      activities: [
+        ...(todayActivities?.activities || []),
+        ...(yesterdayActivities?.activities || [])
+      ],
+      goals: todayActivities?.goals || yesterdayActivities?.goals,
+      summary: todayActivities?.summary || yesterdayActivities?.summary
+    };
+
     console.log('Raw activities response:', JSON.stringify(activities, null, 2));
     data.activities = { daily: activities, lifetime };
   }
@@ -495,18 +511,36 @@ router.get('/debug-activities', async (req, res) => {
     }
 
     const accessToken = req.session.fitbit.accessToken;
-    const yesterday = moment().local().subtract(1, 'days').format('YYYY-MM-DD');  // Use local time and yesterday
+    const today = moment().local().format('YYYY-MM-DD');
+    const yesterday = moment().local().subtract(1, 'days').format('YYYY-MM-DD');
 
     console.log('Fetching activities with local time:', {
-      date: yesterday,
+      today,
+      yesterday,
       currentLocal: moment().local().format()
     });
 
-    // Get raw activities data
-    const activities = await safeFitbitFetch(
-      `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,
-      { 'Authorization': `Bearer ${accessToken}` }
-    );
+    // Get raw activities data for both days
+    const [todayActivities, yesterdayActivities] = await Promise.all([
+      safeFitbitFetch(
+        `https://api.fitbit.com/1/user/-/activities/date/${today}.json`,
+        { 'Authorization': `Bearer ${accessToken}` }
+      ),
+      safeFitbitFetch(
+        `https://api.fitbit.com/1/user/-/activities/date/${yesterday}.json`,
+        { 'Authorization': `Bearer ${accessToken}` }
+      )
+    ]);
+
+    // Merge activities
+    const activities = {
+      activities: [
+        ...(todayActivities?.activities || []),
+        ...(yesterdayActivities?.activities || [])
+      ],
+      goals: todayActivities?.goals || yesterdayActivities?.goals,
+      summary: todayActivities?.summary || yesterdayActivities?.summary
+    };
 
     console.log('Raw activities response:', JSON.stringify(activities, null, 2));
     
@@ -514,6 +548,93 @@ router.get('/debug-activities', async (req, res) => {
   } catch (error) {
     console.error('Error fetching activities:', error);
     res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+// Log a new activity to Fitbit
+router.post('/log-fitbit-activity', async (req, res) => {
+  try {
+    // Must be authenticated
+    if (!req.session.fitbit?.accessToken) {
+      return res.status(401).json({ error: 'Not authenticated with Fitbit' });
+    }
+
+    const accessToken = req.session.fitbit.accessToken;
+    let activity = req.body.activity;
+
+    if (!activity || !activity.activityType) {
+      return res.status(400).json({ error: 'Missing required activityType' });
+    }
+
+    // === Normalize Start Time ===
+    const padTime = (time) => {
+      if (!time) return "06:00";
+      const [h = '06', m = '00'] = time.split(':');
+      return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+    };
+
+    if (!activity.startTime) {
+      console.warn('⚠️ No startTime provided. Defaulting to 06:00.');
+      activity.startTime = '06:00';
+    }
+    activity.startTime = padTime(activity.startTime);
+
+    // === Validate Numerics ===
+    const toNumberOrNull = (value) => {
+      const n = parseFloat(value);
+      return isNaN(n) ? null : n;
+    };
+
+    activity.durationMinutes = toNumberOrNull(activity.durationMinutes) ?? 30;
+    activity.distanceMiles = toNumberOrNull(activity.distanceMiles);
+    activity.caloriesBurned = toNumberOrNull(activity.caloriesBurned);
+
+    // === Build Fitbit POST body ===
+    const body = new URLSearchParams();
+
+    body.append('activityName', activity.activityType);
+    body.append('startTime', activity.startTime);
+    body.append('durationMillis', String(activity.durationMinutes * 60 * 1000));
+    body.append('date', moment().format('YYYY-MM-DD'));
+
+    if (activity.caloriesBurned !== null) {
+      body.append('manualCalories', String(activity.caloriesBurned));
+    }
+
+    if (activity.distanceMiles !== null) {
+      body.append('distance', String(activity.distanceMiles));
+      body.append('distanceUnit', 'mile'); // Fitbit wants lowercase singular
+    }
+
+    console.log('✅ Posting to Fitbit with:', body.toString());
+
+    // === POST to Fitbit API ===
+    const fitbitResponse = await axios.post(
+      'https://api.fitbit.com/1/user/-/activities.json',
+      body.toString(),
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    console.log('✅ Fitbit response:', JSON.stringify(fitbitResponse.data, null, 2));
+
+    res.json({
+      success: true,
+      message: 'Activity logged to Fitbit successfully!',
+      fitbitResponse: fitbitResponse.data
+    });
+
+  } catch (error) {
+    console.error('❌ Error logging Fitbit activity:', error?.response?.data || error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to log activity to Fitbit',
+      details: error?.response?.data
+    });
   }
 });
 

@@ -18,10 +18,26 @@ const VoiceMicButton = () => {
     recog.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       console.log('Voice Transcript:', transcript);
-      // You can add NLP or send this to server later
+      console.log('📡 Sending transcript to server...', transcript);
+      fetch('http://localhost:3001/api/mapmyfitness/voice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-token': localStorage.getItem('sessionToken') || '',
+        },
+        body: JSON.stringify({ transcript }),
+      })
+      .then(async (res) => {
+        const json = await res.json();
+        console.log('✅ Server responded with:', json);
+      })
+      .catch((err) => {
+        console.error('❌ FETCH ERROR:', err);
+      });
     };
 
     recog.onerror = (event) => {
+      console.error('❌ Route fetch error:', err);
       console.error('SpeechRecognition error:', event.error);
     };
 

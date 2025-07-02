@@ -46,7 +46,7 @@ router.get('/auth', async (req, res) => {
       `client_id=${clientId}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=code&` +
-      `scope=read,activity:read_all,profile:read_all&` +
+      `scope=read,activity:read_all,activity:write,profile:read_all&` +
       `state=${state}&` +
       `approval_prompt=force`;
 
@@ -586,6 +586,60 @@ router.get('/activity/:activityId', async (req, res) => {
       details: error.message,
       strava_error: error.response?.data
     });
+  }
+});
+
+// Upload a new activity to Strava
+router.post('/upload-activity', async (req, res) => {
+  try {
+    // Must be authenticated
+    if (!req.session.strava?.accessToken) {
+      return res.status(401).json({ error: 'Not authenticated with Strava' });
+    }
+
+    const accessToken = req.session.strava.accessToken;
+    const activity = req.body.activity;
+
+    if (!activity || !activity.type || !activity.startDate || !activity.elapsedTime) {
+      return res.status(400).json({ error: 'Missing required activity fields' });
+    }
+
+    // Build Strava POST body
+    const body = {
+      name: activity.name || `${activity.type} Activity`,
+      type: activity.type,
+      start_date_local: activity.startDate,
+      elapsed_time: activity.elapsedTime,
+      description: activity.description || '',
+      distance: activity.distance || 0,
+      trainer: activity.trainer || false,
+      commute: activity.commute || false
+    };
+
+    console.log('Posting to Strava with:', JSON.stringify(body, null, 2));
+
+    // POST to Strava
+    const stravaResponse = await axios.post(
+      'https://www.strava.com/api/v3/activities',
+      body,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('Strava response:', JSON.stringify(stravaResponse.data, null, 2));
+
+    res.json({
+      message: 'Activity uploaded to Strava successfully!',
+      activity: stravaResponse.data
+    });
+
+  } catch (error) {
+    console.error('Error uploading Strava activity:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to upload activity to Strava', details: error?.response?.data });
   }
 });
 

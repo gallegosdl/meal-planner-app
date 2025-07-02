@@ -4,6 +4,7 @@
   "private": true,
   "proxy": "http://localhost:3001",
   "dependencies": {
+    "@greatsumini/react-facebook-login": "^3.4.0",
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
     "@react-oauth/google": "^0.12.2",

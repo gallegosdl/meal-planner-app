@@ -58,7 +58,7 @@ class TogetherAiService {
    * @returns {string} - The generated prompt
    */
   buildRecipePrompt(recipe) {
-    const basePrompt = `A professional food photography shot of ${recipe.name}, styled for a high-end cookbook or food magazine. The dish should look appetizing and well-plated.`;
+    const basePrompt = `A professional food photography shot of ${recipe.name}, styled for a high-end cookbook or food magazine. The dish should look appetizing and well-plated. Include a small, elegant watermark or text overlay in the bottom right corner that says "AI Generated" in a semi-transparent white font.`;
     
     // Add details about the dish if available
     const details = [];
@@ -80,6 +80,8 @@ class TogetherAiService {
     details.push('4k quality');
     details.push('highly detailed');
     details.push('photorealistic');
+    details.push('watermark should be subtle but readable');
+    details.push('watermark font should be modern and elegant');
 
     return `${basePrompt} ${details.join(', ')}.`;
   }

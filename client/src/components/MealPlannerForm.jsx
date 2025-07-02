@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -10,16 +10,9 @@ import {
   Legend,
   PieController
 } from 'chart.js';
-import { Doughnut, Bar, Pie } from 'react-chartjs-2';
-import api, { authenticate, generateMealPlan, clearSession } from '../services/api';
-import DraggableMealPlan from './DraggableMealPlan';
-import CalendarMealPlan from './CalendarMealPlan';
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import SendToInstacartButton from './SendToInstacartButton';
+import api, { authenticate, clearSession } from '../services/api';
 import RecipeList from './RecipeList';
 import { toast } from 'react-hot-toast';
-import StoreComparison from './StoreComparison';
-import { Cog6ToothIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import PantryModal from './PantryModal';
 import CuisinePreferences from './CuisinePreferences';
 import MacronutrientSplit from './MacronutrientSplit';
@@ -37,6 +30,8 @@ import FitbitDisplay from './FitbitDisplay';
 import StravaDisplay from './StravaDisplay';
 import ApiKeyInput from './ApiKeyInput';
 import Header from './Header';
+import UserMealPlanContainer from './UserMealPlanContainer';
+
 // Register ChartJS components
 ChartJS.register(
   ArcElement,
@@ -105,15 +100,15 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   const [error, setError] = useState(null);
 
   const [cuisinePreferences, setCuisinePreferences] = useState({
-    cajun: 0,
-    creole: 0,
-    mexican: 0,
-    italian: 0,
-    greek: 0,
-    chinese: 0,
-    japanese: 0,
-    thai: 0,
-    middleEastern: 0
+    Cajun: 0,
+    Creole: 0,
+    Mexican: 0,
+    Italian: 0,
+    Greek: 0,
+    Chinese: 0,
+    Japanese: 0,
+    Thai: 0,
+    MiddleEastern: 0
   });
 
   const [activeTab, setActiveTab] = useState(1);
@@ -129,6 +124,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     strava: 0,
     fitbit: 0
   });
+
+  const mealPlanContainerRef = useRef();
 
   const dietOptions = {
     'Diet Types': [
@@ -249,31 +246,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         : [...prev.dietGoals, goal];
       return { ...prev, dietGoals: newGoals };
     });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await api.post('/api/generate-meal-plan', preferences);
-      const mealPlan = response.data;
-      
-      // Save each recipe to the database
-      await Promise.all(mealPlan.days.flatMap(day => 
-        Object.values(day.meals).map(meal =>
-          api.post('/api/recipes', meal)
-        )
-      ));
-
-      setMealPlan(mealPlan);
-      onMealPlanGenerated(mealPlan);
-    } catch (error) {
-      setError(error.response?.data?.error || 'Failed to generate meal plan');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleCuisineChange = (cuisine, value) => {
@@ -421,6 +393,10 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   const handleGenerateMealPlan = async () => {
     try {
       setIsLoading(true);
+      if (!user?.id) {
+        console.warn('No user ID available for meal plan generation');
+      }
+      
       const payload = {
         preferences: {
           cuisinePreferences: Object.fromEntries(
@@ -430,7 +406,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           likes: mealPlanInputs.likes.split(',').map(item => item.trim()).filter(Boolean),
           dislikes: mealPlanInputs.dislikes.split(',').map(item => item.trim()).filter(Boolean)
         },
-        ingredients: detectedItems || []
+        ingredients: detectedItems || [],
+        userId: user?.id
       };
 
       console.log('Sending payload:', JSON.stringify(payload, null, 2));
@@ -438,6 +415,11 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
       const response = await api.post('/api/generate-meal-plan', payload);
       console.log('Server response:', response);
       setMealPlan(response.data);
+      
+      // Refresh both views in the container
+      if (mealPlanContainerRef.current?.refresh) {
+        mealPlanContainerRef.current.refresh();
+      }
       
       toast.success('Meal Plan Available! Scroll down to view your Personalized Plan.', {
         duration: 4000,
@@ -561,7 +543,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         <Header user={user} handleLogout={handleLogout} />
 
         {/* First grid section */}
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 grid-rows-[auto_1fr] gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-8">
           {/* Left column (3): Household, Budget */}
           <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
             <div className="flex-1">
@@ -571,6 +553,9 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
                 updateHouseholdSize={updateHouseholdSize}
                 handleChange={handleVisualChange}
                 setIsPantryModalOpen={setIsPantryModalOpen}
+                onMealPlanGenerated={setMealPlan}
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
               />
             </div>
             <div>
@@ -581,19 +566,33 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
                 detectedItems={detectedItems}
                 isLoading={isLoading}
                 setIsLoading={setIsLoading}
+                setIsPantryModalOpen={setIsPantryModalOpen}
               />
             </div>
           </div>
 
-          {/* Middle column (6): Cuisine Preferences */}
+          {/* UserMealPlanContainer spanning 9 columns */}
+          <div className="col-span-1 sm:col-span-3 lg:col-span-9 row-span-2 flex flex-col gap-6">
+            <div className="flex-1 h-full">
+              <UserMealPlanContainer 
+                ref={mealPlanContainerRef}
+                userId={user?.id} 
+              />
+            </div>
+          </div>
+
+          {/* Commented out sections */}
+          {/* Original CuisinePreferences
           <div className="col-span-1 sm:col-span-6 lg:col-span-6 row-span-2">
             <CuisinePreferences 
               cuisinePreferences={cuisinePreferences} 
-              handleCuisineChange={handleCuisineChange} 
+              handleCuisineChange={handleCuisineChange}
+              userId={user?.id} 
             />
           </div>
+          */}
 
-          {/* Right column (3): Macronutrient Split */}
+          {/* Original MacronutrientSplit and MealsPerWeek
           <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
             <div className="flex-1">
               <MacronutrientSplit 
@@ -608,6 +607,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
               />
             </div>
           </div>
+          */}
         </div>
 
         {/* First row: DietaryGoals, DailyCalories in 4-8 grid */}

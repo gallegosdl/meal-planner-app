@@ -1,3 +1,4 @@
+// services/api.js
 import axios from 'axios';
 
 const baseURL = process.env.NODE_ENV === 'production'
@@ -89,6 +90,17 @@ export const validateSession = async () => {
     console.error('Session validation error:', error);
     clearSession();
     return { valid: false };
+  }
+};
+
+// Get random meal for meal of the day
+export const getRandomMeal = async () => {
+  try {
+    const response = await api.get('/api/recipes/random-meal');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching random meal:', error);
+    throw error;
   }
 };
 

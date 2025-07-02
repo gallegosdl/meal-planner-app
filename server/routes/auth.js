@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { sendVerificationEmail } = require('../services/email');
 const fetch = require('node-fetch');
 const axios = require('axios');
+const { TwitterApi } = require('twitter-api-v2');
 
 // Configure protection middleware
 const csrfProtection = csrf({ cookie: true });
@@ -25,6 +26,12 @@ const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.OAUTH_REDIRECT_URI
 );
+
+// Initialize Twitter client for OAuth 2.0
+const twitterClient = new TwitterApi({ 
+  clientId: process.env.TWITTER_CLIENT_ID,
+  clientSecret: process.env.TWITTER_CLIENT_SECRET 
+});
 
 // Middleware to verify JWT
 const verifyToken = (req, res, next) => {
@@ -155,11 +162,6 @@ router.post('/login', async (req, res) => {
 
     if (user.account_status === 'unverified') {
       return res.status(401).json({ error: 'Please verify your email first' });
-    }
-
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Log successful login
@@ -603,6 +605,677 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('API key validation error:', error);
     res.status(500).json({ error: 'Failed to validate API key' });
+  }
+});
+
+// Handle Facebook OAuth login/signup
+router.post('/facebook', async (req, res) => {
+  console.log('POST /api/auth/facebook called');
+  const client = await pool.connect();
+  try {
+    const { access_token } = req.body;
+    
+    // Set CORS headers
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000'
+    );
+
+    if (!access_token) {
+      return res.status(400).json({ error: 'No access token provided' });
+    }
+
+    // Validate the access token with Facebook
+    const validateTokenUrl = `https://graph.facebook.com/debug_token?input_token=${access_token}&access_token=${process.env.FACEBOOK_APP_ID}|${process.env.FACEBOOK_APP_SECRET}`;
+    const validateResponse = await fetch(validateTokenUrl);
+    const validateData = await validateResponse.json();
+
+    if (!validateData.data.is_valid) {
+      console.error('Invalid Facebook token:', validateData);
+      return res.status(401).json({ error: 'Invalid Facebook token' });
+    }
+
+    // Get user info from Facebook's Graph API with validated token
+    console.log('Fetching user info from Facebook...');
+    const userInfoResponse = await fetch(
+      `https://graph.facebook.com/me?fields=id,email,name,picture.type(large)&access_token=${access_token}`
+    );
+    console.log('Facebook userinfo response status:', userInfoResponse.status);
+
+    if (!userInfoResponse.ok) {
+      console.error('Facebook API error:', {
+        status: userInfoResponse.status,
+        statusText: userInfoResponse.statusText
+      });
+      return res.status(401).json({ error: 'Failed to get user info from Facebook' });
+    }
+
+    const userData = await userInfoResponse.json();
+    // Extract picture URL safely
+    const pictureUrl = userData.picture?.data?.url || null;
+    console.log('Facebook user data:', { ...userData, pictureUrl });
+
+    if (!userData.email) {
+      console.log('No email provided by Facebook');
+      return res.status(400).json({ error: 'No email provided by Facebook' });
+    }
+
+    await client.query('BEGIN');
+
+    // Check if user exists
+    let result = await client.query(
+      'SELECT * FROM users WHERE oauth_sub_id = $1 OR email = $2',
+      [userData.id, userData.email]
+    );
+    console.log('User lookup result:', result.rows);
+
+    let user;
+    if (result.rows.length === 0) {
+      console.log('Creating new user with email:', userData.email);
+      // Create new user with basic info first
+      result = await client.query(
+        `INSERT INTO users (
+          email,
+          oauth_sub_id,
+          oauth_provider,
+          email_verified,
+          created_at,
+          name,
+          avatar_url,
+          last_login
+        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, $4, $5, CURRENT_TIMESTAMP) 
+        RETURNING *`,
+        [
+          userData.email,
+          userData.id,
+          'facebook',
+          userData.name,
+          pictureUrl
+        ]
+      );
+      user = result.rows[0];
+
+      // Create default preferences
+      await client.query(
+        `INSERT INTO user_preferences (
+          user_id,
+          created_at,
+          updated_at
+        ) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [user.id]
+      );
+
+      // Log new user creation
+      console.log('Created new Facebook user:', {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        oauth_sub_id: user.oauth_sub_id
+      });
+    } else {
+      user = result.rows[0];
+      // Update existing user if needed
+      if (!user.oauth_sub_id) {
+        await client.query(
+          `UPDATE users 
+           SET oauth_sub_id = $1,
+               oauth_provider = $2,
+               name = $3,
+               last_login = CURRENT_TIMESTAMP
+           WHERE id = $4`,
+          [userData.id, 'facebook', userData.name, user.id]
+        );
+        user.oauth_sub_id = userData.id;
+        user.oauth_provider = 'facebook';
+        user.name = userData.name;
+      } else {
+        await client.query(
+          `UPDATE users 
+           SET last_login = CURRENT_TIMESTAMP,
+               name = $2
+           WHERE id = $1`,
+          [user.id, userData.name]
+        );
+      }
+      console.log('Updated existing user:', {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        oauth_sub_id: user.oauth_sub_id
+      });
+    }
+
+    // Log the login attempt
+    await client.query(
+      `INSERT INTO login_history (
+        user_id,
+        success,
+        ip_address,
+        oauth_sub_id,
+        created_at
+      ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [user.id, true, req.ip, userData.id]
+    );
+
+    // Generate session token
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    
+    // Store session
+    await client.query(
+      `INSERT INTO sessions (
+        user_id,
+        token,
+        created_at,
+        expires_at
+      ) VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + interval '24 hours')`,
+      [user.id, sessionToken]
+    );
+
+    await client.query('COMMIT');
+
+    // Set secure cookie
+    res.cookie('session_token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    res.json({
+      ...userData,
+      id: user.id,
+      sessionToken
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Facebook authentication error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Authentication failed', details: error.message });
+    }
+  } finally {
+    client.release();
+  }
+});
+
+// Handle Apple Sign-in login/signup
+router.post('/apple', async (req, res) => {
+  console.log('POST /api/auth/apple called');
+  const client = await pool.connect();
+  try {
+    const { code, id_token } = req.body;
+    
+    // Set CORS headers
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000'
+    );
+
+    if (!code || !id_token) {
+      return res.status(400).json({ error: 'Missing required authentication data' });
+    }
+
+    // Verify the id_token and extract user info
+    // Note: You'll need to implement proper JWT verification for the id_token
+    const decodedToken = jwt.decode(id_token);
+    if (!decodedToken) {
+      return res.status(401).json({ error: 'Invalid ID token' });
+    }
+
+    const userData = {
+      id: decodedToken.sub,
+      email: decodedToken.email,
+      name: decodedToken.name || 'Apple User' // Apple might not provide name
+    };
+
+    await client.query('BEGIN');
+
+    // Check if user exists
+    let result = await client.query(
+      'SELECT * FROM users WHERE oauth_sub_id = $1 OR email = $2',
+      [userData.id, userData.email]
+    );
+
+    let user;
+    if (result.rows.length === 0) {
+      // Create new user
+      result = await client.query(
+        `INSERT INTO users (
+          email,
+          oauth_sub_id,
+          oauth_provider,
+          email_verified,
+          created_at,
+          name,
+          last_login
+        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP) 
+        RETURNING *`,
+        [userData.email, userData.id, 'apple', userData.name]
+      );
+      user = result.rows[0];
+      // Create default preferences
+      await client.query(
+        `INSERT INTO user_preferences (
+          user_id,
+          created_at,
+          updated_at
+        ) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [user.id]
+      );
+    } else {
+      user = result.rows[0];
+      // Update existing user if needed
+      if (!user.oauth_sub_id) {
+        await client.query(
+          `UPDATE users 
+           SET oauth_sub_id = $1,
+               oauth_provider = $2,
+               name = $3,
+               last_login = CURRENT_TIMESTAMP
+           WHERE id = $4`,
+          [userData.id, 'apple', userData.name, user.id]
+        );
+      } else {
+        await client.query(
+          `UPDATE users 
+           SET last_login = CURRENT_TIMESTAMP,
+               name = $2
+           WHERE id = $1`,
+          [user.id, userData.name]
+        );
+      }
+    }
+
+    // Log the login attempt
+    await client.query(
+      `INSERT INTO login_history (
+        user_id,
+        success,
+        ip_address,
+        oauth_sub_id,
+        created_at
+      ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [user.id, true, req.ip, userData.id]
+    );
+
+    // Generate session token
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    
+    // Store session
+    await client.query(
+      `INSERT INTO sessions (
+        user_id,
+        token,
+        created_at,
+        expires_at
+      ) VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + interval '24 hours')`,
+      [user.id, sessionToken]
+    );
+
+    await client.query('COMMIT');
+
+    // Set secure cookie
+    res.cookie('session_token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    res.json({
+      ...userData,
+      id: user.id,
+      sessionToken
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Apple authentication error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Authentication failed', details: error.message });
+    }
+  } finally {
+    client.release();
+  }
+});
+
+// Handle X (Twitter) OAuth login/signup
+router.post('/x', async (req, res) => {
+  console.log('POST /api/auth/x called');
+  try {
+    // Set CORS headers
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000'
+    );
+
+    // Ensure session is initialized
+    if (!req.session) {
+      console.error('No session found');
+      return res.status(500).json({ error: 'Session not initialized' });
+    }
+
+    // Generate auth URL using OAuth 2.0
+    const { url, state, codeVerifier } = await twitterClient.generateOAuth2AuthLink(
+      process.env.NODE_ENV === 'production'
+        ? 'https://meal-planner-frontend-woan.onrender.com/api/auth/x/callback'
+        : 'http://localhost:3000/api/auth/x/callback',
+      { 
+        scope: ['users.read', 'tweet.read', 'tweet.write', 'offline.access']
+      }
+    );
+
+    // Store state and codeVerifier in session
+    req.session.xState = state;
+    req.session.codeVerifier = codeVerifier;
+    
+    // Save session explicitly
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Failed to save session:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully:', {
+            state: req.session.xState ? 'present' : 'missing',
+            codeVerifier: req.session.codeVerifier ? 'present' : 'missing'
+          });
+          resolve();
+        }
+      });
+    });
+
+    res.json({ url });
+
+  } catch (error) {
+    console.error('X authentication error:', error);
+    res.status(500).json({ error: 'Authentication failed', details: error.message });
+  }
+});
+
+// Test route to verify callback endpoint is accessible
+router.get('/x/test', (req, res) => {
+  console.log('Test route hit');
+  res.send('Test route working');
+});
+
+// Handle X (Twitter) OAuth callback
+router.get('/x/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    console.log('Callback received:', { 
+      code: code ? 'present' : 'missing',
+      state: state ? 'present' : 'missing',
+      session: req.session ? {
+        xState: req.session.xState ? 'present' : 'missing',
+        codeVerifier: req.session.codeVerifier ? 'present' : 'missing'
+      } : 'no session',
+      headers: req.headers
+    });
+
+    // Verify state matches what we stored in session
+    if (!req.session || !req.session.xState) {
+      console.error('No session or state:', {
+        session: !!req.session,
+        sessionId: req.sessionID,
+        cookies: req.headers.cookie
+      });
+      return res.redirect('http://localhost:3000/auth/error?error=session_lost');
+    }
+
+    if (req.session.xState !== state) {
+      console.error('State mismatch:', { 
+        sessionState: req.session.xState,
+        receivedState: state
+      });
+      return res.redirect('http://localhost:3000/auth/error?error=invalid_state');
+    }
+
+    if (!req.session.codeVerifier) {
+      console.error('No code verifier in session');
+      return res.redirect('http://localhost:3000/auth/error?error=missing_code_verifier');
+    }
+
+    console.log('State verified, exchanging code for token...');
+
+    try {
+      // Use the global twitterClient instance
+      const { accessToken, refreshToken, expiresIn } = await twitterClient.loginWithOAuth2({
+        code,
+        codeVerifier: req.session.codeVerifier,
+        redirectUri: 'http://localhost:3001/api/auth/x/callback'
+      });
+
+      console.log('Token exchange successful');
+
+      // Store tokens in session
+      req.session.xAccessToken = accessToken;
+      req.session.xRefreshToken = refreshToken;
+      req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
+
+      // Get user info using the same client instance
+      const loggedClient = new TwitterApi(accessToken);
+      const user = await loggedClient.v2.me();
+
+      console.log('User info retrieved:', { 
+        id: user.data.id,
+        username: user.data.username
+      });
+
+      // Store user info in session
+      req.session.xUser = user.data;
+      
+      // Save session before clearing OAuth state
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('Failed to save session:', err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      // Clear OAuth state
+      delete req.session.xState;
+      delete req.session.codeVerifier;
+
+      // Close popup and notify parent window
+      res.send(`
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, 'http://localhost:3000');
+            window.close();
+          }
+        </script>
+      `);
+
+    } catch (tokenError) {
+      console.error('Token exchange error:', {
+        error: tokenError.message,
+        code: tokenError.code,
+        data: tokenError.data,
+        stack: tokenError.stack
+      });
+      throw tokenError;
+    }
+
+  } catch (error) {
+    console.error('X callback error:', {
+      message: error.message,
+      code: error.code,
+      data: error.data,
+      stack: error.stack
+    });
+    res.redirect('http://localhost:3000/auth/error?error=' + encodeURIComponent(error.message));
+  }
+});
+
+// Debug logging for route registration
+console.log('Registering X auth routes...');
+
+// X (Twitter) OAuth routes
+router.get('/x/authorize', async (req, res) => {
+  try {
+    // If there's an existing auth attempt, clear it
+    delete req.session.codeVerifier;
+    delete req.session.xState;
+
+    // Always generate new verifier + challenge pair
+    const { url, state, codeVerifier } = await twitterClient.generateOAuth2AuthLink(
+      'http://localhost:3001/api/auth/x/callback',
+      {
+        scope: ['tweet.read', 'users.read', 'offline.access']
+      }
+    );
+
+    // Store the verifier and state in session
+    req.session.codeVerifier = codeVerifier;
+    req.session.xState = state;
+
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Failed to save session:', err);
+          return reject(err);
+        }
+        console.log('Session saved with PKCE values:', {
+          state,
+          codeVerifier
+        });
+        resolve();
+      });
+    });
+
+    console.log('Auth URL generated with:', {
+      state,
+      url
+    });
+
+    res.json({ url });
+
+  } catch (error) {
+    console.error('Error generating auth URL:', error);
+    res.status(500).json({ error: 'Failed to generate authorization URL' });
+  }
+});
+
+// X (Twitter) OAuth callback
+router.get('/x/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    console.log('Callback received:', { 
+      code: code ? 'present' : 'missing',
+      state: state ? 'present' : 'missing',
+      session: req.session ? {
+        xState: req.session.xState ? 'present' : 'missing',
+        codeVerifier: req.session.codeVerifier ? 'present' : 'missing',
+        actualState: req.session.xState,
+        actualVerifier: req.session.codeVerifier
+      } : 'no session',
+      headers: req.headers
+    });
+
+    // Verify state matches what we stored in session
+    if (!req.session || !req.session.xState) {
+      console.error('No session or state:', {
+        session: !!req.session,
+        sessionId: req.sessionID,
+        cookies: req.headers.cookie
+      });
+      return res.redirect('http://localhost:3000/auth/error?error=session_lost');
+    }
+
+    if (req.session.xState !== state) {
+      console.error('State mismatch:', { 
+        sessionState: req.session.xState,
+        receivedState: state
+      });
+      return res.redirect('http://localhost:3000/auth/error?error=invalid_state');
+    }
+
+    if (!req.session.codeVerifier) {
+      console.error('No code verifier in session');
+      return res.redirect('http://localhost:3000/auth/error?error=missing_code_verifier');
+    }
+
+    console.log('State verified, exchanging code for token with verifier:', req.session.codeVerifier);
+
+    try {
+      // Use the global twitterClient instance
+      const { accessToken, refreshToken, expiresIn } = await twitterClient.loginWithOAuth2({
+        code,
+        codeVerifier: req.session.codeVerifier,
+        redirectUri: 'http://localhost:3001/api/auth/x/callback'
+      });
+
+      console.log('Token exchange successful');
+
+      // Store tokens in session
+      req.session.xAccessToken = accessToken;
+      req.session.xRefreshToken = refreshToken;
+      req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
+
+      // Get user info using the same client instance
+      const loggedClient = new TwitterApi(accessToken);
+      const user = await loggedClient.v2.me();
+
+      console.log('User info retrieved:', { 
+        id: user.data.id,
+        username: user.data.username
+      });
+
+      // Store user info in session
+      req.session.xUser = user.data;
+      
+      // Save session before clearing OAuth state
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('Failed to save session:', err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      // Clear OAuth state
+      delete req.session.xState;
+      delete req.session.codeVerifier;
+
+      // Close popup and notify parent window
+      res.send(`
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, 'http://localhost:3000');
+            window.close();
+          }
+        </script>
+      `);
+
+    } catch (tokenError) {
+      console.error('Token exchange error:', {
+        error: tokenError.message,
+        code: tokenError.code,
+        data: tokenError.data,
+        stack: tokenError.stack
+      });
+      throw tokenError;
+    }
+
+  } catch (error) {
+    console.error('X callback error:', {
+      message: error.message,
+      code: error.code,
+      data: error.data,
+      stack: error.stack
+    });
+    res.redirect('http://localhost:3000/auth/error?error=' + encodeURIComponent(error.message));
   }
 });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { PANTRY_ITEMS, FRESH_CATEGORIES } from '../config/pantryConfig';
+import api from '../services/api';
 
 // Helper function to categorize ingredients using shared config
 const categorizeIngredient = (name) => {
@@ -34,6 +35,34 @@ const ShoppingListConfirmationModal = ({
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [expandedCategories, setExpandedCategories] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [userPantryItems, setUserPantryItems] = useState(new Set());
+
+  // Fetch user's pantry items and pre-select them
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/api/pantry')
+        .then(res => {
+          // Extract all pantry item names and normalize them
+          const pantryItems = new Set(
+            Object.values(res.data)
+              .flat()
+              .map(item => item.item_name.toLowerCase())
+          );
+          setUserPantryItems(pantryItems);
+          
+          // Pre-check items that exist in user's pantry
+          const preCheckedItems = new Set(
+            ingredients
+              .filter(ing => pantryItems.has(ing.name.toLowerCase()))
+              .map(ing => ing.name)
+          );
+          setCheckedItems(preCheckedItems);
+        })
+        .catch(err => {
+          console.error('Error fetching user pantry:', err);
+        });
+    }
+  }, [isOpen, ingredients]);
 
   // Categorize ingredients when they change
   useEffect(() => {
@@ -120,9 +149,16 @@ const ShoppingListConfirmationModal = ({
         />
       </div>
       <div className="flex-1">
-        <span className="text-white text-sm md:text-base">
-          {ingredient.display_text || ingredient.name}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-white text-sm md:text-base">
+            {ingredient.display_text || ingredient.name}
+          </span>
+          {userPantryItems.has(ingredient.name.toLowerCase()) && (
+            <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+              In Pantry
+            </span>
+          )}
+        </div>
         {ingredient.macros && (
           <div className="text-xs text-gray-400 mt-1">
             <span className="mr-2">P: {ingredient.macros.protein}g</span>
@@ -154,7 +190,7 @@ const ShoppingListConfirmationModal = ({
                 Confirm Shopping List
               </h2>
               <p className="text-xs md:text-sm text-gray-400 mt-1">
-                ✓ Check items you already have in your pantry
+              ✓ Items detected in your pantry are pre-selected
               </p>
               <p className="text-xs md:text-sm text-gray-400">
                 Unchecked items will be added to your shopping list
@@ -228,19 +264,26 @@ const ShoppingListConfirmationModal = ({
           </div>
 
           {/* Action buttons */}
-          <div className="flex justify-end space-x-2 md:space-x-3 sticky bottom-0 bg-[#1F2937] pt-2 pb-1 md:pt-4 md:pb-0">
-            <button
-              onClick={onClose}
-              className="px-3 py-2 md:px-4 md:py-2 text-white text-sm md:text-base hover:bg-[#374151] rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 touch-manipulation min-w-[80px] md:min-w-[100px]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirm}
-              className="px-3 py-2 md:px-4 md:py-2 bg-blue-500 text-white text-sm md:text-base rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation min-w-[140px] md:min-w-[180px]"
-            >
-              Create List ({toBuyCount})
-            </button>
+          <div className="sticky bottom-0 bg-[#1F2937] pt-2 pb-1 md:pt-4 md:pb-0">
+            <div className="flex items-center justify-between">
+              <p className="text-m text-gray-400">
+                Unchecked items will be added to your pantry after sending to Instacart.
+              </p>
+              <div className="flex space-x-2 md:space-x-3">
+                <button
+                  onClick={onClose}
+                  className="px-3 py-2 md:px-4 md:py-2 text-white text-sm md:text-base hover:bg-[#374151] rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 touch-manipulation min-w-[80px] md:min-w-[100px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className="px-3 py-2 md:px-4 md:py-2 bg-blue-500 text-white text-sm md:text-base rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation min-w-[140px] md:min-w-[180px]"
+                >
+                  Create List ({toBuyCount})
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
