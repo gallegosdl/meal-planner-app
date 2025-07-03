@@ -790,54 +790,97 @@ router.post('/facebook', async (req, res) => {
       return res.status(400).json({ error: 'No access token provided' });
     }
 
-    // Validate the access token with Facebook
-    const validateTokenUrl = `https://graph.facebook.com/debug_token?input_token=${access_token}&access_token=${process.env.FACEBOOK_APP_ID}|${process.env.FACEBOOK_APP_SECRET}`;
+    // Validate the access token with Facebook using proper error handling
+    const appAccessToken = `${process.env.FACEBOOK_APP_ID}|${process.env.FACEBOOK_APP_SECRET}`;
+    const validateTokenUrl = `https://graph.facebook.com/debug_token?input_token=${access_token}&access_token=${appAccessToken}`;
+    
+    console.log('Validating Facebook token...');
     const validateResponse = await fetch(validateTokenUrl);
-    const validateData = await validateResponse.json();
-
-    if (!validateData.data.is_valid) {
-      console.error('Invalid Facebook token:', validateData);
+    
+    if (!validateResponse.ok) {
+      console.error('Facebook token validation failed:', {
+        status: validateResponse.status,
+        statusText: validateResponse.statusText
+      });
       return res.status(401).json({ error: 'Invalid Facebook token' });
+    }
+
+    const validateData = await validateResponse.json();
+    console.log('Token validation response:', validateData);
+
+    // Proper validation of the response structure
+    if (!validateData || !validateData.data || !validateData.data.is_valid) {
+      console.error('Invalid token validation response:', validateData);
+      return res.status(401).json({ 
+        error: 'Invalid token validation response',
+        details: validateData?.error?.message || 'Unknown error'
+      });
+    }
+
+    // Verify app ID matches
+    if (validateData.data.app_id !== process.env.FACEBOOK_APP_ID) {
+      console.error('App ID mismatch:', {
+        expected: process.env.FACEBOOK_APP_ID,
+        received: validateData.data.app_id
+      });
+      return res.status(401).json({ error: 'Invalid application' });
     }
 
     // Get user info from Facebook's Graph API with validated token
     console.log('Fetching user info from Facebook...');
     const userInfoResponse = await fetch(
-      `https://graph.facebook.com/me?fields=id,email,name,picture.type(large)&access_token=${access_token}`
+      `https://graph.facebook.com/v18.0/me?fields=id,email,name,picture.type(large)&access_token=${access_token}`
     );
-    console.log('Facebook userinfo response status:', userInfoResponse.status);
 
     if (!userInfoResponse.ok) {
-      console.error('Facebook API error:', {
+      console.error('Facebook Graph API error:', {
         status: userInfoResponse.status,
         statusText: userInfoResponse.statusText
       });
-      return res.status(401).json({ error: 'Failed to get user info from Facebook' });
+      return res.status(401).json({ 
+        error: 'Failed to get user info from Facebook',
+        details: `HTTP ${userInfoResponse.status}: ${userInfoResponse.statusText}`
+      });
     }
 
     const userData = await userInfoResponse.json();
-    // Extract picture URL safely
+    if (!userData || !userData.id) {
+      console.error('Invalid user data response:', userData);
+      return res.status(401).json({ error: 'Invalid user data received' });
+    }
+
+    // Extract picture URL safely with fallback
     const pictureUrl = userData.picture?.data?.url || null;
-    console.log('Facebook user data:', { ...userData, pictureUrl });
+    console.log('Facebook user data received:', { 
+      id: userData.id,
+      email: userData.email || 'not provided',
+      name: userData.name,
+      hasPicture: !!pictureUrl 
+    });
 
     if (!userData.email) {
       console.log('No email provided by Facebook');
-      return res.status(400).json({ error: 'No email provided by Facebook' });
+      return res.status(400).json({ error: 'Email permission not granted' });
     }
 
     await client.query('BEGIN');
 
-    // Check if user exists
+    // Check if user exists with improved error handling
     let result = await client.query(
       'SELECT * FROM users WHERE oauth_sub_id = $1 OR email = $2',
       [userData.id, userData.email]
     );
-    console.log('User lookup result:', result.rows);
+    console.log('User lookup result:', { 
+      found: result.rows.length > 0,
+      matchType: result.rows[0] ? 
+        (result.rows[0].oauth_sub_id === userData.id ? 'oauth_id' : 'email') : 
+        'new_user'
+    });
 
     let user;
     if (result.rows.length === 0) {
+      // Create new user with enhanced security and validation
       console.log('Creating new user with email:', userData.email);
-      // Create new user with basic info first
       result = await client.query(
         `INSERT INTO users (
           email,
@@ -847,15 +890,17 @@ router.post('/facebook', async (req, res) => {
           created_at,
           name,
           avatar_url,
-          last_login
-        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, $4, $5, CURRENT_TIMESTAMP) 
+          last_login,
+          oauth_token_hash
+        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, $4, $5, CURRENT_TIMESTAMP, $6) 
         RETURNING *`,
         [
           userData.email,
           userData.id,
           'facebook',
           userData.name,
-          pictureUrl
+          pictureUrl,
+          crypto.createHash('sha256').update(access_token).digest('hex')
         ]
       );
       user = result.rows[0];
@@ -870,93 +915,120 @@ router.post('/facebook', async (req, res) => {
         [user.id]
       );
 
-      // Log new user creation
       console.log('Created new Facebook user:', {
         id: user.id,
         email: user.email,
-        name: user.name,
         oauth_sub_id: user.oauth_sub_id
       });
     } else {
       user = result.rows[0];
-      // Update existing user if needed
+      // Update existing user with enhanced security
+      const updates = [
+        'last_login = CURRENT_TIMESTAMP',
+        'name = $1',
+        'oauth_token_hash = $2'
+      ];
+      
       if (!user.oauth_sub_id) {
-        await client.query(
-          `UPDATE users 
-           SET oauth_sub_id = $1,
-               oauth_provider = $2,
-               name = $3,
-               last_login = CURRENT_TIMESTAMP
-           WHERE id = $4`,
-          [userData.id, 'facebook', userData.name, user.id]
-        );
-        user.oauth_sub_id = userData.id;
-        user.oauth_provider = 'facebook';
-        user.name = userData.name;
-      } else {
-        await client.query(
-          `UPDATE users 
-           SET last_login = CURRENT_TIMESTAMP,
-               name = $2
-           WHERE id = $1`,
-          [user.id, userData.name]
-        );
+        updates.push('oauth_sub_id = $3', 'oauth_provider = $4');
       }
+
+      const updateQuery = `
+        UPDATE users 
+        SET ${updates.join(', ')}
+        WHERE id = $5
+        RETURNING *
+      `;
+
+      const updateParams = [
+        userData.name,
+        crypto.createHash('sha256').update(access_token).digest('hex'),
+        userData.id,
+        'facebook',
+        user.id
+      ];
+
+      const updateResult = await client.query(updateQuery, updateParams);
+      user = updateResult.rows[0];
+
       console.log('Updated existing user:', {
         id: user.id,
         email: user.email,
-        name: user.name,
         oauth_sub_id: user.oauth_sub_id
       });
     }
 
-    // Log the login attempt
+    // Log the login attempt with enhanced security info
     await client.query(
       `INSERT INTO login_history (
         user_id,
         success,
         ip_address,
         oauth_sub_id,
-        created_at
-      ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
-      [user.id, true, req.ip, userData.id]
+        created_at,
+        user_agent,
+        oauth_provider
+      ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, $6)`,
+      [user.id, true, req.ip, userData.id, req.get('User-Agent'), 'facebook']
     );
 
-    // Generate session token
+    // Generate secure session token
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
-    // Store session
+    // Store session with enhanced security
     await client.query(
       `INSERT INTO sessions (
         user_id,
         token,
         created_at,
-        expires_at
-      ) VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + interval '24 hours')`,
-      [user.id, sessionToken]
+        expires_at,
+        oauth_provider,
+        last_used_ip,
+        user_agent
+      ) VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + interval '24 hours', $3, $4, $5)`,
+      [user.id, sessionToken, 'facebook', req.ip, req.get('User-Agent')]
     );
 
     await client.query('COMMIT');
 
-    // Set secure cookie
+    // Set secure cookie with enhanced security options
     res.cookie('session_token', sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      secure: true, // Always use secure in production
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' 
+        ? '.onrender.com'  // Adjust this to match your domain
+        : 'localhost'
     });
 
-    res.json({
-      ...userData,
+    // Return sanitized user data
+    const sanitizedUserData = {
       id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar_url: user.avatar_url,
       sessionToken
-    });
+    };
+
+    res.json(sanitizedUserData);
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Facebook authentication error:', error);
+    console.error('Facebook authentication error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Authentication failed', details: error.message });
+      res.status(500).json({ 
+        error: 'Authentication failed', 
+        details: process.env.NODE_ENV === 'production' 
+          ? 'An unexpected error occurred' 
+          : error.message 
+      });
     }
   } finally {
     client.release();
@@ -1128,7 +1200,7 @@ router.post('/x', async (req, res) => {
         ? 'https://meal-planner-app-3m20.onrender.com/api/auth/x/callback'
         : 'http://localhost:3001/api/auth/x/callback',
       { 
-        scope: ['users.read', 'tweet.read', 'tweet.write', 'offline.access']
+        scope: ['users.read', 'tweet.read', 'tweet.write', 'users.email','offline.access']
       }
     );
 
@@ -1204,7 +1276,7 @@ router.get('/x/authorize', oauthLimiter, oauthSecurityMiddleware, async (req, re
     const { url, state, codeVerifier } = await twitterClient.generateOAuth2AuthLink(
       `${backendOrigin}/api/auth/x/callback`,
       {
-        scope: ['tweet.read', 'users.read','tweet.write']
+        scope: ['tweet.read', 'users.read','tweet.write', 'offline.access', 'users.email']
       }
     );
 
@@ -1244,7 +1316,7 @@ router.get('/x/callback', async (req, res) => {
       ? 'https://meal-planner-app-3m20.onrender.com'
       : 'http://localhost:3001';
 
-    // Retrieve stored OAuth state
+    // 1️⃣ Retrieve stored OAuth state
     const storedData = await oauthStateManager.get(state);
     if (!storedData) {
       console.error('❌ No stored OAuth state found for:', state);
@@ -1255,44 +1327,76 @@ router.get('/x/callback', async (req, res) => {
     const { codeVerifier, flow } = storedData;
     console.log('✅ State verified with flow:', flow);
 
-    // Exchange code for tokens
+    // 2️⃣ Exchange code for tokens
     const exchangeClient = new TwitterApi({
       clientId: process.env.TWITTER_CLIENT_ID,
       clientSecret: process.env.TWITTER_CLIENT_SECRET
     });
 
-    const { accessToken, refreshToken, expiresIn, scope } = await exchangeClient.loginWithOAuth2({
+    const {
+      accessToken,
+      refreshToken,
+      expiresIn,
+      scope,
+      id_token
+    } = await exchangeClient.loginWithOAuth2({
       code,
       codeVerifier,
       redirectUri: `${backendOrigin}/api/auth/x/callback`
     });
 
     console.log('✅ Token exchange successful');
+    console.log('🔑 Access Token:', accessToken);
+    console.log('🔄 Refresh Token:', refreshToken);
+    console.log('⏳ Expires In:', expiresIn);
+    console.log('✅ Scopes granted by Twitter:', scope);
 
-    // Fetch user info
+    // 3️⃣ Decode email from id_token if present
+    let email = null;
+    if (id_token) {
+      try {
+        const decoded = jwt.decode(id_token);
+        console.log('✅ Decoded ID Token:', decoded);
+        if (decoded && decoded.email) {
+          email = decoded.email;
+          console.log('📧 Extracted Email:', email);
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to decode ID token:', err);
+      }
+    }
+
+    // 4️⃣ Fetch user info from Twitter API
     const loggedClient = new TwitterApi(accessToken);
-    const user = await loggedClient.v2.me();
-    console.log('✅ User info:', user.data);
+    const userResponse = await loggedClient.v2.me();
+    const user = userResponse.data;
+    console.log('✅ Twitter User Info:', user);
 
-    // Save session if available
+    // 5️⃣ Combine user info with decoded email
+    const userWithEmail = {
+      ...user,
+      email
+    };
+
+    // 6️⃣ Save session if available
     if (req.session) {
-      req.session.xUser = user.data;
+      req.session.xUser = userWithEmail;
       req.session.xAccessToken = accessToken;
       req.session.xRefreshToken = refreshToken;
       req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
     }
 
-    // Clear used OAuth state
+    // 7️⃣ Clear used OAuth state
     await oauthStateManager.delete(state);
     oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
 
-    // Determine how to return to frontend based on flow
+    // 8️⃣ Return result to frontend based on flow
     if (flow === 'popup') {
       console.log('✅ Detected popup flow - returning postMessage');
       return res.send(`
         <script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${frontendOrigin}');
+            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(userWithEmail)} }, '${frontendOrigin}');
             window.close();
           } else {
             window.location.href = '${frontendOrigin}?x_auth_success=true';
@@ -1301,7 +1405,7 @@ router.get('/x/callback', async (req, res) => {
       `);
     }
 
-    // Redirect flow fallback
+    // 9️⃣ Redirect flow fallback
     console.log('✅ Detected redirect flow - redirecting');
     return res.redirect(`${frontendOrigin}/auth/success`);
 
