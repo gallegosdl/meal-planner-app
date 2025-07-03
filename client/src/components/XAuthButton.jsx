@@ -52,7 +52,8 @@ const XAuthButton = ({ onSuccess, onError }) => {
     const handleRedirectAuth = async () => {
       try {
         setIsLoading(true);
-        const response = await api.get('/api/auth/x/authorize');
+        //const response = await api.get('/api/auth/x/authorize');  
+        const response = await api.get('/api/auth/x/authorize?flow=redirect');
         const data = response.data;
         
         if (!data.url) {
@@ -84,7 +85,8 @@ const XAuthButton = ({ onSuccess, onError }) => {
           }
 
           // Get the authorization URL from our backend
-          const response = await api.get('/api/auth/x/authorize');
+          //const response = await api.get('/api/auth/x/authorize');
+          const response = await api.get('/api/auth/x/authorize?flow=popup');
           const data = response.data;
           if (!data.url) {
             throw new Error('No authorization URL received from server');

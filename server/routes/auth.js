@@ -1195,42 +1195,37 @@ const oauthSecurityMiddleware = (req, res, next) => {
 // X (Twitter) OAuth routes
 router.get('/x/authorize', oauthLimiter, oauthSecurityMiddleware, async (req, res) => {
   try {
-    // Always generate new verifier + challenge pair
+    const flow = req.query.flow || 'redirect';   // 👈 SUPPORT popup OR redirect
+
     const backendOrigin = process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-app-3m20.onrender.com'
       : 'http://localhost:3001';
-      
+
     const { url, state, codeVerifier } = await twitterClient.generateOAuth2AuthLink(
       `${backendOrigin}/api/auth/x/callback`,
       {
-        scope: ['tweet.read', 'users.read', 'offline.access']
+        scope: ['tweet.read', 'users.read','tweet.write']
       }
     );
 
-    // Store OAuth state securely
+    // Store state with flow info
     await oauthStateManager.store(state, {
       codeVerifier,
+      flow,                          // 👈 store flow type
       userAgent: req.get('User-Agent'),
       ip: req.ip,
       timestamp: Date.now()
     }, 10); // 10-minute TTL
 
-    console.log('🔐 OAuth state stored securely:', {
-      state,
-      storeSize: oauthStateManager.getStoreSize()
-    });
+    console.log('✅ OAuth state stored:', { state, flow });
 
-    // Log successful authorization attempt
+    // Log successful authorization
     oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
 
     res.json({ url });
-
   } catch (error) {
-    console.error('Error generating auth URL:', error);
-    
-    // Log failed authorization attempt
+    console.error('❌ Error generating auth URL:', error);
     oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
-    
     res.status(500).json({ error: 'Failed to generate authorization URL' });
   }
 });
@@ -1239,17 +1234,17 @@ router.get('/x/authorize', oauthLimiter, oauthSecurityMiddleware, async (req, re
 router.get('/x/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
-    console.log('Callback received:', { 
-      code: code ? 'present' : 'missing',
-      state: state ? 'present' : 'missing',
-      storeSize: oauthStateManager.getStoreSize()
-    });
+    console.log('🔔 Callback received:', { code, state });
+
+    const frontendOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000';
 
     const backendOrigin = process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-app-3m20.onrender.com'
       : 'http://localhost:3001';
-    
-    // 1️⃣ Validate and retrieve stored OAuth state
+
+    // Retrieve stored OAuth state
     const storedData = await oauthStateManager.get(state);
     if (!storedData) {
       console.error('❌ No stored OAuth state found for:', state);
@@ -1257,46 +1252,29 @@ router.get('/x/callback', async (req, res) => {
       return res.redirect(`${backendOrigin}/auth/error?error=invalid_or_expired_state`);
     }
 
-    // 2️⃣ Security checks (optional but recommended)
-    if (storedData.userAgent !== req.get('User-Agent')) {
-      console.warn('⚠️ User-Agent mismatch in OAuth callback');
-    }
-    if (storedData.ip !== req.ip) {
-      console.warn('⚠️ IP address mismatch in OAuth callback');
-    }
+    const { codeVerifier, flow } = storedData;
+    console.log('✅ State verified with flow:', flow);
 
-    const { codeVerifier } = storedData;
-    console.log('✅ State verified, exchanging code for token with stored verifier');
-
-    // 3️⃣ Exchange code for tokens using ClientSecret for HTTP Basic auth
-    // Initialize client without clientSecret to ensure proper Basic Auth header generation
-    console.log('Using TWITTER_CLIENT_ID:', process.env.TWITTER_CLIENT_ID);
-    console.log('Using TWITTER_CLIENT_SECRET:', process.env.TWITTER_CLIENT_SECRET ? 'present' : 'missing');
-    console.log('Final redirectUri:', `${backendOrigin}/api/auth/x/callback`);
-
+    // Exchange code for tokens
     const exchangeClient = new TwitterApi({
-      clientId: process.env.TWITTER_CLIENT_ID
+      clientId: process.env.TWITTER_CLIENT_ID,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET
     });
 
-    const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
+    const { accessToken, refreshToken, expiresIn, scope } = await exchangeClient.loginWithOAuth2({
       code,
       codeVerifier,
-      redirectUri: `${backendOrigin}/api/auth/x/callback`,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET  // ✅ Required for Basic Auth
+      redirectUri: `${backendOrigin}/api/auth/x/callback`
     });
 
     console.log('✅ Token exchange successful');
 
-    // 4️⃣ Fetch user info
-    const loggedClient = new TwitterApi({
-      clientId: process.env.TWITTER_CLIENT_ID,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET,
-      accessToken
-    });
+    // Fetch user info
+    const loggedClient = new TwitterApi(accessToken);
     const user = await loggedClient.v2.me();
-    console.log('✅ User info retrieved:', { id: user.data.id, username: user.data.username });
+    console.log('✅ User info:', user.data);
 
-    // 5️⃣ Store user info in session
+    // Save session if available
     if (req.session) {
       req.session.xUser = user.data;
       req.session.xAccessToken = accessToken;
@@ -1304,21 +1282,28 @@ router.get('/x/callback', async (req, res) => {
       req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
     }
 
-    // 6️⃣ Clear used OAuth state
+    // Clear used OAuth state
     await oauthStateManager.delete(state);
     oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
 
-    // 7️⃣ Return result to frontend
-    res.send(`
-      <script>
-        if (window.opener) {
-          window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${backendOrigin}');
-          window.close();
-        } else {
-          window.location.href = '${backendOrigin}?x_auth_success=true';
-        }
-      </script>
-    `);
+    // Determine how to return to frontend based on flow
+    if (flow === 'popup') {
+      console.log('✅ Detected popup flow - returning postMessage');
+      return res.send(`
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${frontendOrigin}');
+            window.close();
+          } else {
+            window.location.href = '${frontendOrigin}?x_auth_success=true';
+          }
+        </script>
+      `);
+    }
+
+    // Redirect flow fallback
+    console.log('✅ Detected redirect flow - redirecting');
+    return res.redirect(`${frontendOrigin}/auth/success`);
 
   } catch (error) {
     console.error('❌ X callback error:', {
@@ -1336,6 +1321,8 @@ router.get('/x/callback', async (req, res) => {
     res.redirect(`${backendOrigin}/auth/error?error=` + encodeURIComponent(error.message));
   }
 });
+
+
 
 // Health check endpoint for OAuth system
 router.get('/oauth/health', (req, res) => {
