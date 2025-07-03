@@ -929,24 +929,24 @@ router.post('/facebook', async (req, res) => {
         'oauth_token_hash = $2'
       ];
       
+      const updateParams = [
+        userData.name,
+        crypto.createHash('sha256').update(access_token).digest('hex'),
+        user.id
+      ];
+
       if (!user.oauth_sub_id) {
         updates.push('oauth_sub_id = $3', 'oauth_provider = $4');
+        updateParams.splice(2, 0, userData.id, 'facebook');
+        updateParams.push(user.id);
       }
 
       const updateQuery = `
         UPDATE users 
         SET ${updates.join(', ')}
-        WHERE id = $5
+        WHERE id = $${updateParams.length}
         RETURNING *
       `;
-
-      const updateParams = [
-        userData.name,
-        crypto.createHash('sha256').update(access_token).digest('hex'),
-        userData.id,
-        'facebook',
-        user.id
-      ];
 
       const updateResult = await client.query(updateQuery, updateParams);
       user = updateResult.rows[0];
