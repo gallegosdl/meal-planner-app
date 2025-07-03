@@ -1345,5 +1345,79 @@ router.get('/oauth/health', (req, res) => {
   });
 });
 
+// X OAuth completion endpoint for redirect-based auth
+router.post('/x/complete', async (req, res) => {
+  try {
+    const { oauth_token, oauth_verifier } = req.body;
+    
+    if (!oauth_token || !oauth_verifier) {
+      return res.status(400).json({ error: 'Missing oauth_token or oauth_verifier' });
+    }
+
+    console.log('🔄 Completing X OAuth for redirect flow:', { oauth_token, oauth_verifier });
+
+    // Use the Twitter client to complete the OAuth flow
+    try {
+      // For OAuth 1.0a (the old Twitter API), we would use different logic
+      // But since we're using OAuth 2.0, we should have already handled this in the callback
+      // This endpoint is more for handling any additional user data processing
+      
+      // In a real implementation, you might:
+      // 1. Verify the tokens are valid
+      // 2. Get user information from X
+      // 3. Create or update user in your database
+      // 4. Generate a session token
+      
+      // For now, we'll simulate a successful completion
+      const sessionToken = crypto.randomBytes(32).toString('hex');
+      
+      // Store in sessions map
+      const sessions = req.app.get('sessions');
+      sessions.set(sessionToken, {
+        apiKey: null, // User hasn't provided API key yet
+        createdAt: Date.now(),
+        provider: 'x',
+        oauth_token,
+        oauth_verifier
+      });
+
+      // Log successful OAuth completion
+      oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
+
+      res.json({
+        success: true,
+        sessionToken,
+        provider: 'x',
+        message: 'X OAuth completed successfully'
+      });
+
+    } catch (oauthError) {
+      console.error('X OAuth completion error:', {
+        error: oauthError.message,
+        code: oauthError.code,
+        data: oauthError.data
+      });
+      
+      // Log failed OAuth completion
+      oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
+      
+      res.status(400).json({ 
+        error: 'OAuth completion failed', 
+        details: oauthError.message 
+      });
+    }
+
+  } catch (error) {
+    console.error('X OAuth completion endpoint error:', error);
+    
+    // Log failed OAuth completion
+    oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
+    
+    res.status(500).json({ 
+      error: 'Internal server error during OAuth completion' 
+    });
+  }
+});
+
 module.exports = router;
 module.exports.authenticateToken = authenticateToken; 

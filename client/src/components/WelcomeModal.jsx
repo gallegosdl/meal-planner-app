@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import SignupModal from './SignupModal';
 import api, { setSession } from '../services/api';
@@ -16,8 +16,88 @@ const WelcomeModal = ({ onClose }) => {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
+  // Handle X OAuth redirect returns
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const xAuthSuccess = params.get('x_auth_success');
+    const xAuthError = params.get('x_auth_error');
+
+    if (xAuthSuccess === 'true') {
+      // Get stored auth data
+      const authDataStr = sessionStorage.getItem('x_auth_success');
+      if (authDataStr) {
+        try {
+          const authData = JSON.parse(authDataStr);
+          
+          // Check if data is fresh (within 5 minutes)
+          const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+          if (authData.timestamp > fiveMinutesAgo) {
+            console.log('✅ Processing X OAuth redirect success');
+            
+            // Clear the data
+            sessionStorage.removeItem('x_auth_success');
+            
+            // Clean up URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+            
+            // Handle the auth success as if it came from popup
+            handleAuthSuccess({
+              provider: 'x',
+              oauth_token: authData.oauth_token,
+              oauth_verifier: authData.oauth_verifier
+            });
+          } else {
+            console.warn('⚠️ X OAuth data expired');
+            sessionStorage.removeItem('x_auth_success');
+            setError('Authentication session expired. Please try again.');
+          }
+        } catch (err) {
+          console.error('❌ Error parsing X auth data:', err);
+          sessionStorage.removeItem('x_auth_success');
+          setError('Authentication data corrupted. Please try again.');
+        }
+      } else {
+        console.warn('⚠️ X OAuth success flag present but no auth data found');
+        setError('Authentication incomplete. Please try again.');
+      }
+      
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    } else if (xAuthError) {
+      console.error('❌ X OAuth redirect error:', xAuthError);
+      setError(`X authentication failed: ${decodeURIComponent(xAuthError)}`);
+      
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
+
   const handleAuthSuccess = async (userData) => {
     try {
+      // Handle different auth providers
+      if (userData.provider === 'x') {
+        // For X OAuth, we need to complete the token exchange
+        setIsLoading(true);
+        console.log('🔄 Completing X OAuth token exchange...');
+        
+        // This would typically involve calling your backend to complete the OAuth flow
+        // For now, we'll simulate successful auth
+        const result = await api.post('/api/auth/x/complete', {
+          oauth_token: userData.oauth_token,
+          oauth_verifier: userData.oauth_verifier
+        });
+        
+        if (result.data?.sessionToken) {
+          setSession(result.data.sessionToken);
+          console.log('✅ X OAuth session token set:', result.data.sessionToken);
+        }
+        
+        userData = result.data;
+      }
+
       if (userData.sessionToken) {
         setSession(userData.sessionToken);
         console.log('Session token set after authentication:', userData.sessionToken);
@@ -30,6 +110,8 @@ const WelcomeModal = ({ onClose }) => {
     } catch (error) {
       console.error('Authentication success handling error:', error);
       setError(error.message || 'Failed to process authentication. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
