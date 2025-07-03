@@ -1269,9 +1269,13 @@ router.get('/x/callback', async (req, res) => {
     console.log('✅ State verified, exchanging code for token with stored verifier');
 
     // 3️⃣ Exchange code for tokens using ClientSecret for HTTP Basic auth
+    // Initialize client without clientSecret to ensure proper Basic Auth header generation
+    console.log('Using TWITTER_CLIENT_ID:', process.env.TWITTER_CLIENT_ID);
+    console.log('Using TWITTER_CLIENT_SECRET:', process.env.TWITTER_CLIENT_SECRET ? 'present' : 'missing');
+    console.log('Final redirectUri:', `${backendOrigin}/api/auth/x/callback`);
+
     const exchangeClient = new TwitterApi({
-      clientId: process.env.TWITTER_CLIENT_ID,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET
+      clientId: process.env.TWITTER_CLIENT_ID
     });
 
     const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
