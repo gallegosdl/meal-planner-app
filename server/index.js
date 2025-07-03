@@ -82,6 +82,9 @@ const initializeRedis = async () => {
     if (isProduction) {
       await redisClient.connect();
       console.log('✅ Redis client connected');
+      
+      // Make Redis client available globally for OAuth state management
+      global.redisClient = redisClient;
 
       const redisStore = new RedisStore({
         client: redisClient,

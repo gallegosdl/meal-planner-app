@@ -21,6 +21,15 @@ const authLimiter = rateLimit({
   max: 5 // limit each IP to 5 requests per windowMs
 });
 
+// OAuth-specific rate limiter (configurable via environment)
+const oauthLimiter = rateLimit({
+  windowMs: parseInt(process.env.OAUTH_RATE_LIMIT_WINDOW_MS) || (15 * 60 * 1000), // 15 minutes default
+  max: parseInt(process.env.OAUTH_RATE_LIMIT_MAX) || 10, // 10 attempts default
+  message: { error: 'Too many OAuth attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -32,6 +41,139 @@ const twitterClient = new TwitterApi({
   clientId: process.env.TWITTER_CLIENT_ID,
   clientSecret: process.env.TWITTER_CLIENT_SECRET 
 });
+
+// Secure OAuth state storage
+class OAuthStateManager {
+  constructor() {
+    this.isProduction = process.env.NODE_ENV === 'production';
+    
+    if (this.isProduction) {
+      // In production, we'll use the existing Redis connection
+      this.useRedis = true;
+    } else {
+      // In development, use in-memory with proper cleanup
+      this.memoryStore = new Map();
+      this.useRedis = false;
+      
+      // Clean up expired states every 5 minutes
+      setInterval(() => {
+        const now = Date.now();
+        for (const [key, value] of this.memoryStore.entries()) {
+          if (now > value.expires) {
+            this.memoryStore.delete(key);
+          }
+        }
+      }, 5 * 60 * 1000);
+    }
+  }
+
+  async store(state, data, ttlMinutes = 10) {
+    const expires = Date.now() + (ttlMinutes * 60 * 1000);
+    const storeData = { ...data, expires };
+
+    if (this.useRedis && global.redisClient) {
+      // Store in Redis with TTL
+      const key = `oauth:x:${state}`;
+      await global.redisClient.setEx(key, ttlMinutes * 60, JSON.stringify(storeData));
+    } else {
+      // Store in memory
+      this.memoryStore.set(state, storeData);
+    }
+  }
+
+  async get(state) {
+    if (this.useRedis && global.redisClient) {
+      try {
+        const key = `oauth:x:${state}`;
+        const data = await global.redisClient.get(key);
+        if (!data) return null;
+        
+        const parsed = JSON.parse(data);
+        // Check if expired (Redis TTL should handle this, but double-check)
+        if (Date.now() > parsed.expires) {
+          await this.delete(state);
+          return null;
+        }
+        return parsed;
+      } catch (error) {
+        console.error('Redis get error:', error);
+        return null;
+      }
+    } else {
+      const data = this.memoryStore.get(state);
+      if (!data) return null;
+      
+      // Check if expired
+      if (Date.now() > data.expires) {
+        this.memoryStore.delete(state);
+        return null;
+      }
+      return data;
+    }
+  }
+
+  async delete(state) {
+    if (this.useRedis && global.redisClient) {
+      const key = `oauth:x:${state}`;
+      await global.redisClient.del(key);
+    } else {
+      this.memoryStore.delete(state);
+    }
+  }
+
+  getStoreSize() {
+    if (this.useRedis) {
+      return 'Redis (production)';
+    } else {
+      return this.memoryStore.size;
+    }
+  }
+}
+
+const oauthStateManager = new OAuthStateManager();
+
+// Security monitoring for OAuth attempts
+const oauthMonitor = {
+  attempts: new Map(),
+  
+  logAttempt(ip, userAgent, success = true) {
+    const key = `${ip}:${userAgent}`;
+    if (!this.attempts.has(key)) {
+      this.attempts.set(key, { successes: 0, failures: 0, lastAttempt: Date.now() });
+    }
+    
+    const record = this.attempts.get(key);
+    if (success) {
+      record.successes++;
+    } else {
+      record.failures++;
+    }
+    record.lastAttempt = Date.now();
+    
+    // Log suspicious activity
+    if (record.failures > 5) {
+      console.warn('🚨 High OAuth failure rate:', { ip, userAgent, record });
+    }
+    
+    // Clean up old records (older than 24 hours)
+    const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+    for (const [k, v] of this.attempts.entries()) {
+      if (v.lastAttempt < cutoff) {
+        this.attempts.delete(k);
+      }
+    }
+  },
+  
+  isRateLimited(ip, userAgent) {
+    const key = `${ip}:${userAgent}`;
+    const record = this.attempts.get(key);
+    if (!record) return false;
+    
+    // Rate limit if more than 10 failures in last hour
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    return record.failures > 10 && record.lastAttempt > oneHourAgo;
+  }
+};
 
 // Middleware to verify JWT
 const verifyToken = (req, res, next) => {
@@ -996,170 +1138,77 @@ router.post('/x', async (req, res) => {
   }
 });
 
-// Test route to verify callback endpoint is accessible
-router.get('/x/test', (req, res) => {
-  console.log('Test route hit');
-  res.send('Test route working');
-});
-
-// Handle X (Twitter) OAuth callback
-router.get('/x/callback', async (req, res) => {
-  try {
-    const { code, state } = req.query;
-    console.log('Callback received:', { 
-      code: code ? 'present' : 'missing',
-      state: state ? 'present' : 'missing',
-      session: req.session ? {
-        xState: req.session.xState ? 'present' : 'missing',
-        codeVerifier: req.session.codeVerifier ? 'present' : 'missing'
-      } : 'no session',
-      headers: req.headers
-    });
-
-    // Verify state matches what we stored in session
-    if (!req.session || !req.session.xState) {
-      console.error('No session or state:', {
-        session: !!req.session,
-        sessionId: req.sessionID,
-        cookies: req.headers.cookie
-      });
-      return res.redirect('http://localhost:3000/auth/error?error=session_lost');
-    }
-
-    if (req.session.xState !== state) {
-      console.error('State mismatch:', { 
-        sessionState: req.session.xState,
-        receivedState: state
-      });
-      return res.redirect('http://localhost:3000/auth/error?error=invalid_state');
-    }
-
-    if (!req.session.codeVerifier) {
-      console.error('No code verifier in session');
-      return res.redirect('http://localhost:3000/auth/error?error=missing_code_verifier');
-    }
-
-    console.log('State verified, exchanging code for token...');
-
-    try {
-      // Use the global twitterClient instance
-      const { accessToken, refreshToken, expiresIn } = await twitterClient.loginWithOAuth2({
-        code,
-        codeVerifier: req.session.codeVerifier,
-        redirectUri: 'http://localhost:3001/api/auth/x/callback'
-      });
-
-      console.log('Token exchange successful');
-
-      // Store tokens in session
-      req.session.xAccessToken = accessToken;
-      req.session.xRefreshToken = refreshToken;
-      req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
-
-      // Get user info using the same client instance
-      const loggedClient = new TwitterApi(accessToken);
-      const user = await loggedClient.v2.me();
-
-      console.log('User info retrieved:', { 
-        id: user.data.id,
-        username: user.data.username
-      });
-
-      // Store user info in session
-      req.session.xUser = user.data;
-      
-      // Save session before clearing OAuth state
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error('Failed to save session:', err);
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
-      });
-
-      // Clear OAuth state
-      delete req.session.xState;
-      delete req.session.codeVerifier;
-
-      // Close popup and notify parent window
-      res.send(`
-        <script>
-          if (window.opener) {
-            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, 'http://localhost:3000');
-            window.close();
-          }
-        </script>
-      `);
-
-    } catch (tokenError) {
-      console.error('Token exchange error:', {
-        error: tokenError.message,
-        code: tokenError.code,
-        data: tokenError.data,
-        stack: tokenError.stack
-      });
-      throw tokenError;
-    }
-
-  } catch (error) {
-    console.error('X callback error:', {
-      message: error.message,
-      code: error.code,
-      data: error.data,
-      stack: error.stack
-    });
-    res.redirect('http://localhost:3000/auth/error?error=' + encodeURIComponent(error.message));
-  }
-});
-
 // Debug logging for route registration
 console.log('Registering X auth routes...');
 
-// X (Twitter) OAuth routes
-router.get('/x/authorize', async (req, res) => {
-  try {
-    // If there's an existing auth attempt, clear it
-    delete req.session.codeVerifier;
-    delete req.session.xState;
+// Additional security middleware for OAuth
+const oauthSecurityMiddleware = (req, res, next) => {
+  const userAgent = req.get('User-Agent');
+  const ip = req.ip;
+  
+  // Check for suspicious request patterns
+  if (!userAgent || userAgent.length < 10) {
+    oauthMonitor.logAttempt(ip, userAgent, false);
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+  
+  // Check if rate limited
+  if (oauthMonitor.isRateLimited(ip, userAgent)) {
+    oauthMonitor.logAttempt(ip, userAgent, false);
+    return res.status(429).json({ error: 'Too many failed attempts. Please try again later.' });
+  }
+  
+  // Basic bot detection
+  const suspiciousPatterns = [
+    /bot/i, /crawler/i, /spider/i, /scraper/i
+  ];
+  
+  if (suspiciousPatterns.some(pattern => pattern.test(userAgent))) {
+    console.warn('⚠️ Suspicious OAuth request from:', { ip, userAgent });
+  }
+  
+  next();
+};
 
+// X (Twitter) OAuth routes
+router.get('/x/authorize', oauthLimiter, oauthSecurityMiddleware, async (req, res) => {
+  try {
     // Always generate new verifier + challenge pair
+    const backendOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com'
+      : 'http://localhost:3001';
+      
     const { url, state, codeVerifier } = await twitterClient.generateOAuth2AuthLink(
-      'http://localhost:3001/api/auth/x/callback',
+      `${backendOrigin}/api/auth/x/callback`,
       {
         scope: ['tweet.read', 'users.read', 'offline.access']
       }
     );
 
-    // Store the verifier and state in session
-    req.session.codeVerifier = codeVerifier;
-    req.session.xState = state;
+    // Store OAuth state securely
+    await oauthStateManager.store(state, {
+      codeVerifier,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip,
+      timestamp: Date.now()
+    }, 10); // 10-minute TTL
 
-    await new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) {
-          console.error('Failed to save session:', err);
-          return reject(err);
-        }
-        console.log('Session saved with PKCE values:', {
-          state,
-          codeVerifier
-        });
-        resolve();
-      });
-    });
-
-    console.log('Auth URL generated with:', {
+    console.log('🔐 OAuth state stored securely:', {
       state,
-      url
+      storeSize: oauthStateManager.getStoreSize()
     });
+
+    // Log successful authorization attempt
+    oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
 
     res.json({ url });
 
   } catch (error) {
     console.error('Error generating auth URL:', error);
+    
+    // Log failed authorization attempt
+    oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
+    
     res.status(500).json({ error: 'Failed to generate authorization URL' });
   }
 });
@@ -1171,46 +1220,46 @@ router.get('/x/callback', async (req, res) => {
     console.log('Callback received:', { 
       code: code ? 'present' : 'missing',
       state: state ? 'present' : 'missing',
-      session: req.session ? {
-        xState: req.session.xState ? 'present' : 'missing',
-        codeVerifier: req.session.codeVerifier ? 'present' : 'missing',
-        actualState: req.session.xState,
-        actualVerifier: req.session.codeVerifier
-      } : 'no session',
-      headers: req.headers
+      storeSize: oauthStateManager.getStoreSize()
     });
 
-    // Verify state matches what we stored in session
-    if (!req.session || !req.session.xState) {
-      console.error('No session or state:', {
-        session: !!req.session,
-        sessionId: req.sessionID,
-        cookies: req.headers.cookie
-      });
-      return res.redirect('http://localhost:3000/auth/error?error=session_lost');
+    // Verify state and get stored data
+    const frontendOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000';
+      
+    const storedData = await oauthStateManager.get(state);
+    if (!storedData) {
+      console.error('No stored OAuth state found for:', state);
+      
+      // Log invalid state attempt
+      oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
+      
+      return res.redirect(`${frontendOrigin}/auth/error?error=invalid_or_expired_state`);
     }
 
-    if (req.session.xState !== state) {
-      console.error('State mismatch:', { 
-        sessionState: req.session.xState,
-        receivedState: state
-      });
-      return res.redirect('http://localhost:3000/auth/error?error=invalid_state');
+    // Additional security checks
+    if (storedData.userAgent !== req.get('User-Agent')) {
+      console.warn('⚠️ User-Agent mismatch in OAuth callback');
+    }
+    
+    if (storedData.ip !== req.ip) {
+      console.warn('⚠️ IP address mismatch in OAuth callback');
     }
 
-    if (!req.session.codeVerifier) {
-      console.error('No code verifier in session');
-      return res.redirect('http://localhost:3000/auth/error?error=missing_code_verifier');
-    }
-
-    console.log('State verified, exchanging code for token with verifier:', req.session.codeVerifier);
+    const { codeVerifier } = storedData;
+    console.log('State verified, exchanging code for token with stored verifier');
 
     try {
       // Use the global twitterClient instance
+      const backendOrigin = process.env.NODE_ENV === 'production'
+        ? 'https://meal-planner-app-3m20.onrender.com'
+        : 'http://localhost:3001';
+        
       const { accessToken, refreshToken, expiresIn } = await twitterClient.loginWithOAuth2({
         code,
-        codeVerifier: req.session.codeVerifier,
-        redirectUri: 'http://localhost:3001/api/auth/x/callback'
+        codeVerifier,
+        redirectUri: `${backendOrigin}/api/auth/x/callback`
       });
 
       console.log('Token exchange successful');
@@ -1229,30 +1278,25 @@ router.get('/x/callback', async (req, res) => {
         username: user.data.username
       });
 
-      // Store user info in session
-      req.session.xUser = user.data;
-      
-      // Save session before clearing OAuth state
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error('Failed to save session:', err);
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
-      });
+      // Store user info in session (if session exists)
+      if (req.session) {
+        req.session.xUser = user.data;
+        req.session.xAccessToken = accessToken;
+        req.session.xRefreshToken = refreshToken;
+        req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
+      }
 
-      // Clear OAuth state
-      delete req.session.xState;
-      delete req.session.codeVerifier;
+      // Clear OAuth state from secure store
+      await oauthStateManager.delete(state);
+
+      // Log successful OAuth completion
+      oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
 
       // Close popup and notify parent window
       res.send(`
         <script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, 'http://localhost:3000');
+            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${frontendOrigin}');
             window.close();
           }
         </script>
@@ -1275,8 +1319,30 @@ router.get('/x/callback', async (req, res) => {
       data: error.data,
       stack: error.stack
     });
-    res.redirect('http://localhost:3000/auth/error?error=' + encodeURIComponent(error.message));
+    
+    // Log failed OAuth completion
+    oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
+    
+    const frontendOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-frontend-woan.onrender.com'
+      : 'http://localhost:3000';
+    res.redirect(`${frontendOrigin}/auth/error?error=` + encodeURIComponent(error.message));
   }
+});
+
+// Health check endpoint for OAuth system
+router.get('/oauth/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    storeType: oauthStateManager.useRedis ? 'Redis' : 'Memory',
+    storeSize: oauthStateManager.getStoreSize(),
+    monitoringActive: true,
+    rateLimitConfig: {
+      windowMs: parseInt(process.env.OAUTH_RATE_LIMIT_WINDOW_MS) || (15 * 60 * 1000),
+      max: parseInt(process.env.OAUTH_RATE_LIMIT_MAX) || 10
+    }
+  });
 });
 
 module.exports = router;
