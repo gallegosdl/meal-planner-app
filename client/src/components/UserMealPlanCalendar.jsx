@@ -1,9 +1,12 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { toast } from 'react-hot-toast';
 import CalendarService from '../services/calendarService';
+import MealSummaryModal from './MealSummaryModal';
+import MealRecipeModal from './MealRecipeModal';
+import api from '../services/api';
 
 const localizer = momentLocalizer(moment);
 
@@ -16,6 +19,7 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [showMealModal, setShowMealModal] = useState(false);
+  const [showRecipeView, setShowRecipeView] = useState(false);
   const [consumedMeals, setConsumedMeals] = useState(new Set());
 
   const fetchMealPlans = async () => {
@@ -27,17 +31,30 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
       const startDate = moment().startOf('week').format('YYYY-MM-DD');
       const endDate = moment().endOf('week').format('YYYY-MM-DD');
       
-      const response = await fetch(`/api/meal-plans/user-meal-plans/${userId}?startDate=${startDate}&endDate=${endDate}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch meal plans');
-      }
-      const data = await response.json();
+      const response = await api.get(`/api/meal-plans/user-meal-plans/${userId}?startDate=${startDate}&endDate=${endDate}`);
+      const data = response.data;
       console.log('Fetched meal plans data:', data);
+      
+      // ✅ Normalize date keys to YYYY-MM-DD format
+      for (const plan of data) {
+        if (plan.dates) {
+          for (const [key, value] of Object.entries(plan.dates)) {
+            if (!key.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const m = moment(new Date(key));
+              if (m.isValid()) {
+                delete plan.dates[key];
+                plan.dates[m.format('YYYY-MM-DD')] = value;
+              }
+            }
+          }
+        }
+      }
+      
       setMealPlans(data);
       setError(null);
     } catch (err) {
       console.error('Error fetching meal plans:', err);
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -66,22 +83,20 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
       }
 
       console.log('Sending sync request with token');
-      const response = await fetch('/api/meal-plans/sync-to-calendar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          mealPlanId,
-          accessToken
-        })
+      const response = await api.post('/api/meal-plans/sync-to-calendar', {
+        mealPlanId,
+        accessToken
       });
 
       console.log('Sync response status:', response.status);
-
-      if (response.status === 401) {
+      const data = response.data;
+      console.log('Sync successful:', data);
+      toast.success(`Meal plan synced to Google Calendar! Created ${data.events?.length || 0} events.`);
+    } catch (error) {
+      console.error('Error syncing to calendar:', error);
+      
+      if (error.response?.status === 401) {
         console.log('Token expired, clearing storage');
-        // Token expired, clear it and trigger re-login
         sessionStorage.removeItem('google_access_token');
         const googleLoginButton = document.querySelector('[data-testid="google-login"]');
         if (googleLoginButton) {
@@ -91,19 +106,8 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
         }
         return;
       }
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Sync failed:', errorData);
-        throw new Error(`Failed to sync calendar: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Sync successful:', data);
-      toast.success(`Meal plan synced to Google Calendar! Created ${data.events?.length || 0} events.`);
-    } catch (error) {
-      console.error('Error syncing to calendar:', error);
-      toast.error(`Failed to sync with Google Calendar: ${error.message}`);
+      
+      toast.error(`Failed to sync with Google Calendar: ${error.response?.data?.error || error.message}`);
     } finally {
       setIsSyncing(false);
     }
@@ -112,31 +116,130 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
   // Handle meal event click
   const handleSelectEvent = (event) => {
     setSelectedMeal(event);
+    setShowRecipeView(false); // Reset to summary view
     setShowMealModal(true);
   };
 
   // Mark meal as consumed
-  const handleMarkConsumed = (eventId) => {
+  const handleMarkConsumed = async (eventId) => {
     const newConsumedMeals = new Set(consumedMeals);
-    if (newConsumedMeals.has(eventId)) {
-      newConsumedMeals.delete(eventId);
-    } else {
-      newConsumedMeals.add(eventId);
-    }
-    setConsumedMeals(newConsumedMeals);
-    setShowMealModal(false);
+    const isMarking = !newConsumedMeals.has(eventId);
     
-    toast.success(
-      newConsumedMeals.has(eventId) ? 'Meal marked as consumed!' : 'Meal unmarked as consumed',
-      { duration: 2000 }
-    );
+    if (isMarking) {
+      // Mark as consumed - reduce pantry items
+      try {
+        const selectedMealData = selectedMeal;
+        if (!selectedMealData || !selectedMealData.meal) {
+          toast.error('Meal data not available');
+          return;
+        }
+
+        console.log('Calling consume-meal API with:', {
+          eventId,
+          userId,
+          meal: selectedMealData.meal
+        });
+
+        const response = await api.post('/api/meal-plans/consume-meal', {
+          eventId,
+          userId,
+          meal: selectedMealData.meal
+        });
+
+        const result = response.data;
+        console.log('Meal consumption result:', result);
+
+        newConsumedMeals.add(eventId);
+        setConsumedMeals(newConsumedMeals);
+        setShowMealModal(false);
+
+        // Show detailed success message
+        if (result.totalReductions > 0) {
+          toast.success(
+            `Meal consumed! Reduced ${result.totalReductions} pantry items.`,
+            { duration: 3000 }
+          );
+          
+          // Show insufficient items warning if any
+          if (result.insufficientItems.length > 0) {
+            setTimeout(() => {
+              toast.error(
+                `Warning: ${result.insufficientItems.length} ingredients had insufficient pantry quantities.`,
+                { duration: 4000 }
+              );
+            }, 500);
+          }
+        } else {
+          toast.success('Meal marked as consumed!', { duration: 2000 });
+        }
+
+      } catch (error) {
+        console.error('Error marking meal as consumed:', error);
+        toast.error(`Failed to process meal consumption: ${error.response?.data?.error || error.message}`);
+        return;
+      }
+    } else {
+      // Unmark as consumed - just remove from consumed set (no pantry restoration for now)
+      newConsumedMeals.delete(eventId);
+      setConsumedMeals(newConsumedMeals);
+      setShowMealModal(false);
+      toast.success('Meal unmarked as consumed', { duration: 2000 });
+    }
   };
 
   // Edit meal time
   const handleEditMealTime = (eventId, newTime) => {
-    // For now, just show a toast - you can implement time editing logic here
-    toast.success(`Meal time updated to ${newTime}`, { duration: 2000 });
+    // Parse the new time
+    const [time, period] = newTime.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    let hour24 = hours;
+    
+    // Convert to 24-hour format
+    if (period === 'PM' && hours !== 12) {
+      hour24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+
+    // Update meal plans with new time
+    const updatedMealPlans = mealPlans.map(plan => {
+      const newPlan = { ...plan };
+      if (newPlan.dates) {
+        const newDates = { ...newPlan.dates };
+        
+        // Find and update the specific meal
+        Object.keys(newDates).forEach(dateKey => {
+          const dateData = { ...newDates[dateKey] };
+          if (dateData.meals) {
+            const newMeals = { ...dateData.meals };
+            
+            Object.keys(newMeals).forEach(mealType => {
+              const testEventId = `${dateKey}-${mealType}`;
+              if (testEventId === eventId) {
+                // Update the meal's time metadata if it exists
+                newMeals[mealType] = {
+                  ...newMeals[mealType],
+                  customTime: {
+                    hour: hour24,
+                    minute: minutes || 0
+                  }
+                };
+              }
+            });
+            
+            dateData.meals = newMeals;
+          }
+          newDates[dateKey] = dateData;
+        });
+        
+        newPlan.dates = newDates;
+      }
+      return newPlan;
+    });
+
+    setMealPlans(updatedMealPlans);
     setShowMealModal(false);
+    toast.success(`Meal time updated to ${newTime}`, { duration: 2000 });
   };
 
   // Add ICS export function
@@ -181,48 +284,67 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     }
   }, [userId]);
 
-  // Convert meal plans to calendar events
-  const events = (mealPlans || []).flatMap(plan => 
-    Object.entries(plan.dates || {}).flatMap(([dateStr, dateData]) =>
-      Object.entries(dateData?.meals || {}).map(([mealType, meal]) => {
-        const eventId = `${dateStr}-${mealType}`;
-        
-        // Ensure dateStr is in proper format and create a valid moment
-        let mealDate;
-        if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          // Already in YYYY-MM-DD format
-          mealDate = moment(dateStr, 'YYYY-MM-DD');
-        } else {
-          // Try to parse as ISO string or fallback to moment parsing
-          mealDate = moment(dateStr);
-        }
-        
-        // Validate the date is valid
-        if (!mealDate.isValid()) {
-          console.warn(`Invalid date format: ${dateStr}`);
-          mealDate = moment(); // fallback to today
-        }
-        
-        return {
-          id: eventId,
-          title: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)}: ${meal.recipe?.name || 'Unknown meal'}`,
-          start: mealDate.clone().hour(
-            mealType === 'breakfast' ? 8 :
-            mealType === 'lunch' ? 12 : 18
-          ).minute(0).second(0).toDate(),
-          end: mealDate.clone().hour(
-            mealType === 'breakfast' ? 9 :
-            mealType === 'lunch' ? 13 : 19
-          ).minute(0).second(0).toDate(),
-          meal: meal.recipe,
-          mealType,
-          resource: mealType,
-          consumed: consumedMeals.has(eventId),
-          plannedMacros: meal.plannedMacros
-        };
-      })
-    )
+    // Convert meal plans to calendar events
+  const events = useMemo(() => 
+    (mealPlans || []).flatMap(plan => 
+      Object.entries(plan.dates || {}).flatMap(([dateStr, dateData]) =>
+        Object.entries(dateData?.meals || {}).map(([mealType, meal]) => {
+          // Ensure dateStr is in proper format and create a valid moment
+          let mealDate;
+          if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Already in YYYY-MM-DD format
+            mealDate = moment(dateStr, 'YYYY-MM-DD');
+          } else {
+            // Try to parse as ISO string or fallback to moment parsing
+            mealDate = moment(dateStr);
+          }
+          
+          // Validate the date is valid
+          if (!mealDate.isValid()) {
+            console.warn(`Invalid date format: ${dateStr}`);
+            mealDate = moment(); // fallback to today
+          }
+          
+          // ✅ STABLE EVENT ID using standardized date format
+          const eventId = `${mealDate.format('YYYY-MM-DD')}-${mealType}`;
+          
+          // Use custom time if available, otherwise use default times
+          const customTime = meal.customTime;
+          const defaultHour = mealType === 'breakfast' ? 8 : mealType === 'lunch' ? 12 : 18;
+          const startHour = customTime ? customTime.hour : defaultHour;
+          const startMinute = customTime ? customTime.minute : 0;
+          
+          return {
+            id: eventId,
+            title: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)}: ${meal.recipe?.name || 'Unknown meal'}`,
+            start: mealDate.clone().hour(startHour).minute(startMinute).second(0).toDate(),
+            end: mealDate.clone().hour(startHour).minute(startMinute + 60).second(0).toDate(),
+            meal: meal.recipe,
+            mealType,
+            resource: mealType,
+            consumed: consumedMeals.has(eventId),
+            plannedMacros: meal.plannedMacros
+          };
+        })
+      )
+    ), [mealPlans, consumedMeals]
   );
+
+  // Modal close handler
+  const handleCloseModal = () => {
+    setShowRecipeView(false);
+    setShowMealModal(false);
+  };
+
+  // Switch to recipe view
+  const handleViewRecipe = () => {
+    setShowRecipeView(true);
+  };
+
+  // Switch back to summary view
+  const handleBackToSummary = () => {
+    setShowRecipeView(false);
+  };
 
   if (loading) {
     return (
@@ -289,30 +411,6 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
                 </>
               )}
             </button>
-
-            {/* Google Calendar Sync Button */}
-            <button
-              onClick={() => handleSyncToCalendar(mealPlans[0]?.id)}
-              disabled={isSyncing || !mealPlans.length}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isSyncing ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Syncing...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>Sync to Google Calendar</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
 
@@ -341,18 +439,18 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
           />
         </div>
 
-        <style jsx="true" global>{`
-          .calendar-container :global(.rbc-today) {
+        <style>{`
+          .rbc-today {
             background-color: rgba(59, 130, 246, 0.1) !important;
           }
           
-          .calendar-container :global(.rbc-current-time-indicator) {
+          .rbc-current-time-indicator {
             background-color: rgba(59, 130, 246, 0.6) !important;
             height: 2px !important;
           }
           
-          .calendar-container :global(.meal-event) {
-            background: #2A3142 !important;
+          .meal-event {
+            background:rgb(114, 140, 201) !important;
             color: white !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 8px !important;
@@ -361,133 +459,69 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             transition: all 0.2s ease !important;
           }
           
-          .calendar-container :global(.meal-event:hover) {
+          .meal-event:hover {
             background: #313748 !important;
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
           }
           
-          .calendar-container :global(.breakfast-event) {
+          .breakfast-event {
             border-left: 4px solid #fbbf24 !important;
           }
           
-          .calendar-container :global(.lunch-event) {
+          .lunch-event {
             border-left: 4px solid #10b981 !important;
           }
           
-          .calendar-container :global(.dinner-event) {
+          .dinner-event {
             border-left: 4px solid #3b82f6 !important;
           }
           
-          .calendar-container :global(.consumed) {
-            opacity: 0.6 !important;
+          .meal-event.consumed {
+            opacity: 0.9 !important;
             text-decoration: line-through !important;
-            background: #16a34a !important;
+            background: #dc2626 !important;
+            border: 1px solid #991b1b !important;
+            border-left: 4px solid #991b1b !important;
           }
           
-          .calendar-container :global(.consumed::after) {
+          .meal-event.consumed::after {
             content: "✓" !important;
             margin-left: 8px !important;
-            color: #22c55e !important;
+            color: #ffffff !important;
             font-weight: bold !important;
           }
         `}</style>
       </div>
 
-      {/* Meal Interaction Modal */}
+      {/* Meal Modal */}
       {showMealModal && selectedMeal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="flex items-center justify-center w-full h-full">
             {/* Backdrop */}
             <div 
-              className="fixed inset-0 bg-black opacity-50" 
-              onClick={() => setShowMealModal(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm" 
+              onClick={handleCloseModal}
             />
             
             {/* Modal */}
-            <div className="relative bg-[#1F2937] rounded-lg w-full max-w-md p-6 shadow-xl">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-semibold text-white">
-                  {selectedMeal.title}
-                </h3>
-                <button
-                  onClick={() => setShowMealModal(false)}
-                  className="text-gray-400 hover:text-gray-300"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Meal Details */}
-              <div className="mb-6 space-y-3">
-                <div className="text-gray-300">
-                  <p><strong>Time:</strong> {moment(selectedMeal.start).format('h:mm A')} - {moment(selectedMeal.end).format('h:mm A')}</p>
-                  <p><strong>Date:</strong> {moment(selectedMeal.start).format('MMMM Do, YYYY')}</p>
-                </div>
-                
-                {selectedMeal.plannedMacros && (
-                  <div className="bg-[#374151] p-3 rounded-lg">
-                    <h4 className="text-white font-medium mb-2">Nutrition Info</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-300">
-                      <div>Calories: {selectedMeal.plannedMacros.calories || 0}</div>
-                      <div>Protein: {selectedMeal.plannedMacros.protein_g || 0}g</div>
-                      <div>Carbs: {selectedMeal.plannedMacros.carbs_g || 0}g</div>
-                      <div>Fat: {selectedMeal.plannedMacros.fat_g || 0}g</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                <button
-                  onClick={() => handleMarkConsumed(selectedMeal.id)}
-                  className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                    consumedMeals.has(selectedMeal.id)
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-green-500 hover:bg-green-600 text-white'
-                  }`}
-                >
-                  {consumedMeals.has(selectedMeal.id) ? 
-                    '✓ Mark as Not Consumed' : 
-                    '✓ Mark as Consumed'
-                  }
-                </button>
-
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-400">Quick Time Changes:</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedMeal.mealType === 'breakfast' ? (
-                      <>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '7:00 AM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">7:00 AM</button>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '8:00 AM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">8:00 AM</button>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '9:00 AM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">9:00 AM</button>
-                      </>
-                    ) : selectedMeal.mealType === 'lunch' ? (
-                      <>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '11:00 AM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">11:00 AM</button>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '12:00 PM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">12:00 PM</button>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '1:00 PM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">1:00 PM</button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '5:00 PM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">5:00 PM</button>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '6:00 PM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">6:00 PM</button>
-                        <button onClick={() => handleEditMealTime(selectedMeal.id, '7:00 PM')} className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">7:00 PM</button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowMealModal(false)}
-                  className="w-full py-2 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
-                >
-                  Close
-                </button>
-              </div>
+            <div className="relative bg-[#252B3B]/95 backdrop-blur-lg rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8 shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20">
+              
+              {!showRecipeView ? (
+                <MealSummaryModal
+                  selectedMeal={selectedMeal}
+                  consumedMeals={consumedMeals}
+                  onClose={handleCloseModal}
+                  onViewRecipe={handleViewRecipe}
+                  onMarkConsumed={handleMarkConsumed}
+                  onEditMealTime={handleEditMealTime}
+                />
+              ) : (
+                <MealRecipeModal
+                  selectedMeal={selectedMeal}
+                  onBack={handleBackToSummary}
+                />
+              )}
             </div>
           </div>
         </div>

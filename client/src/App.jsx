@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import MealPlannerForm from './components/MealPlannerForm';
 import RecipeList from './components/RecipeList';
 import WelcomeModal from './components/WelcomeModal';
+import api from './services/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
@@ -17,14 +18,8 @@ export default function App() {
     // Verify session on load
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/auth/verify-session', {
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
+        const response = await api.get('/api/auth/verify-session');
+        setUser(response.data);
       } catch (error) {
         console.error('Session verification failed:', error);
       }
@@ -43,10 +38,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
+      await api.post('/api/auth/logout');
       setUser(null);
     } catch (error) {
       console.error('Logout failed:', error);

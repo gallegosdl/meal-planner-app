@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../services/api';
 
 const VoiceMicButton = () => {
   const [isListening, setIsListening] = useState(false);
@@ -19,21 +20,13 @@ const VoiceMicButton = () => {
       const transcript = event.results[0][0].transcript;
       console.log('Voice Transcript:', transcript);
       console.log('📡 Sending transcript to server...', transcript);
-      fetch('http://localhost:3001/api/mapmyfitness/voice', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-session-token': localStorage.getItem('sessionToken') || '',
-        },
-        body: JSON.stringify({ transcript }),
-      })
-      .then(async (res) => {
-        const json = await res.json();
-        console.log('✅ Server responded with:', json);
-      })
-      .catch((err) => {
-        console.error('❌ FETCH ERROR:', err);
-      });
+      api.post('/api/mapmyfitness/voice', { transcript })
+        .then((response) => {
+          console.log('✅ Server responded with:', response.data);
+        })
+        .catch((err) => {
+          console.error('❌ FETCH ERROR:', err);
+        });
     };
 
     recog.onerror = (event) => {

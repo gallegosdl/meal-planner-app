@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import api from '../services/api';
 
 // Register Chart.js components
 ChartJS.register(
@@ -52,16 +53,12 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     
     try {
       setIsRefreshing(true);
-      const response = await fetch(`/api/meal-plans/user-meal-plans/${userId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch meal plans');
-      }
-      const data = await response.json();
-      setMealPlans(data);
+      const response = await api.get(`/api/meal-plans/user-meal-plans/${userId}`);
+      setMealPlans(response.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching meal plans:', err);
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
       setIsRefreshing(false);

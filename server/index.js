@@ -1,3 +1,4 @@
+// server/index.js
 const express = require('express');
 const session = require('express-session');
 const RedisStore = require('connect-redis').default;
@@ -18,7 +19,7 @@ const fitbitRoutes = require('./routes/fitbit');
 const stravaRoutes = require('./routes/strava');
 const mealPlanRoutes = require('./routes/mealPlan');
 //const mapMyFitnessRoutes = require('./routes/mapmyfitness');
-//const parseIntentRoutes = require('./routes/parseIntentRoutes');
+const parseIntentRoutes = require('./routes/parseIntentRoutes');
 require('dotenv').config({ path: './server/.env' });
 
 const app = express();
@@ -181,7 +182,7 @@ const initializeApp = () => {
   app.use('/api/strava', stravaRoutes);
   app.use('/api/meal-plans', mealPlanRoutes);
   //app.use('/api/mapmyfitness', mapMyFitnessRoutes);
-  //app.use('/api/parse-intent', parseIntentRoutes);
+  app.use('/api/parse-intent', parseIntentRoutes);
   
 
   app.use((req, res, next) => {

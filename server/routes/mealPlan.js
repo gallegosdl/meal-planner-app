@@ -1,7 +1,9 @@
+// server/routes/mealPlan.js
 const express = require('express');
 const router = express.Router();
 const MealPlanGenerator = require('../services/mealPlanGenerator');
 const GoogleCalendarService = require('../services/googleCalendarService');
+const PantryItem = require('../models/PantryItem');
 
 // Middleware to get API key from request
 const requireApiKey = (req, res, next) => {
@@ -153,6 +155,107 @@ router.post('/sync-to-calendar', async (req, res) => {
     console.error('Failed to sync meal plan to calendar:', error);
     res.status(500).json({
       error: 'Failed to sync meal plan to calendar',
+      details: error.message
+    });
+  }
+});
+
+// Mark meal as consumed and reduce pantry items
+router.post('/consume-meal', async (req, res) => {
+  try {
+    const { eventId, userId, meal } = req.body;
+    
+    if (!eventId || !userId || !meal) {
+      return res.status(400).json({ error: 'Missing required fields: eventId, userId, meal' });
+    }
+
+    console.log('Processing meal consumption:', { eventId, userId, mealName: meal.name });
+
+    // Get the recipe ingredients
+    const ingredients = meal.ingredients || [];
+    console.log('Recipe ingredients:', ingredients);
+
+    // Get user's current pantry items
+    const pantryItems = await PantryItem.findAll({
+      where: { user_id: userId }
+    });
+
+    console.log('Current pantry items:', pantryItems.length);
+
+    // Process each ingredient and reduce from pantry if available
+    const reductionLog = [];
+    const insufficientItems = [];
+
+    for (const ingredient of ingredients) {
+      const ingredientName = ingredient.name.toLowerCase().trim();
+      console.log('Processing ingredient:', ingredientName);
+
+      // Find matching pantry item (fuzzy matching)
+      const matchingPantryItem = pantryItems.find(pantryItem => {
+        const pantryName = pantryItem.item_name.toLowerCase().trim();
+        // Check for exact match or if ingredient name contains pantry item name
+        return pantryName === ingredientName || 
+               ingredientName.includes(pantryName) || 
+               pantryName.includes(ingredientName);
+      });
+
+      if (matchingPantryItem) {
+        console.log('Found matching pantry item:', matchingPantryItem.item_name, 'Current quantity:', matchingPantryItem.quantity);
+        
+        // Calculate reduction amount (default to 1 if we can't parse the amount)
+        let reductionAmount = 1;
+        if (ingredient.amount) {
+          const amountMatch = ingredient.amount.match(/(\d+(?:\.\d+)?)/);
+          if (amountMatch) {
+            reductionAmount = Math.max(1, Math.floor(parseFloat(amountMatch[1])));
+          }
+        }
+
+        if (matchingPantryItem.quantity >= reductionAmount) {
+          // Reduce the quantity
+          const newQuantity = matchingPantryItem.quantity - reductionAmount;
+          await matchingPantryItem.update({ quantity: newQuantity });
+          
+          reductionLog.push({
+            ingredient: ingredient.name,
+            pantryItem: matchingPantryItem.item_name,
+            reduced: reductionAmount,
+            remainingQuantity: newQuantity
+          });
+
+          console.log(`Reduced ${matchingPantryItem.item_name} by ${reductionAmount}, remaining: ${newQuantity}`);
+        } else {
+          insufficientItems.push({
+            ingredient: ingredient.name,
+            pantryItem: matchingPantryItem.item_name,
+            requested: reductionAmount,
+            available: matchingPantryItem.quantity
+          });
+
+          console.log(`Insufficient quantity for ${matchingPantryItem.item_name}: requested ${reductionAmount}, available ${matchingPantryItem.quantity}`);
+        }
+      } else {
+        console.log('No matching pantry item found for:', ingredientName);
+      }
+    }
+
+    // TODO: Record the consumption event in a meal_consumption table for tracking
+    // This would be useful for analytics and meal history
+
+    res.json({
+      success: true,
+      message: 'Meal marked as consumed',
+      eventId,
+      reductionLog,
+      insufficientItems,
+      totalReductions: reductionLog.length,
+      totalIngredients: ingredients.length
+    });
+
+  } catch (error) {
+    console.error('Error processing meal consumption:', error);
+    res.status(500).json({
+      error: 'Failed to process meal consumption',
       details: error.message
     });
   }

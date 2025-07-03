@@ -5,24 +5,8 @@ const XAuthButton = ({ onSuccess, onError }) => {
     const handleXLogin = async () => {
         try {
           // Get the authorization URL from our backend
-          const response = await fetch('http://localhost:3001/api/auth/x/authorize', {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json'
-            }
-          });
-      
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Failed to get auth URL:', {
-              status: response.status,
-              statusText: response.statusText,
-              error: errorText
-            });
-            throw new Error(`Failed to get authorization URL: ${response.status} ${response.statusText}`);
-          }
-      
-          const data = await response.json();
+          const response = await api.get('/api/auth/x/authorize');
+          const data = response.data;
           if (!data.url) {
             throw new Error('No authorization URL received from server');
           }
