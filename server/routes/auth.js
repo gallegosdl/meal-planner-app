@@ -926,20 +926,22 @@ router.post('/facebook', async (req, res) => {
       const updates = [
         'last_login = CURRENT_TIMESTAMP',
         'name = $1',
-        'oauth_token_hash = $2'
+        'oauth_token_hash = $2',
+        'oauth_provider = $3'
       ];
       
       const updateParams = [
         userData.name,
         crypto.createHash('sha256').update(access_token).digest('hex'),
-        user.id
+        'facebook'
       ];
 
       if (!user.oauth_sub_id) {
-        updates.push('oauth_sub_id = $3', 'oauth_provider = $4');
-        updateParams.splice(2, 0, userData.id, 'facebook');
-        updateParams.push(user.id);
+        updates.push('oauth_sub_id = $4');
+        updateParams.push(userData.id);
       }
+
+      updateParams.push(user.id);
 
       const updateQuery = `
         UPDATE users 
