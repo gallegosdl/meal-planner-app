@@ -1,10 +1,16 @@
 // services/openaiService.js
 const OpenAI = require('openai');
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
 
-exports.parseUserIntent = async (inputText) => {
+// Create OpenAI client with provided API key
+const createOpenAIClient = (apiKey) => {
+  if (!apiKey) {
+    throw new Error('OpenAI API key is required');
+  }
+  return new OpenAI({ apiKey });
+};
+
+exports.parseUserIntent = async (inputText, apiKey) => {
+  const openai = createOpenAIClient(apiKey);
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [

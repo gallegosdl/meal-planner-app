@@ -9,7 +9,7 @@ exports.parseIntentHandler = async (req, res) => {
       return res.status(400).json({ error: 'Missing or invalid input text' });
     }
 
-    const parsedIntent = await parseUserIntent(text);
+    const parsedIntent = await parseUserIntent(text, req.apiKey);
 
     // Extra validation
     if (
