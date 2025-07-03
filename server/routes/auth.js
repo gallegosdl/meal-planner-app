@@ -47,45 +47,51 @@ class OAuthStateManager {
   constructor() {
     this.isProduction = process.env.NODE_ENV === 'production';
     
+    // Always initialize memory store as fallback
+    this.memoryStore = new Map();
+    
     if (this.isProduction) {
-      // In production, we'll use the existing Redis connection
+      // In production, prefer Redis but fallback to memory if Redis not ready
       this.useRedis = true;
     } else {
-      // In development, use in-memory with proper cleanup
-      this.memoryStore = new Map();
+      // In development, use in-memory only
       this.useRedis = false;
-      
-      // Clean up expired states every 5 minutes
-      setInterval(() => {
-        const now = Date.now();
-        for (const [key, value] of this.memoryStore.entries()) {
-          if (now > value.expires) {
-            this.memoryStore.delete(key);
-          }
-        }
-      }, 5 * 60 * 1000);
     }
+      
+    // Clean up expired states every 5 minutes
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, value] of this.memoryStore.entries()) {
+        if (now > value.expires) {
+          this.memoryStore.delete(key);
+        }
+      }
+    }, 5 * 60 * 1000);
   }
 
   async store(state, data, ttlMinutes = 10) {
     const expires = Date.now() + (ttlMinutes * 60 * 1000);
     const storeData = { ...data, expires };
 
-    if (this.useRedis && global.redisClient) {
+    if (this.useRedis && global.redisClient && global.redisClient.isReady) {
       // Store in Redis with TTL
       const key = `oauth:x:${state}`;
       await global.redisClient.setEx(key, ttlMinutes * 60, JSON.stringify(storeData));
+      console.log('✅ OAuth state stored in Redis:', { state, key });
     } else {
-      // Store in memory
+      // Store in memory (fallback)
+      if (!this.memoryStore) this.memoryStore = new Map();
       this.memoryStore.set(state, storeData);
+      console.log('✅ OAuth state stored in memory:', { state, useRedis: this.useRedis, redisReady: global.redisClient?.isReady });
     }
   }
 
   async get(state) {
-    if (this.useRedis && global.redisClient) {
+    if (this.useRedis && global.redisClient && global.redisClient.isReady) {
       try {
         const key = `oauth:x:${state}`;
         const data = await global.redisClient.get(key);
+        console.log('🔍 OAuth state retrieval from Redis:', { state, key, found: !!data });
         if (!data) return null;
         
         const parsed = JSON.parse(data);
@@ -100,7 +106,10 @@ class OAuthStateManager {
         return null;
       }
     } else {
+      // Fallback to memory store
+      if (!this.memoryStore) this.memoryStore = new Map();
       const data = this.memoryStore.get(state);
+      console.log('🔍 OAuth state retrieval from memory:', { state, found: !!data, useRedis: this.useRedis, redisReady: global.redisClient?.isReady });
       if (!data) return null;
       
       // Check if expired
@@ -113,10 +122,12 @@ class OAuthStateManager {
   }
 
   async delete(state) {
-    if (this.useRedis && global.redisClient) {
+    if (this.useRedis && global.redisClient && global.redisClient.isReady) {
       const key = `oauth:x:${state}`;
       await global.redisClient.del(key);
     } else {
+      // Fallback to memory store
+      if (!this.memoryStore) this.memoryStore = new Map();
       this.memoryStore.delete(state);
     }
   }
@@ -1256,13 +1267,22 @@ router.get('/x/callback', async (req, res) => {
         ? 'https://meal-planner-app-3m20.onrender.com'
         : 'http://localhost:3001';
         
+      console.log('🔄 Attempting token exchange with:', {
+        backendOrigin,
+        codePresent: !!code,
+        codeVerifierPresent: !!codeVerifier,
+        redirectUri: `${backendOrigin}/api/auth/x/callback`,
+        clientIdPresent: !!process.env.TWITTER_CLIENT_ID,
+        clientSecretPresent: !!process.env.TWITTER_CLIENT_SECRET
+      });
+
       const { accessToken, refreshToken, expiresIn } = await twitterClient.loginWithOAuth2({
         code,
         codeVerifier,
         redirectUri: `${backendOrigin}/api/auth/x/callback`
       });
 
-      console.log('Token exchange successful');
+      console.log('✅ Token exchange successful');
 
       // Store tokens in session
       req.session.xAccessToken = accessToken;
@@ -1273,7 +1293,7 @@ router.get('/x/callback', async (req, res) => {
       const loggedClient = new TwitterApi(accessToken);
       const user = await loggedClient.v2.me();
 
-      console.log('User info retrieved:', { 
+      console.log('✅ User info retrieved:', { 
         id: user.data.id,
         username: user.data.username
       });
@@ -1298,18 +1318,40 @@ router.get('/x/callback', async (req, res) => {
           if (window.opener) {
             window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${frontendOrigin}');
             window.close();
+          } else {
+            // If no opener, redirect to frontend with success
+            window.location.href = '${frontendOrigin}?x_auth_success=true';
           }
         </script>
       `);
 
     } catch (tokenError) {
-      console.error('Token exchange error:', {
+      console.error('❌ Token exchange failed:', {
         error: tokenError.message,
         code: tokenError.code,
+        status: tokenError.status,
+        statusText: tokenError.statusText,
         data: tokenError.data,
-        stack: tokenError.stack
+        response: tokenError.response?.data,
+        stack: tokenError.stack?.split('\n').slice(0, 3)
       });
-      throw tokenError;
+
+      // Enhanced error message based on error type
+      let errorMessage = 'Authentication failed';
+      
+      if (tokenError.status === 401) {
+        errorMessage = 'Request failed with code 401 - Invalid credentials or expired authorization';
+      } else if (tokenError.status === 400) {
+        errorMessage = 'Request failed with code 400 - Invalid request parameters';
+      } else if (tokenError.message?.includes('redirect_uri')) {
+        errorMessage = 'Callback URL mismatch - Please check X app configuration';
+      } else if (tokenError.message?.includes('code_verifier')) {
+        errorMessage = 'PKCE verification failed - Security validation error';
+      } else if (tokenError.message) {
+        errorMessage = tokenError.message;
+      }
+
+      throw new Error(errorMessage);
     }
 
   } catch (error) {

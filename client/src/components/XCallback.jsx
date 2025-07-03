@@ -1,3 +1,4 @@
+// client/src/components/XCallback.jsx
 import React, { useEffect } from 'react';
 
 const XCallback = () => {

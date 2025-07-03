@@ -1,3 +1,4 @@
+// client/src/components/WelcomeModal.jsx
 import React, { useState, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import SignupModal from './SignupModal';
