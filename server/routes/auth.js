@@ -1114,8 +1114,8 @@ router.post('/x', async (req, res) => {
     // Generate auth URL using OAuth 2.0
     const { url, state, codeVerifier } = await twitterClient.generateOAuth2AuthLink(
       process.env.NODE_ENV === 'production'
-        ? 'https://meal-planner-frontend-woan.onrender.com/api/auth/x/callback'
-        : 'http://localhost:3000/api/auth/x/callback',
+        ? 'https://meal-planner-app-3m20.onrender.com/api/auth/x/callback'
+        : 'http://localhost:3001/api/auth/x/callback',
       { 
         scope: ['users.read', 'tweet.read', 'tweet.write', 'offline.access']
       }
