@@ -1273,20 +1273,6 @@ router.get('/x/callback', async (req, res) => {
     console.log('State verified, exchanging code for token with stored verifier');
 
     try {
-      // Use the global twitterClient instance
-      const backendOrigin = process.env.NODE_ENV === 'production'
-        ? 'https://meal-planner-app-3m20.onrender.com'
-        : 'http://localhost:3001';
-        
-      console.log('🔄 Attempting token exchange with:', {
-        backendOrigin,
-        codePresent: !!code,
-        codeVerifierPresent: !!codeVerifier,
-        redirectUri: `${backendOrigin}/api/auth/x/callback`,
-        clientIdPresent: !!process.env.TWITTER_CLIENT_ID,
-        clientSecretPresent: !!process.env.TWITTER_CLIENT_SECRET
-      });
-
       // Create a fresh client for token exchange
       const exchangeClient = new TwitterApi({ 
         clientId: process.env.TWITTER_CLIENT_ID,
@@ -1296,7 +1282,7 @@ router.get('/x/callback', async (req, res) => {
       const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
         code,
         codeVerifier,
-        redirectUri: `${backendOrigin}/api/auth/x/callback`
+        redirectUri: `${frontendOrigin}/api/auth/x/callback`
       });
 
       console.log('✅ Token exchange successful');
