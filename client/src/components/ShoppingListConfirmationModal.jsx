@@ -5,6 +5,10 @@ import api from '../services/api';
 
 // Helper function to categorize ingredients using shared config
 const categorizeIngredient = (name) => {
+  if (!name || typeof name !== 'string') {
+    return 'OTHER';
+  }
+  
   const lowercaseName = name.toLowerCase();
   
   // First check pantry categories
@@ -46,14 +50,15 @@ const ShoppingListConfirmationModal = ({
           const pantryItems = new Set(
             Object.values(res.data)
               .flat()
-              .map(item => item.item_name.toLowerCase())
+              .map(item => item.item_name ? item.item_name.toLowerCase() : '')
+              .filter(name => name !== '')
           );
           setUserPantryItems(pantryItems);
           
           // Pre-check items that exist in user's pantry
           const preCheckedItems = new Set(
             ingredients
-              .filter(ing => pantryItems.has(ing.name.toLowerCase()))
+              .filter(ing => ing.name && pantryItems.has(ing.name.toLowerCase()))
               .map(ing => ing.name)
           );
           setCheckedItems(preCheckedItems);
@@ -69,6 +74,12 @@ const ShoppingListConfirmationModal = ({
     if (!ingredients) return;
 
     const categorized = ingredients.reduce((acc, ingredient) => {
+      // Skip ingredients without names
+      if (!ingredient.name) {
+        console.warn('Skipping ingredient without name:', ingredient);
+        return acc;
+      }
+      
       const category = categorizeIngredient(ingredient.name);
       if (!acc[category]) acc[category] = [];
       acc[category].push(ingredient);
@@ -114,8 +125,8 @@ const ShoppingListConfirmationModal = ({
     const filtered = {};
     Object.entries(categorizedIngredients).forEach(([category, items]) => {
       const filteredItems = items.filter(item =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.display_text?.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.display_text && item.display_text.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       if (filteredItems.length > 0) {
         filtered[category] = filteredItems;
@@ -153,7 +164,7 @@ const ShoppingListConfirmationModal = ({
           <span className="text-white text-sm md:text-base">
             {ingredient.display_text || ingredient.name}
           </span>
-          {userPantryItems.has(ingredient.name.toLowerCase()) && (
+          {ingredient.name && userPantryItems.has(ingredient.name.toLowerCase()) && (
             <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
               In Pantry
             </span>

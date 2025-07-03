@@ -52,9 +52,9 @@ const BuildMealPlanWithPantryButton = ({
           likes: pantryItems, // Use pantry items as preferred foods
           dislikes: formData.dislikes.split(',').map(item => item.trim()).filter(Boolean),
           macros: {
-            protein: formData.macros.protein || 30,
-            carbs: formData.macros.carbs || 40,
-            fat: formData.macros.fat || 30
+            protein: formData.macros.protein || 50,
+            carbs: formData.macros.carbs || 35,
+            fat: formData.macros.fat || 15
           },
           mealsPerWeek: {
             breakfast: formData.mealsPerWeek.breakfast || 5,

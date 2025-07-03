@@ -26,6 +26,12 @@ const SendToInstacartButton = ({ mealPlan }) => {
     mealPlan.days.forEach(day =>
       Object.values(day.meals).forEach(meal =>
         meal.ingredients.forEach(ing => {
+          // Skip ingredients without names
+          if (!ing.name || typeof ing.name !== 'string') {
+            console.warn('Skipping ingredient without valid name:', ing);
+            return;
+          }
+          
           const amount = parseFloat(ing.amount) || 1;
           const key = ing.name.toLowerCase();
           
@@ -110,36 +116,72 @@ const SendToInstacartButton = ({ mealPlan }) => {
       const instacartUrl = await createShoppingList(filteredIngredients);
       
       if (instacartUrl) {
-        // Add items to pantry
-        await api.post('/api/pantry/bulk', {
+        // Add items to pantry using the smart bulk endpoint
+        const response = await api.post('/api/pantry/bulk-smart', {
           items: filteredIngredients.map(ingredient => ({
             item_name: ingredient.name,
-            quantity: 1,
-            category: determineCategory(ingredient.name)
-          }))
+            quantity: ingredient.quantity,
+            category: determineCategory(ingredient.name),
+            unit: ingredient.unit,
+            display_text: ingredient.display_text
+          })),
+          source: 'instacart_shopping_list'
         });
 
+        const result = response.data;
         setIsConfirmationModalOpen(false);
-        toast.success(
-          <>
-            <div className="flex flex-col items-start">
-              <span className="font-semibold text-base">Shopping list created!</span>
-              <span className="text-sm">Items added to your pantry.</span>
-            </div>
-          </>,
-          {
-            duration: 6000,
-            position: 'bottom-center',
-            style: {
-              background: '#22c55e',    // Tailwind green-500
-              color: '#ffffff',
-              padding: '16px',
-              borderRadius: '12px',
-              fontSize: '16px',
-              maxWidth: '90vw',
-            },
+        
+        // Show detailed success message with pantry update info
+        if (result.success) {
+          const { created, updated, errors } = result.summary;
+          let message = `Shopping list created!\n`;
+          
+          if (created > 0) {
+            message += `Added ${created} new items to pantry.\n`;
           }
-        );
+          if (updated > 0) {
+            message += `Updated ${updated} existing pantry items.\n`;
+          }
+          if (errors > 0) {
+            message += `Note: ${errors} items had processing errors.`;
+          }
+
+          toast.success(
+            <>
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-base">Shopping list created!</span>
+                <span className="text-sm">
+                  {created > 0 && `Added ${created} new items to pantry. `}
+                  {updated > 0 && `Updated ${updated} existing pantry items.`}
+                  {errors > 0 && ` Note: ${errors} items had processing errors.`}
+                </span>
+              </div>
+            </>,
+            {
+              duration: 6000,
+              position: 'bottom-center',
+              style: {
+                background: '#22c55e',    // Tailwind green-500
+                color: '#ffffff',
+                padding: '16px',
+                borderRadius: '12px',
+                fontSize: '16px',
+                maxWidth: '90vw',
+              },
+            }
+          );
+
+          // Show detailed breakdown if there are errors
+          if (errors > 0 && result.details?.errors) {
+            setTimeout(() => {
+              console.log('Pantry addition errors:', result.details.errors);
+              toast.error(
+                `Some items couldn't be added to pantry. Check console for details.`,
+                { duration: 4000 }
+              );
+            }, 1000);
+          }
+        }
       }
     } catch (error) {
       console.error('Error:', error);

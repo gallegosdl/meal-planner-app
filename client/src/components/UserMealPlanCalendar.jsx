@@ -27,9 +27,11 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     
     try {
       setIsRefreshing(true);
-      // Get meal plans for current week
+      // Get meal plans for current week AND next 2 weeks to capture all generated meals
       const startDate = moment().startOf('week').format('YYYY-MM-DD');
-      const endDate = moment().endOf('week').format('YYYY-MM-DD');
+      const endDate = moment().endOf('week').add(2, 'weeks').format('YYYY-MM-DD');
+      
+      console.log(`🗓️ Fetching meal plans from ${startDate} to ${endDate}`);
       
       const response = await api.get(`/api/meal-plans/user-meal-plans/${userId}?startDate=${startDate}&endDate=${endDate}`);
       const data = response.data;
@@ -49,6 +51,8 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
           }
         }
       }
+      
+      console.log(`📊 Found ${data.length} meal plans covering ${Object.keys(data.reduce((acc, plan) => ({...acc, ...plan.dates}), {})).length} unique dates`);
       
       setMealPlans(data);
       setError(null);
@@ -153,24 +157,62 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
         setConsumedMeals(newConsumedMeals);
         setShowMealModal(false);
 
-        // Show detailed success message
-        if (result.totalReductions > 0) {
-          toast.success(
-            `Meal consumed! Reduced ${result.totalReductions} pantry items.`,
-            { duration: 3000 }
-          );
+        // Show detailed success message based on improved response
+        if (result.success) {
+          const { summary } = result;
+          const { totalReductions, totalInsufficientItems, totalNoMatchItems, totalIngredients, successRate } = summary;
           
-          // Show insufficient items warning if any
-          if (result.insufficientItems.length > 0) {
-            setTimeout(() => {
-              toast.error(
-                `Warning: ${result.insufficientItems.length} ingredients had insufficient pantry quantities.`,
-                { duration: 4000 }
-              );
-            }, 500);
+          if (totalReductions > 0) {
+            toast.success(
+              <>
+                <div className="flex flex-col items-start">
+                  <span className="font-semibold">Meal consumed!</span>
+                  <span className="text-sm">
+                    Reduced {totalReductions} pantry items ({successRate}% success rate)
+                  </span>
+                </div>
+              </>,
+              { duration: 3000 }
+            );
+            
+            // Show detailed breakdown for partial success
+            if (totalInsufficientItems > 0 || totalNoMatchItems > 0) {
+              setTimeout(() => {
+                let warningMessage = '';
+                if (totalInsufficientItems > 0) {
+                  warningMessage += `${totalInsufficientItems} ingredients had insufficient pantry quantities. `;
+                }
+                if (totalNoMatchItems > 0) {
+                  warningMessage += `${totalNoMatchItems} ingredients not found in pantry.`;
+                }
+                
+                toast.error(warningMessage, { duration: 5000 });
+              }, 1000);
+            }
+          } else {
+            // No pantry items were reduced
+            toast.success('Meal marked as consumed!', { duration: 2000 });
+            
+            if (totalNoMatchItems > 0) {
+              setTimeout(() => {
+                toast.error(
+                  `No pantry items were found matching the ${totalIngredients} recipe ingredients.`,
+                  { duration: 4000 }
+                );
+              }, 500);
+            }
           }
-        } else {
-          toast.success('Meal marked as consumed!', { duration: 2000 });
+
+          // Log detailed breakdown for debugging
+          if (result.reductionLog?.length > 0) {
+            console.log('Pantry reductions:', result.reductionLog);
+          }
+          if (result.insufficientItems?.length > 0) {
+            console.log('Insufficient items:', result.insufficientItems);
+          }
+          if (result.noMatchItems?.length > 0) {
+            console.log('No match items:', result.noMatchItems);
+          }
         }
 
       } catch (error) {
@@ -284,11 +326,19 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     }
   }, [userId]);
 
-    // Convert meal plans to calendar events
-  const events = useMemo(() => 
-    (mealPlans || []).flatMap(plan => 
-      Object.entries(plan.dates || {}).flatMap(([dateStr, dateData]) =>
-        Object.entries(dateData?.meals || {}).map(([mealType, meal]) => {
+    // Convert meal plans to calendar events with deduplication
+  const events = useMemo(() => {
+    const eventMap = new Map(); // Use Map to deduplicate by eventId
+    
+    console.log(`🔄 Processing ${mealPlans?.length || 0} meal plans for calendar events...`);
+    
+    (mealPlans || []).forEach((plan, planIndex) => {
+      console.log(`📋 Processing meal plan ${planIndex + 1}: "${plan.title}" with ${Object.keys(plan.dates || {}).length} dates`);
+      
+      Object.entries(plan.dates || {}).forEach(([dateStr, dateData]) => {
+        console.log(`📅 Processing date: ${dateStr} with ${Object.keys(dateData?.meals || {}).length} meals`);
+        
+        Object.entries(dateData?.meals || {}).forEach(([mealType, meal]) => {
           // Ensure dateStr is in proper format and create a valid moment
           let mealDate;
           if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -308,13 +358,19 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
           // ✅ STABLE EVENT ID using standardized date format
           const eventId = `${mealDate.format('YYYY-MM-DD')}-${mealType}`;
           
+          // Skip if we already have this event (deduplication)
+          if (eventMap.has(eventId)) {
+            console.log(`🔍 Skipping duplicate event: ${eventId}`);
+            return;
+          }
+          
           // Use custom time if available, otherwise use default times
           const customTime = meal.customTime;
           const defaultHour = mealType === 'breakfast' ? 8 : mealType === 'lunch' ? 12 : 18;
           const startHour = customTime ? customTime.hour : defaultHour;
           const startMinute = customTime ? customTime.minute : 0;
           
-          return {
+          const event = {
             id: eventId,
             title: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)}: ${meal.recipe?.name || 'Unknown meal'}`,
             start: mealDate.clone().hour(startHour).minute(startMinute).second(0).toDate(),
@@ -325,10 +381,18 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             consumed: consumedMeals.has(eventId),
             plannedMacros: meal.plannedMacros
           };
-        })
-      )
-    ), [mealPlans, consumedMeals]
-  );
+          
+          console.log(`✅ Created event: ${eventId} - ${event.title} on ${mealDate.format('YYYY-MM-DD')}`);
+          eventMap.set(eventId, event);
+        });
+      });
+    });
+    
+    const uniqueEvents = Array.from(eventMap.values());
+    console.log(`📅 Generated ${uniqueEvents.length} unique events from ${mealPlans?.length || 0} meal plans`);
+    console.log(`🗓️ Event dates: ${uniqueEvents.map(e => moment(e.start).format('MM-DD')).join(', ')}`);
+    return uniqueEvents;
+  }, [mealPlans, consumedMeals]);
 
   // Modal close handler
   const handleCloseModal = () => {
@@ -422,6 +486,7 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             endAccessor="end"
             defaultView="week"
             views={['week', 'day']}
+            defaultDate={moment().toDate()}
             min={moment().hour(6).minute(0).toDate()}
             max={moment().hour(21).minute(0).toDate()}
             onSelectEvent={handleSelectEvent}

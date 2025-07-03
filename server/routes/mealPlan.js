@@ -4,6 +4,8 @@ const router = express.Router();
 const MealPlanGenerator = require('../services/mealPlanGenerator');
 const GoogleCalendarService = require('../services/googleCalendarService');
 const PantryItem = require('../models/PantryItem');
+const MealConsumption = require('../models/MealConsumption');
+const { matchIngredientAmount, parseQuantityAndUnit } = require('../utils/parseQuantityAndUnit');
 
 // Middleware to get API key from request
 const requireApiKey = (req, res, next) => {
@@ -19,12 +21,46 @@ const requireApiKey = (req, res, next) => {
 router.post('/generate-meal-plan', requireApiKey, async (req, res) => {
   try {
     const mealPlanGenerator = new MealPlanGenerator(req.apiKey);
-    const mealPlan = await mealPlanGenerator.generateMealPlan(req.body);
+    
+    // ORIGINAL: Uncomment line below to use original method
+    // const mealPlan = await mealPlanGenerator.generateMealPlan(req.body);
+    
+    // NEW: Comment out lines below to test original method
+    const useStreaming = req.body.useStreaming || false;
+    const totalDays = req.body.totalDays || 2;
+    
+    let mealPlan;
+    if (useStreaming) {
+      console.log('🚀 Using NEW streaming meal plan generation');
+      mealPlan = await mealPlanGenerator.generateMealPlanStreamingTest(req.body, totalDays);
+    } else {
+      console.log('📋 Using ORIGINAL meal plan generation');
+      mealPlan = await mealPlanGenerator.generateMealPlan(req.body);
+    }
+    
     res.json(mealPlan);
   } catch (error) {
     console.error('Error generating meal plan:', error);
     res.status(500).json({ 
       error: 'Failed to generate meal plan',
+      details: error.message 
+    });
+  }
+});
+
+// NEW: Test route for streaming meal plan generation
+router.post('/generate-meal-plan-streaming', requireApiKey, async (req, res) => {
+  try {
+    const mealPlanGenerator = new MealPlanGenerator(req.apiKey);
+    const totalDays = req.body.totalDays || 7;
+    
+    console.log(`🚀 Generating streaming meal plan for ${totalDays} days`);
+    const mealPlan = await mealPlanGenerator.generateMealPlanStreamingTest(req.body, totalDays);
+    res.json(mealPlan);
+  } catch (error) {
+    console.error('Error generating streaming meal plan:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate streaming meal plan',
       details: error.message 
     });
   }
@@ -150,80 +186,256 @@ router.post('/consume-meal', async (req, res) => {
 
     console.log('Current pantry items:', pantryItems.length);
 
+    // Enhanced ingredient matching function
+    const findMatchingPantryItem = (ingredientName, pantryItems) => {
+      const ingredient = ingredientName.toLowerCase().trim();
+      
+      // Remove common suffixes and prefixes that might not match
+      const cleanIngredient = ingredient
+        .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
+        .replace(/\s*(to taste|fresh|dried|ground|whole|chopped|diced|sliced|minced)\s*/g, '') // Remove common modifiers
+        .replace(/\s*,.*$/g, '') // Remove comma and everything after
+        .trim();
+
+      // Try different matching strategies
+      const strategies = [
+        // 1. Exact match
+        (ingredient, pantryName) => pantryName === ingredient,
+        
+        // 2. Cleaned exact match
+        (ingredient, pantryName) => pantryName === cleanIngredient,
+        
+        // 3. Ingredient contains pantry item (for compound ingredients)
+        (ingredient, pantryName) => ingredient.includes(pantryName) && pantryName.length > 2,
+        
+        // 4. Pantry item contains ingredient (for generic pantry items)
+        (ingredient, pantryName) => pantryName.includes(ingredient) && ingredient.length > 2,
+        
+        // 5. Cleaned ingredient contains pantry item
+        (ingredient, pantryName) => cleanIngredient.includes(pantryName) && pantryName.length > 2,
+        
+        // 6. Pantry item contains cleaned ingredient
+        (ingredient, pantryName) => pantryName.includes(cleanIngredient) && cleanIngredient.length > 2,
+        
+        // 7. Fuzzy matching for common variations
+        (ingredient, pantryName) => {
+          const variations = [
+            [/\bchicken\b/, /\bchicken breast\b|\bchicken thigh\b/],
+            [/\bonion\b/, /\bonions\b|\byellow onion\b|\bwhite onion\b/],
+            [/\bgarlic\b/, /\bgarlic clove\b|\bgarlic powder\b/],
+            [/\btomato\b/, /\btomatoes\b|\btomato paste\b/],
+            [/\bbell pepper\b/, /\bred pepper\b|\bgreen pepper\b|\byellow pepper\b/],
+            [/\brice\b/, /\bwhite rice\b|\bbrown rice\b|\bbasmati rice\b/],
+            [/\bsalt\b/, /\bsea salt\b|\btable salt\b|\bkosher salt\b/],
+            [/\bpepper\b/, /\bblack pepper\b|\bwhite pepper\b|\bground pepper\b/]
+          ];
+          
+          for (const [pattern, variations] of variations) {
+            if (pattern.test(ingredient) && variations.test(pantryName)) {
+              return true;
+            }
+            if (pattern.test(pantryName) && variations.test(ingredient)) {
+              return true;
+            }
+          }
+          return false;
+        }
+      ];
+
+      // Try each strategy
+      for (const strategy of strategies) {
+        const match = pantryItems.find(item => {
+          const pantryName = item.item_name.toLowerCase().trim();
+          return strategy(ingredient, pantryName);
+        });
+        
+        if (match) {
+          console.log(`Matched "${ingredientName}" to "${match.item_name}" using strategy`);
+          return match;
+        }
+      }
+
+      return null;
+    };
+
     // Process each ingredient and reduce from pantry if available
     const reductionLog = [];
     const insufficientItems = [];
+    const noMatchItems = [];
+    const unitConversionLog = [];
 
     for (const ingredient of ingredients) {
-      const ingredientName = ingredient.name.toLowerCase().trim();
+      const ingredientName = ingredient.name;
       console.log('Processing ingredient:', ingredientName);
 
-      // Find matching pantry item (fuzzy matching)
-      const matchingPantryItem = pantryItems.find(pantryItem => {
-        const pantryName = pantryItem.item_name.toLowerCase().trim();
-        // Check for exact match or if ingredient name contains pantry item name
-        return pantryName === ingredientName || 
-               ingredientName.includes(pantryName) || 
-               pantryName.includes(ingredientName);
-      });
+      // Find matching pantry item using enhanced matching
+      const matchingPantryItem = findMatchingPantryItem(ingredientName, pantryItems);
 
       if (matchingPantryItem) {
         console.log('Found matching pantry item:', matchingPantryItem.item_name, 'Current quantity:', matchingPantryItem.quantity);
         
-        // Calculate reduction amount (default to 1 if we can't parse the amount)
-        let reductionAmount = 1;
-        if (ingredient.amount) {
-          const amountMatch = ingredient.amount.match(/(\d+(?:\.\d+)?)/);
-          if (amountMatch) {
-            reductionAmount = Math.max(1, Math.floor(parseFloat(amountMatch[1])));
+        // Use unit-aware matching if both ingredient and pantry item have units
+        if (ingredient.amount && matchingPantryItem.unit) {
+          const matchResult = matchIngredientAmount(
+            ingredient.amount,
+            matchingPantryItem.quantity,
+            matchingPantryItem.unit
+          );
+          
+          unitConversionLog.push({
+            ingredient: ingredient.name,
+            recipeAmount: ingredient.amount,
+            pantryItem: matchingPantryItem.item_name,
+            pantryQuantity: matchingPantryItem.quantity,
+            pantryUnit: matchingPantryItem.unit,
+            ...matchResult
+          });
+          
+          if (matchResult.canUse) {
+            // Reduce the quantity using converted amount
+            const reductionAmount = matchResult.convertedAmount;
+            const newQuantity = matchingPantryItem.quantity - reductionAmount;
+            await matchingPantryItem.update({ quantity: newQuantity });
+            
+            reductionLog.push({
+              ingredient: ingredient.name,
+              ingredientAmount: ingredient.amount,
+              pantryItem: matchingPantryItem.item_name,
+              reduced: reductionAmount,
+              remainingQuantity: newQuantity,
+              unitConversion: matchResult.message
+            });
+
+            console.log(`Reduced ${matchingPantryItem.item_name} by ${reductionAmount} ${matchingPantryItem.unit}, remaining: ${newQuantity}`);
+          } else {
+            insufficientItems.push({
+              ingredient: ingredient.name,
+              ingredientAmount: ingredient.amount,
+              pantryItem: matchingPantryItem.item_name,
+              requested: matchResult.convertedAmount,
+              available: matchingPantryItem.quantity,
+              unit: matchingPantryItem.unit,
+              conversionMessage: matchResult.message
+            });
+
+            console.log(`Insufficient quantity for ${matchingPantryItem.item_name}: ${matchResult.message}`);
+          }
+        } else {
+          // Fallback to basic quantity parsing for items without proper units
+          const basicQuantity = parseQuantityAndUnit(ingredient.amount ? `(${ingredient.amount})` : '(1)').quantity;
+          const reductionAmount = Math.max(1, Math.floor(basicQuantity));
+
+          if (matchingPantryItem.quantity >= reductionAmount) {
+            // Reduce the quantity
+            const newQuantity = matchingPantryItem.quantity - reductionAmount;
+            await matchingPantryItem.update({ quantity: newQuantity });
+            
+            reductionLog.push({
+              ingredient: ingredient.name,
+              ingredientAmount: ingredient.amount,
+              pantryItem: matchingPantryItem.item_name,
+              reduced: reductionAmount,
+              remainingQuantity: newQuantity,
+              unitConversion: 'Basic quantity parsing (no unit conversion)'
+            });
+
+            console.log(`Reduced ${matchingPantryItem.item_name} by ${reductionAmount}, remaining: ${newQuantity}`);
+          } else {
+            insufficientItems.push({
+              ingredient: ingredient.name,
+              ingredientAmount: ingredient.amount,
+              pantryItem: matchingPantryItem.item_name,
+              requested: reductionAmount,
+              available: matchingPantryItem.quantity,
+              unit: matchingPantryItem.unit || 'units',
+              conversionMessage: 'Basic quantity parsing (no unit conversion)'
+            });
+
+            console.log(`Insufficient quantity for ${matchingPantryItem.item_name}: requested ${reductionAmount}, available ${matchingPantryItem.quantity}`);
           }
         }
-
-        if (matchingPantryItem.quantity >= reductionAmount) {
-          // Reduce the quantity
-          const newQuantity = matchingPantryItem.quantity - reductionAmount;
-          await matchingPantryItem.update({ quantity: newQuantity });
-          
-          reductionLog.push({
-            ingredient: ingredient.name,
-            pantryItem: matchingPantryItem.item_name,
-            reduced: reductionAmount,
-            remainingQuantity: newQuantity
-          });
-
-          console.log(`Reduced ${matchingPantryItem.item_name} by ${reductionAmount}, remaining: ${newQuantity}`);
-        } else {
-          insufficientItems.push({
-            ingredient: ingredient.name,
-            pantryItem: matchingPantryItem.item_name,
-            requested: reductionAmount,
-            available: matchingPantryItem.quantity
-          });
-
-          console.log(`Insufficient quantity for ${matchingPantryItem.item_name}: requested ${reductionAmount}, available ${matchingPantryItem.quantity}`);
-        }
       } else {
+        noMatchItems.push({
+          ingredient: ingredient.name,
+          ingredientAmount: ingredient.amount
+        });
         console.log('No matching pantry item found for:', ingredientName);
       }
     }
 
-    // TODO: Record the consumption event in a meal_consumption table for tracking
-    // This would be useful for analytics and meal history
+    // Create consumption result object
+    const consumptionResult = {
+      reductionLog,
+      insufficientItems,
+      noMatchItems,
+      unitConversionLog,
+      summary: {
+        totalReductions: reductionLog.length,
+        totalInsufficientItems: insufficientItems.length,
+        totalNoMatchItems: noMatchItems.length,
+        totalIngredients: ingredients.length,
+        successRate: Math.round((reductionLog.length / ingredients.length) * 100),
+        unitConversionsUsed: unitConversionLog.filter(log => log.canUse).length
+      }
+    };
+
+    // Record the consumption event in the database
+    try {
+      const consumptionRecord = await MealConsumption.recordConsumption(
+        userId,
+        eventId,
+        meal.name,
+        consumptionResult
+      );
+      console.log('Consumption event recorded:', consumptionRecord.id);
+    } catch (trackingError) {
+      console.error('Error recording consumption event:', trackingError);
+      // Don't fail the entire operation if tracking fails
+    }
 
     res.json({
       success: true,
       message: 'Meal marked as consumed',
       eventId,
-      reductionLog,
-      insufficientItems,
-      totalReductions: reductionLog.length,
-      totalIngredients: ingredients.length
+      ...consumptionResult
     });
 
   } catch (error) {
     console.error('Error processing meal consumption:', error);
     res.status(500).json({
       error: 'Failed to process meal consumption',
+      details: error.message
+    });
+  }
+});
+
+// Get consumption statistics for a user
+router.get('/consumption-stats/:userId?', async (req, res) => {
+  try {
+    const userId = req.params.userId || req.user?.id;
+    const { startDate, endDate } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+
+    const stats = await MealConsumption.getConsumptionStats(userId, start, end);
+    
+    res.json({
+      success: true,
+      stats,
+      period: {
+        startDate: start,
+        endDate: end
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching consumption stats:', error);
+    res.status(500).json({
+      error: 'Failed to fetch consumption statistics',
       details: error.message
     });
   }
