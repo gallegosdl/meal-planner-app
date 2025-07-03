@@ -1422,5 +1422,27 @@ router.post('/x/complete', async (req, res) => {
   }
 });
 
+// OAuth error handler route
+router.get('/error', (req, res) => {
+  const error = req.query.error || 'Unknown error';
+  const frontendOrigin = process.env.NODE_ENV === 'production'
+    ? 'https://meal-planner-frontend-woan.onrender.com'
+    : 'http://localhost:3000';
+
+  // Send HTML that will post message to parent and close popup
+  res.send(`
+    <script>
+      const error = ${JSON.stringify(error)};
+      if (window.opener) {
+        window.opener.postMessage({ type: 'X_AUTH_ERROR', error }, '${frontendOrigin}');
+        window.close();
+      } else {
+        // If no opener, redirect to frontend with error
+        window.location.href = '${frontendOrigin}?x_auth_error=' + encodeURIComponent(error);
+      }
+    </script>
+  `);
+});
+
 module.exports = router;
 module.exports.authenticateToken = authenticateToken; 
