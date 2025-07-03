@@ -879,7 +879,7 @@ router.post('/facebook', async (req, res) => {
 
     let user;
     if (result.rows.length === 0) {
-      // Create new user with enhanced security and validation
+      // Create new user with enhanced security and validation (no avatar_url in DB)
       console.log('Creating new user with email:', userData.email);
       result = await client.query(
         `INSERT INTO users (
@@ -889,17 +889,15 @@ router.post('/facebook', async (req, res) => {
           email_verified,
           created_at,
           name,
-          avatar_url,
           last_login,
           oauth_token_hash
-        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, $4, $5, CURRENT_TIMESTAMP, $6) 
+        ) VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP, $5) 
         RETURNING *`,
         [
           userData.email,
           userData.id,
           'facebook',
           userData.name,
-          pictureUrl,
           crypto.createHash('sha256').update(access_token).digest('hex')
         ]
       );
@@ -922,7 +920,7 @@ router.post('/facebook', async (req, res) => {
       });
     } else {
       user = result.rows[0];
-      // Update existing user with enhanced security
+      // Update existing user with enhanced security (no avatar_url in DB)
       const updates = [
         'last_login = CURRENT_TIMESTAMP',
         'name = $1',
@@ -1005,12 +1003,12 @@ router.post('/facebook', async (req, res) => {
         : 'localhost'
     });
 
-    // Return sanitized user data
+    // Return sanitized user data with current profile picture
     const sanitizedUserData = {
       id: user.id,
       email: user.email,
       name: user.name,
-      avatar_url: user.avatar_url,
+      avatar_url: pictureUrl, // Return current profile picture from Facebook API
       sessionToken
     };
 

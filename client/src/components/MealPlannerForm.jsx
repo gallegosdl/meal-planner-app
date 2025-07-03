@@ -556,6 +556,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
                 onMealPlanGenerated={setMealPlan}
                 isLoading={isLoading}
                 setIsLoading={setIsLoading}
+                user={user}
               />
             </div>
             <div>

@@ -10,7 +10,8 @@ const HouseholdBox = ({
   setIsPantryModalOpen,
   onMealPlanGenerated,
   isLoading,
-  setIsLoading 
+  setIsLoading,
+  user
 }) => (
   
   <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-between 
@@ -23,7 +24,7 @@ const HouseholdBox = ({
             <>
               {householdData.householdMembers[0].name.split(' ')[0]} {/* First name */}
             </>
-          ) : 'Guest'}
+          ) : (user?.name ? user.name.split(' ')[0] : 'Guest')}
         </h2>
         {/*<button
           onClick={() => setIsPantryModalOpen(true)}
@@ -52,38 +53,53 @@ const HouseholdBox = ({
       </div>
       {/* Member Photos Grid */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        {householdData.householdMembers.slice(0, 1).map((member) => (
-          <div key={member.id} className="relative group">
-            <label 
-              className={`block w-full aspect-square rounded-xl cursor-pointer overflow-hidden
-                ${member.photo ? 'bg-transparent' : 'bg-[#2A3142] hover:bg-[#313d4f]'}`}
-            >
-              {member.photo ? (
-                <img 
-                  src={member.photo} 
-                  alt={member.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
+        {householdData.householdMembers.slice(0, 1).map((member) => {
+          // Use local photo first, then OAuth avatar as fallback
+          const displayPhoto = member.photo || user?.avatar_url;
+          
+          return (
+            <div key={member.id} className="relative group">
+              <label 
+                className={`block w-full aspect-square rounded-xl cursor-pointer overflow-hidden
+                  ${displayPhoto ? 'bg-transparent' : 'bg-[#2A3142] hover:bg-[#313d4f]'}`}
+              >
+                {displayPhoto ? (
+                  <img 
+                    src={displayPhoto} 
+                    alt={member.name || user?.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // If image fails to load, show default avatar
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                {!displayPhoto && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-2xl">👤</span>
+                  </div>
+                )}
+                {/* Fallback div for when image fails to load */}
+                <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
                   <span className="text-2xl">👤</span>
                 </div>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handlePhotoUpload(member.id, e.target.files[0])}
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-xs text-white">Change Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handlePhotoUpload(member.id, e.target.files[0])}
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-xs text-white">Change Photo</span>
+                </div>
+              </label>
+              <div className="text-xs text-gray-400 text-center mt-1 truncate">
+                {member.name || user?.name}
               </div>
-            </label>
-            <div className="text-xs text-gray-400 text-center mt-1 truncate">
-              {member.name}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {/* Size Controls */}
       <div className="flex justify-between items-center mt-4">
