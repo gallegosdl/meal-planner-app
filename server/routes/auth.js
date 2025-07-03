@@ -1245,129 +1245,87 @@ router.get('/x/callback', async (req, res) => {
       storeSize: oauthStateManager.getStoreSize()
     });
 
-    // Verify state and get stored data
     const backendOrigin = process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-app-3m20.onrender.com'
       : 'http://localhost:3001';
-      
+    
+    // 1️⃣ Validate and retrieve stored OAuth state
     const storedData = await oauthStateManager.get(state);
     if (!storedData) {
-      console.error('No stored OAuth state found for:', state);
-      
-      // Log invalid state attempt
+      console.error('❌ No stored OAuth state found for:', state);
       oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
-      
       return res.redirect(`${backendOrigin}/auth/error?error=invalid_or_expired_state`);
     }
 
-    // Additional security checks
+    // 2️⃣ Security checks (optional but recommended)
     if (storedData.userAgent !== req.get('User-Agent')) {
       console.warn('⚠️ User-Agent mismatch in OAuth callback');
     }
-    
     if (storedData.ip !== req.ip) {
       console.warn('⚠️ IP address mismatch in OAuth callback');
     }
 
     const { codeVerifier } = storedData;
-    console.log('State verified, exchanging code for token with stored verifier');
+    console.log('✅ State verified, exchanging code for token with stored verifier');
 
-    try {
-      // Create a fresh client for token exchange
-      const exchangeClient = new TwitterApi({ 
-        clientId: process.env.TWITTER_CLIENT_ID,
-        clientSecret: process.env.TWITTER_CLIENT_SECRET 
-      });
+    // 3️⃣ Exchange code for tokens using ClientSecret for HTTP Basic auth
+    const exchangeClient = new TwitterApi({
+      clientId: process.env.TWITTER_CLIENT_ID,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET
+    });
 
-      const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
-        code,
-        codeVerifier,
-        redirectUri: `${backendOrigin}/api/auth/x/callback`,
-        clientSecret: process.env.TWITTER_CLIENT_SECRET
-      });
+    const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
+      code,
+      codeVerifier,
+      redirectUri: `${backendOrigin}/api/auth/x/callback`,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET  // ✅ Required for Basic Auth
+    });
 
-      console.log('✅ Token exchange successful');
+    console.log('✅ Token exchange successful');
 
-      // Create a new client with the access token
-      const loggedClient = new TwitterApi({
-        clientId: process.env.TWITTER_CLIENT_ID,
-        clientSecret: process.env.TWITTER_CLIENT_SECRET,
-        accessToken: accessToken
-      });
-      const user = await loggedClient.v2.me();
+    // 4️⃣ Fetch user info
+    const loggedClient = new TwitterApi({
+      clientId: process.env.TWITTER_CLIENT_ID,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET,
+      accessToken
+    });
+    const user = await loggedClient.v2.me();
+    console.log('✅ User info retrieved:', { id: user.data.id, username: user.data.username });
 
-      console.log('✅ User info retrieved:', { 
-        id: user.data.id,
-        username: user.data.username
-      });
-
-      // Store user info in session (if session exists)
-      if (req.session) {
-        req.session.xUser = user.data;
-        req.session.xAccessToken = accessToken;
-        req.session.xRefreshToken = refreshToken;
-        req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
-      }
-
-      // Clear OAuth state from secure store
-      await oauthStateManager.delete(state);
-
-      // Log successful OAuth completion
-      oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
-
-      // Close popup and notify parent window
-      res.send(`
-        <script>
-          if (window.opener) {
-            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${backendOrigin}');
-            window.close();
-          } else {
-            // If no opener, redirect to frontend with success
-            window.location.href = '${backendOrigin}?x_auth_success=true';
-          }
-        </script>
-      `);
-
-    } catch (tokenError) {
-      console.error('❌ Token exchange failed:', {
-        error: tokenError.message,
-        code: tokenError.code,
-        status: tokenError.status,
-        statusText: tokenError.statusText,
-        data: tokenError.data,
-        response: tokenError.response?.data,
-        stack: tokenError.stack?.split('\n').slice(0, 3)
-      });
-
-      // Enhanced error message based on error type
-      let errorMessage = 'Authentication failed';
-      
-      if (tokenError.status === 401) {
-        errorMessage = 'Request failed with code 401 - Invalid credentials or expired authorization';
-      } else if (tokenError.status === 400) {
-        errorMessage = 'Request failed with code 400 - Invalid request parameters';
-      } else if (tokenError.message?.includes('redirect_uri')) {
-        errorMessage = 'Callback URL mismatch - Please check X app configuration';
-      } else if (tokenError.message?.includes('code_verifier')) {
-        errorMessage = 'PKCE verification failed - Security validation error';
-      } else if (tokenError.message) {
-        errorMessage = tokenError.message;
-      }
-
-      throw new Error(errorMessage);
+    // 5️⃣ Store user info in session
+    if (req.session) {
+      req.session.xUser = user.data;
+      req.session.xAccessToken = accessToken;
+      req.session.xRefreshToken = refreshToken;
+      req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
     }
 
+    // 6️⃣ Clear used OAuth state
+    await oauthStateManager.delete(state);
+    oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), true);
+
+    // 7️⃣ Return result to frontend
+    res.send(`
+      <script>
+        if (window.opener) {
+          window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${backendOrigin}');
+          window.close();
+        } else {
+          window.location.href = '${backendOrigin}?x_auth_success=true';
+        }
+      </script>
+    `);
+
   } catch (error) {
-    console.error('X callback error:', {
+    console.error('❌ X callback error:', {
       message: error.message,
       code: error.code,
       data: error.data,
       stack: error.stack
     });
-    
-    // Log failed OAuth completion
+
     oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
-    
+
     const backendOrigin = process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-app-3m20.onrender.com'
       : 'http://localhost:3001';
