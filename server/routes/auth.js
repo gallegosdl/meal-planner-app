@@ -1246,9 +1246,9 @@ router.get('/x/callback', async (req, res) => {
     });
 
     // Verify state and get stored data
-    const frontendOrigin = process.env.NODE_ENV === 'production'
-      ? 'https://meal-planner-frontend-woan.onrender.com'
-      : 'http://localhost:3000';
+    const backendOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com'
+      : 'http://localhost:3001';
       
     const storedData = await oauthStateManager.get(state);
     if (!storedData) {
@@ -1257,7 +1257,7 @@ router.get('/x/callback', async (req, res) => {
       // Log invalid state attempt
       oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
       
-      return res.redirect(`${frontendOrigin}/auth/error?error=invalid_or_expired_state`);
+      return res.redirect(`${backendOrigin}/auth/error?error=invalid_or_expired_state`);
     }
 
     // Additional security checks
@@ -1282,7 +1282,7 @@ router.get('/x/callback', async (req, res) => {
       const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
         code,
         codeVerifier,
-        redirectUri: `${frontendOrigin}/api/auth/x/callback`
+        redirectUri: `${backendOrigin}/api/auth/x/callback`
       });
 
       console.log('✅ Token exchange successful');
@@ -1318,11 +1318,11 @@ router.get('/x/callback', async (req, res) => {
       res.send(`
         <script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${frontendOrigin}');
+            window.opener.postMessage({ type: 'X_AUTH_SUCCESS', user: ${JSON.stringify(user.data)} }, '${backendOrigin}');
             window.close();
           } else {
             // If no opener, redirect to frontend with success
-            window.location.href = '${frontendOrigin}?x_auth_success=true';
+            window.location.href = '${backendOrigin}?x_auth_success=true';
           }
         </script>
       `);
@@ -1367,10 +1367,10 @@ router.get('/x/callback', async (req, res) => {
     // Log failed OAuth completion
     oauthMonitor.logAttempt(req.ip, req.get('User-Agent'), false);
     
-    const frontendOrigin = process.env.NODE_ENV === 'production'
-      ? 'https://meal-planner-frontend-woan.onrender.com'
-      : 'http://localhost:3000';
-    res.redirect(`${frontendOrigin}/auth/error?error=` + encodeURIComponent(error.message));
+    const backendOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com'
+      : 'http://localhost:3001';
+    res.redirect(`${backendOrigin}/auth/error?error=` + encodeURIComponent(error.message));
   }
 });
 
