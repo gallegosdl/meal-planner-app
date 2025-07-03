@@ -42,6 +42,17 @@ const twitterClient = new TwitterApi({
   clientSecret: process.env.TWITTER_CLIENT_SECRET 
 });
 
+// Create a client factory to ensure consistent configuration
+const createTwitterClient = (token = null) => {
+  if (token) {
+    return new TwitterApi(token);
+  }
+  return new TwitterApi({ 
+    clientId: process.env.TWITTER_CLIENT_ID,
+    clientSecret: process.env.TWITTER_CLIENT_SECRET 
+  });
+};
+
 // Secure OAuth state storage
 class OAuthStateManager {
   constructor() {
@@ -1276,7 +1287,13 @@ router.get('/x/callback', async (req, res) => {
         clientSecretPresent: !!process.env.TWITTER_CLIENT_SECRET
       });
 
-      const { accessToken, refreshToken, expiresIn } = await twitterClient.loginWithOAuth2({
+      // Create a fresh client for token exchange
+      const exchangeClient = new TwitterApi({ 
+        clientId: process.env.TWITTER_CLIENT_ID,
+        clientSecret: process.env.TWITTER_CLIENT_SECRET 
+      });
+
+      const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
         code,
         codeVerifier,
         redirectUri: `${backendOrigin}/api/auth/x/callback`
@@ -1284,13 +1301,12 @@ router.get('/x/callback', async (req, res) => {
 
       console.log('✅ Token exchange successful');
 
-      // Store tokens in session
-      req.session.xAccessToken = accessToken;
-      req.session.xRefreshToken = refreshToken;
-      req.session.xTokenExpiry = Date.now() + (expiresIn * 1000);
-
-      // Get user info using the same client instance
-      const loggedClient = new TwitterApi(accessToken);
+      // Create a new client with the access token
+      const loggedClient = new TwitterApi({
+        clientId: process.env.TWITTER_CLIENT_ID,
+        clientSecret: process.env.TWITTER_CLIENT_SECRET,
+        accessToken: accessToken
+      });
       const user = await loggedClient.v2.me();
 
       console.log('✅ User info retrieved:', { 
