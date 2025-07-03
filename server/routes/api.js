@@ -21,9 +21,17 @@ router.post('/parse-receipt', upload.single('receipt'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // Get API key from session
+    const token = req.headers['x-session-token'];
+    const session = req.app.get('sessions').get(token);
+    
+    if (!session?.apiKey) {
+      return res.status(401).json({ error: 'Invalid session' });
+    }
+
     console.log('Processing file:', req.file.path);
     
-    const parser = new ReceiptParser();
+    const parser = new ReceiptParser(session.apiKey);
     const result = await parser.parseReceipt(req.file.path);
     
     // Clean up uploaded file

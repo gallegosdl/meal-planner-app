@@ -7,11 +7,22 @@ const TogetherAiService = require('./togetherAiService');
 const imageStorage = require('../utils/imageStorage');
 
 class MealPlanGenerator {
-  constructor(apiKey) {
-    this.openai = new OpenAI({
-      apiKey: apiKey
-    });
+  constructor(apiKey = null) {
+    this.apiKey = apiKey;
+    this.openai = null;
     this.togetherAiService = new TogetherAiService();
+  }
+
+  // Create OpenAI client only when needed
+  getOpenAIClient() {
+    if (!this.openai && this.apiKey) {
+      this.openai = new OpenAI({
+        apiKey: this.apiKey
+      });
+    } else if (!this.openai && !this.apiKey) {
+      throw new Error('OpenAI API key is required for meal plan generation');
+    }
+    return this.openai;
   }
 
   // Data preparation moved to separate method
@@ -363,7 +374,7 @@ Requirements:
         total: systemTokens + promptTokens
       });
 
-      const completion = await this.openai.chat.completions.create({
+      const completion = await this.getOpenAIClient().chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
           {
