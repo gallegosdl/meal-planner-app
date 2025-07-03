@@ -408,6 +408,15 @@ router.post('/google', async (req, res) => {
       return res.status(400).json({ error: 'No email provided by Google' });
     }
 
+    // Extract picture URL safely with fallback
+    const pictureUrl = userData.picture || null;
+    console.log('Google user data received:', { 
+      id: userData.id,
+      email: userData.email,
+      name: userData.name,
+      hasPicture: !!pictureUrl 
+    });
+
     await client.query('BEGIN');
 
     // Check if user exists by OAuth ID first, then by email
@@ -511,18 +520,16 @@ router.post('/google', async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
-    // Return user data
-    console.log('Sending response to client:', { 
-      ...userData,
+    // Return sanitized user data with current profile picture
+    const sanitizedUserData = {
       id: user.id,
-      sessionToken 
-    });
-    
-    res.json({
-      ...userData,
-      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar_url: pictureUrl, // Return current profile picture from Google API
       sessionToken
-    });
+    };
+
+    res.json(sanitizedUserData);
 
   } catch (error) {
     await client.query('ROLLBACK');

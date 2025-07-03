@@ -538,14 +538,14 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-3 sm:p-6">
       <div className="max-w-[1400px] mx-auto">
         <Header user={user} handleLogout={handleLogout} />
 
         {/* First grid section */}
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           {/* Left column (3): Household, Budget */}
-          <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
+          <div className="col-span-1 lg:col-span-3 row-span-2 flex flex-col gap-3 sm:gap-6">
             <div className="flex-1">
               <HouseholdBox 
                 householdData={visualData}
@@ -573,7 +573,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           </div>
 
           {/* UserMealPlanContainer spanning 9 columns */}
-          <div className="col-span-1 sm:col-span-3 lg:col-span-9 row-span-2 flex flex-col gap-6">
+          <div className="col-span-1 lg:col-span-9 row-span-2 flex flex-col gap-3 sm:gap-6">
             <div className="flex-1 h-full">
               <UserMealPlanContainer 
                 ref={mealPlanContainerRef}
@@ -581,42 +581,14 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
               />
             </div>
           </div>
-
-          {/* Commented out sections */}
-          {/* Original CuisinePreferences
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6 row-span-2">
-            <CuisinePreferences 
-              cuisinePreferences={cuisinePreferences} 
-              handleCuisineChange={handleCuisineChange}
-              userId={user?.id} 
-            />
-          </div>
-          */}
-
-          {/* Original MacronutrientSplit and MealsPerWeek
-          <div className="col-span-1 sm:col-span-3 lg:col-span-3 row-span-2 flex flex-col gap-6">
-            <div className="flex-1">
-              <MacronutrientSplit 
-                formData={mealPlanInputs} 
-                handleMacroChange={handleMacroChange} 
-              />
-            </div>
-            <div>
-              <MealsPerWeek
-                formData={mealPlanInputs}
-                handleMealsChange={handleMealsChange}
-              />
-            </div>
-          </div>
-          */}
         </div>
 
         {/* First row: DietaryGoals, DailyCalories in 4-8 grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+          <div className="col-span-1 lg:col-span-4">
             <DietaryGoals dietOptions={dietOptions} formData={mealPlanInputs} toggleDietGoal={toggleDietGoal} />
           </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-8">
+          <div className="col-span-1 lg:col-span-8">
             <DailyCalories 
               formData={{ targetCalories: visualData.targetCalories }}
               handleChange={handleVisualChange}
@@ -632,30 +604,30 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         </div>
 
         {/* Dietary Goals & Fitbit/Strava side by side */}
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+          <div className="col-span-1">
             <FitbitDisplay onCaloriesUpdate={handleFitbitCalories} />
           </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+          <div className="col-span-1">
             <StravaDisplay onCaloriesUpdate={handleStravaCalories} />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+          <div className="col-span-1">
             <MealPreferences formData={mealPlanInputs} handleChange={handleChange} />
           </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
+          <div className="col-span-1">
             <PreferredFoods formData={mealPlanInputs} />
           </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-4">
+          <div className="col-span-1">
             <AvoidedFoods formData={mealPlanInputs} />
           </div>
         </div>
 
         {/* Upload Receipt */}
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-12">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+          <div className="col-span-1">
             <UploadReceipt 
               handleReceiptUpload={handleReceiptUpload} 
               isParsingReceipt={isParsingReceipt} 
@@ -664,41 +636,38 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
           <ApiKeyInput />
         </div>
 
         {/* Action Buttons Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-6 mb-6">
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+          <div className="col-span-1">
             <button
               onClick={handleGenerateMealPlan}
-              // old className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow hover:from-blue-600 hover:to-purple-600 transition-all"
-              className="w-full group px-8 py-4 bg-[#111827]/50 text-blue-400 font-semibold border-2 border-blue-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(59,130,246,0.3)] hover:shadow-[0_0_16px_4px_rgba(59,130,246,0.35)] hover:bg-[#1e293b]/60 hover:border-blue-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
+              className="w-full group px-4 sm:px-8 py-3 sm:py-4 bg-[#111827]/50 text-blue-400 font-semibold border-2 border-blue-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(59,130,246,0.3)] hover:shadow-[0_0_16px_4px_rgba(59,130,246,0.35)] hover:bg-[#1e293b]/60 hover:border-blue-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-4 backdrop-blur relative overflow-hidden text-sm sm:text-lg"
               disabled={isLoading}
             >
               {isLoading ? 'Generating...' : 'Generate Your Meal Plan'}
             </button>
           </div>
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6">
+          <div className="col-span-1">
             <button
               onClick={() => setShowRecipeList((prev) => !prev)}
-              // old className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:from-green-600 hover:to-teal-600 transition-all"
-              className="w-full group px-8 py-4 bg-[#111827]/50 text-emerald-400 font-semibold border-2 border-emerald-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(16,185,129,0.3)] hover:shadow-[0_0_16px_4px_rgba(16,185,129,0.35)] hover:bg-[#1e293b]/60 hover:border-emerald-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
+              className="w-full group px-4 sm:px-8 py-3 sm:py-4 bg-[#111827]/50 text-emerald-400 font-semibold border-2 border-emerald-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(16,185,129,0.3)] hover:shadow-[0_0_16px_4px_rgba(16,185,129,0.35)] hover:bg-[#1e293b]/60 hover:border-emerald-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-4 backdrop-blur relative overflow-hidden text-sm sm:text-lg"
             >
               {showRecipeList ? 'Hide Recipe List' : 'View Recipe List'}
             </button>
           </div>
         </div>
         {showRecipeList && (
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <RecipeList />
           </div>
         )}
 
         {mealPlan && (
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             {mealPlan.generatedWithPantry && (
               <div className="mb-4 flex items-center gap-3">
                 {/*<span className="inline-block bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium border border-green-500/30">

@@ -157,7 +157,7 @@ const WelcomeModal = ({ onClose }) => {
       setError('Failed to authenticate with Google');
       setIsLoading(false);
     },
-    scope: 'email profile',
+    scope: 'openid email profile',
     flow: 'implicit'
   });
 

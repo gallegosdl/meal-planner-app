@@ -6,9 +6,9 @@ const GoogleAuthButton = ({ onSuccess, onError }) => {
   const login = useGoogleLogin({
     onSuccess: async (response) => {
       try {
-        // Send the credential to your backend
+        // Send the access token to your backend
         const result = await api.post('/api/auth/google', {
-          credential: response.credential
+          credential: response.access_token
         });
 
         if (result.status !== 200) {
@@ -26,7 +26,7 @@ const GoogleAuthButton = ({ onSuccess, onError }) => {
       console.error('Google OAuth error:', error);
       onError(error);
     },
-    scope: 'openid email',
+    scope: 'openid email profile',
     flow: 'implicit'
   });
 
