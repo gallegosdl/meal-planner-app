@@ -1282,7 +1282,8 @@ router.get('/x/callback', async (req, res) => {
       const { accessToken, refreshToken, expiresIn } = await exchangeClient.loginWithOAuth2({
         code,
         codeVerifier,
-        redirectUri: `${backendOrigin}/api/auth/x/callback`
+        redirectUri: `${backendOrigin}/api/auth/x/callback`,
+        clientSecret: process.env.TWITTER_CLIENT_SECRET
       });
 
       console.log('✅ Token exchange successful');
