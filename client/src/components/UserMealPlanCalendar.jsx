@@ -21,6 +21,26 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
   const [showMealModal, setShowMealModal] = useState(false);
   const [showRecipeView, setShowRecipeView] = useState(false);
   const [consumedMeals, setConsumedMeals] = useState(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileView, setMobileView] = useState('day');
+  const [currentDate, setCurrentDate] = useState(moment().toDate());
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth <= 768;
+      setIsMobile(isMobileDevice);
+      
+      // Set initial view based on screen size
+      if (isMobileDevice && mobileView === 'week') {
+        setMobileView('day');
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const fetchMealPlans = async () => {
     if (!userId) return;
@@ -304,7 +324,7 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
       CalendarService.downloadICS(icsContent, `meal-plan-${moment().format('YYYY-MM-DD')}.ics`);
       
       toast.success(
-        'Calendar file downloaded! Import it into any calendar app:\\n• Google Calendar: Settings → Import & Export\\n• Outlook: File → Import/Export\\n• Apple Calendar: File → Import',
+        'Calendar file downloaded! Import it into any calendar app:\n• Google Calendar: Settings → Import & Export\n• Outlook: File → Import/Export\n• Apple Calendar: File → Import',
         { duration: 6000 }
       );
     } catch (error) {
@@ -313,6 +333,18 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  // Mobile navigation functions
+  const navigateDate = (direction) => {
+    const increment = mobileView === 'day' ? 1 : 7;
+    const newDate = moment(currentDate).add(direction * increment, 'days').toDate();
+    setCurrentDate(newDate);
+  };
+
+  // Mobile view toggle
+  const toggleMobileView = () => {
+    setMobileView(prev => prev === 'day' ? 'week' : 'day');
   };
 
   // Expose the refresh function to parent components
@@ -394,6 +426,107 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     return uniqueEvents;
   }, [mealPlans, consumedMeals]);
 
+  // Get events for current date in mobile day view
+  const todaysEvents = useMemo(() => {
+    if (!isMobile || mobileView !== 'day') return [];
+    
+    const currentDateStr = moment(currentDate).format('YYYY-MM-DD');
+    return events.filter(event => 
+      moment(event.start).format('YYYY-MM-DD') === currentDateStr
+    ).sort((a, b) => moment(a.start).hour() - moment(b.start).hour());
+  }, [events, currentDate, isMobile, mobileView]);
+
+  // Mobile List View Component
+  const MobileListView = () => (
+    <div className="space-y-4">
+      {/* Date Navigation */}
+      <div className="flex items-center justify-between bg-[#2A3142] rounded-lg p-4">
+        <button
+          onClick={() => navigateDate(-1)}
+          className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        
+        <div className="text-center">
+          <div className="text-lg font-semibold">
+            {moment(currentDate).format('dddd')}
+          </div>
+          <div className="text-sm text-gray-400">
+            {moment(currentDate).format('MMMM Do, YYYY')}
+          </div>
+        </div>
+        
+        <button
+          onClick={() => navigateDate(1)}
+          className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Meals List */}
+      <div className="space-y-3">
+        {todaysEvents.length > 0 ? (
+          todaysEvents.map((event) => (
+            <div
+              key={event.id}
+              onClick={() => handleSelectEvent(event)}
+              className={`bg-[#2A3142] rounded-lg p-4 cursor-pointer transition-all duration-200 hover:bg-[#374151] border-l-4 ${
+                event.resource === 'breakfast' ? 'border-yellow-400' :
+                event.resource === 'lunch' ? 'border-green-400' :
+                'border-blue-400'
+              } ${event.consumed ? 'opacity-60 bg-red-900/20' : ''}`}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium capitalize text-gray-300">
+                      {event.mealType}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {moment(event.start).format('h:mm A')}
+                    </span>
+                    {event.consumed && (
+                      <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">
+                        Consumed ✓
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-semibold text-white mb-2 leading-tight">
+                    {event.meal?.name || 'Unknown meal'}
+                  </h3>
+                  {event.plannedMacros && (
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
+                      <span>🔥 {event.plannedMacros.calories || 0} cal</span>
+                      <span>🥩 {event.plannedMacros.protein_g || 0}g protein</span>
+                      <span>🍞 {event.plannedMacros.carbs_g || 0}g carbs</span>
+                      <span>🥑 {event.plannedMacros.fat_g || 0}g fat</span>
+                    </div>
+                  )}
+                </div>
+                <svg className="w-5 h-5 text-gray-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-8 text-gray-400">
+            <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <p>No meals planned for this day</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // Modal close handler
   const handleCloseModal = () => {
     setShowRecipeView(false);
@@ -435,73 +568,94 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
         </div>
       )}
 
-      <div className="h-full flex flex-col bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold">Weekly Meal Calendar</h2>
+      <div className="h-full flex flex-col bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
+          <div className="flex items-center gap-2 md:gap-3">
+            <h2 className="text-lg md:text-2xl font-bold">
+              {isMobile ? 'Meal Calendar' : 'Weekly Meal Calendar'}
+            </h2>
             <button
               onClick={fetchMealPlans}
               disabled={isRefreshing}
               className="p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
               title="Refresh calendar"
             >
-              <svg className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-4 h-4 md:w-5 md:h-5 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
           </div>
           
           <div className="flex gap-2">
+            {/* Mobile View Toggle */}
+            {isMobile && (
+              <button
+                onClick={toggleMobileView}
+                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {mobileView === 'day' ? 'Week' : 'Day'}
+              </button>
+            )}
+            
             {/* ICS Export Button */}
             <button
               onClick={handleExportToCalendar}
               disabled={isExporting || !mealPlans.length}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-2 md:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 md:gap-2 text-sm"
             >
               {isExporting ? (
                 <>
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <span>Exporting...</span>
+                  <span className="hidden md:inline">Exporting...</span>
                 </>
               ) : (
                 <>
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <span>Download ICS</span>
+                  <span className="hidden md:inline">Download ICS</span>
+                  <span className="md:hidden">Export</span>
                 </>
               )}
             </button>
           </div>
         </div>
 
-        <div className="flex-1 min-h-[600px] calendar-container">
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            defaultView="week"
-            views={['week', 'day']}
-            defaultDate={moment().toDate()}
-            min={moment().hour(6).minute(0).toDate()}
-            max={moment().hour(21).minute(0).toDate()}
-            onSelectEvent={handleSelectEvent}
-            eventPropGetter={(event) => ({
-              className: `meal-event ${event.consumed ? 'consumed' : ''} ${
-                event.resource === 'breakfast' ? 'breakfast-event' :
-                event.resource === 'lunch' ? 'lunch-event' :
-                'dinner-event'
-              }`,
-            })}
-            tooltipAccessor={(event) => {
-              const meal = event.meal;
-              return `${meal.name}\n\nCalories: ${meal.nutrition?.calories || 'N/A'}\nProtein: ${meal.nutrition?.protein_g || 'N/A'}g\nCarbs: ${meal.nutrition?.carbs_g || 'N/A'}g\nFat: ${meal.nutrition?.fat_g || 'N/A'}g\n\nClick to edit or mark as consumed`;
-            }}
-          />
+        <div className={`flex-1 ${isMobile ? 'min-h-0' : 'min-h-[600px]'} calendar-container`}>
+          {isMobile && mobileView === 'day' ? (
+            <MobileListView />
+          ) : (
+            <Calendar
+              localizer={localizer}
+              events={events}
+              startAccessor="start"
+              endAccessor="end"
+              defaultView={isMobile ? 'day' : 'week'}
+              views={isMobile ? ['day', 'week'] : ['week', 'day']}
+              date={currentDate}
+              onNavigate={setCurrentDate}
+              min={moment().hour(6).minute(0).toDate()}
+              max={moment().hour(21).minute(0).toDate()}
+              onSelectEvent={handleSelectEvent}
+              eventPropGetter={(event) => ({
+                className: `meal-event ${event.consumed ? 'consumed' : ''} ${
+                  event.resource === 'breakfast' ? 'breakfast-event' :
+                  event.resource === 'lunch' ? 'lunch-event' :
+                  'dinner-event'
+                }`,
+              })}
+              tooltipAccessor={(event) => {
+                const meal = event.meal;
+                return `${meal.name}\n\nCalories: ${meal.nutrition?.calories || 'N/A'}\nProtein: ${meal.nutrition?.protein_g || 'N/A'}g\nCarbs: ${meal.nutrition?.carbs_g || 'N/A'}g\nFat: ${meal.nutrition?.fat_g || 'N/A'}g\n\nClick to edit or mark as consumed`;
+              }}
+            />
+          )}
         </div>
 
         <style>{`
@@ -522,6 +676,8 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             padding: 4px 8px !important;
             cursor: pointer !important;
             transition: all 0.2s ease !important;
+            font-size: ${isMobile ? '11px' : '12px'} !important;
+            line-height: 1.2 !important;
           }
           
           .meal-event:hover {
@@ -556,12 +712,78 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             color: #ffffff !important;
             font-weight: bold !important;
           }
+
+          /* Mobile specific calendar styles */
+          @media (max-width: 768px) {
+            .rbc-toolbar {
+              flex-direction: column !important;
+              gap: 8px !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .rbc-toolbar-label {
+              font-size: 16px !important;
+              font-weight: 600 !important;
+              margin: 0 !important;
+            }
+            
+            .rbc-btn-group {
+              gap: 4px !important;
+            }
+            
+            .rbc-btn-group button {
+              padding: 8px 12px !important;
+              font-size: 12px !important;
+              border-radius: 6px !important;
+            }
+            
+            .rbc-time-view .rbc-time-gutter {
+              width: 50px !important;
+              font-size: 11px !important;
+            }
+            
+            .rbc-time-view .rbc-time-content {
+              margin-left: 50px !important;
+            }
+            
+            .rbc-time-slot {
+              height: 40px !important;
+            }
+            
+            .rbc-day-slot .rbc-time-slot {
+              border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+            }
+            
+            .rbc-header {
+              padding: 8px 4px !important;
+              font-size: 12px !important;
+              font-weight: 600 !important;
+            }
+            
+            .rbc-week-view .rbc-header {
+              font-size: 10px !important;
+            }
+            
+            .rbc-event {
+              font-size: 10px !important;
+              padding: 2px 4px !important;
+            }
+          }
+
+          /* Ensure mobile touch targets are large enough */
+          @media (max-width: 768px) {
+            .rbc-event {
+              min-height: 32px !important;
+              display: flex !important;
+              align-items: center !important;
+            }
+          }
         `}</style>
       </div>
 
-      {/* Meal Modal */}
+      {/* Mobile-optimized Meal Modal */}
       {showMealModal && selectedMeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4">
           <div className="flex items-center justify-center w-full h-full">
             {/* Backdrop */}
             <div 
@@ -570,7 +792,9 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             />
             
             {/* Modal */}
-            <div className="relative bg-[#252B3B]/95 backdrop-blur-lg rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8 shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20">
+            <div className={`relative bg-[#252B3B]/95 backdrop-blur-lg rounded-2xl w-full ${
+              isMobile ? 'max-w-sm max-h-[85vh]' : 'max-w-lg max-h-[90vh]'
+            } overflow-y-auto p-4 md:p-8 shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20`}>
               
               {!showRecipeView ? (
                 <MealSummaryModal

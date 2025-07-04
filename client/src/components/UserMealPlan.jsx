@@ -37,6 +37,20 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     totalMeals: 0
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showChartView, setShowChartView] = useState(true);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth <= 768;
+      setIsMobile(isMobileDevice);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Helper function to get correct image URL
   const getImageUrl = (imageUrl) => {
@@ -142,10 +156,19 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     // Sort by date
     mealData.sort((a, b) => a.date - b.date);
 
-    // Format dates for display
-    const labels = mealData.map(data => 
-      `${data.date.toLocaleDateString()} - ${data.mealType}\n${data.recipeName}`
-    );
+    // Format labels differently for mobile vs desktop
+    const labels = mealData.map(data => {
+      const dateStr = data.date.toLocaleDateString();
+      const mealType = data.mealType;
+      const recipeName = data.recipeName;
+      
+      if (isMobile) {
+        // Shorter labels for mobile
+        return `${dateStr.split('/').slice(0, 2).join('/')} ${mealType.charAt(0).toUpperCase()}`;
+      } else {
+        return `${dateStr} - ${mealType}\n${recipeName}`;
+      }
+    });
 
     return {
       labels,
@@ -156,8 +179,9 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           borderColor: 'rgb(75, 192, 192)',
           backgroundColor: 'rgba(75, 192, 192, 0.5)',
           yAxisID: 'y-calories',
-          pointRadius: 6,
-          pointHoverRadius: 8
+          pointRadius: isMobile ? 4 : 6,
+          pointHoverRadius: isMobile ? 6 : 8,
+          borderWidth: isMobile ? 2 : 3
         },
         {
           label: 'Protein (g)',
@@ -165,8 +189,9 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           borderColor: 'rgb(255, 99, 132)',
           backgroundColor: 'rgba(255, 99, 132, 0.5)',
           yAxisID: 'y-macros',
-          pointRadius: 6,
-          pointHoverRadius: 8
+          pointRadius: isMobile ? 4 : 6,
+          pointHoverRadius: isMobile ? 6 : 8,
+          borderWidth: isMobile ? 2 : 3
         },
         {
           label: 'Carbs (g)',
@@ -174,8 +199,9 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           borderColor: 'rgb(54, 162, 235)',
           backgroundColor: 'rgba(54, 162, 235, 0.5)',
           yAxisID: 'y-macros',
-          pointRadius: 6,
-          pointHoverRadius: 8
+          pointRadius: isMobile ? 4 : 6,
+          pointHoverRadius: isMobile ? 6 : 8,
+          borderWidth: isMobile ? 2 : 3
         },
         {
           label: 'Fat (g)',
@@ -183,8 +209,9 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           borderColor: 'rgb(255, 206, 86)',
           backgroundColor: 'rgba(255, 206, 86, 0.5)',
           yAxisID: 'y-macros',
-          pointRadius: 6,
-          pointHoverRadius: 8
+          pointRadius: isMobile ? 4 : 6,
+          pointHoverRadius: isMobile ? 6 : 8,
+          borderWidth: isMobile ? 2 : 3
         }
       ]
     };
@@ -194,21 +221,32 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     plugins: {
       title: {
         display: true,
-        text: 'Meal Plan Macros by Meal',
+        text: isMobile ? 'Meal Macros' : 'Meal Plan Macros by Meal',
         color: 'white',
         font: {
-          size: 16
+          size: isMobile ? 14 : 16
         }
       },
       legend: {
-        position: 'bottom',
+        position: isMobile ? 'bottom' : 'bottom',
         labels: {
           color: 'white',
-          padding: 15
+          padding: isMobile ? 10 : 15,
+          font: {
+            size: isMobile ? 10 : 12
+          },
+          usePointStyle: isMobile,
+          pointStyle: 'circle'
         }
       },
       tooltip: {
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: {
+          size: isMobile ? 12 : 14
+        },
+        bodyFont: {
+          size: isMobile ? 11 : 12
+        },
         callbacks: {
           label: function(context) {
             const value = context.raw;
@@ -219,16 +257,28 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
       }
     },
     maintainAspectRatio: false,
-    aspectRatio: 1.5,
+    aspectRatio: isMobile ? 1.2 : 1.5,
     responsive: true,
+    interaction: {
+      intersect: false,
+      mode: 'index'
+    },
     scales: {
       x: {
         ticks: {
           color: 'white',
-          maxRotation: 45,
-          minRotation: 45,
+          maxRotation: isMobile ? 60 : 45,
+          minRotation: isMobile ? 45 : 45,
+          font: {
+            size: isMobile ? 9 : 11
+          },
           callback: function(value, index) {
-            return this.getLabelForValue(value).split('\n')[0];
+            const label = this.getLabelForValue(value);
+            if (isMobile) {
+              return label;
+            } else {
+              return label.split('\n')[0];
+            }
           }
         },
         grid: {
@@ -240,12 +290,18 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         display: true,
         position: 'left',
         title: {
-          display: true,
+          display: !isMobile,
           text: 'Calories',
-          color: 'white'
+          color: 'white',
+          font: {
+            size: isMobile ? 10 : 12
+          }
         },
         ticks: {
-          color: 'white'
+          color: 'white',
+          font: {
+            size: isMobile ? 9 : 11
+          }
         },
         grid: {
           color: 'rgba(255, 255, 255, 0.1)'
@@ -256,12 +312,18 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         display: true,
         position: 'right',
         title: {
-          display: true,
+          display: !isMobile,
           text: 'Grams',
-          color: 'white'
+          color: 'white',
+          font: {
+            size: isMobile ? 10 : 12
+          }
         },
         ticks: {
-          color: 'white'
+          color: 'white',
+          font: {
+            size: isMobile ? 9 : 11
+          }
         },
         grid: {
           drawOnChartArea: false,
@@ -269,6 +331,161 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         }
       }
     }
+  };
+
+  // Mobile Summary Cards Component
+  const MobileSummaryCards = () => (
+    <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
+        <div className="text-gray-400 text-xs mb-1">Avg. Calories</div>
+        <div className="text-lg font-bold text-[rgb(75,192,192)]">{stats.averageCalories}</div>
+      </div>
+      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
+        <div className="text-gray-400 text-xs mb-1">Avg. Protein</div>
+        <div className="text-lg font-bold text-[rgb(255,99,132)]">{stats.averageProtein}g</div>
+      </div>
+      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
+        <div className="text-gray-400 text-xs mb-1">Avg. Carbs</div>
+        <div className="text-lg font-bold text-[rgb(54,162,235)]">{stats.averageCarbs}g</div>
+      </div>
+      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
+        <div className="text-gray-400 text-xs mb-1">Avg. Fat</div>
+        <div className="text-lg font-bold text-[rgb(255,206,86)]">{stats.averageFat}g</div>
+      </div>
+    </div>
+  );
+
+  // Mobile Controls Component
+  const MobileControls = () => (
+    <div className="space-y-3 mb-4">
+      {/* Meal Type Filters */}
+      <div>
+        <div className="text-sm text-gray-400 mb-2">Meal Types</div>
+        <div className="flex flex-wrap gap-2">
+          {['breakfast', 'lunch', 'dinner'].map(mealType => (
+            <button
+              key={mealType}
+              onClick={() => setSelectedMealTypes(prev => 
+                prev.includes(mealType) 
+                  ? prev.filter(t => t !== mealType)
+                  : [...prev, mealType]
+              )}
+              className={`px-3 py-2 rounded-full text-sm capitalize flex-1 min-w-0 ${
+                selectedMealTypes.includes(mealType)
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-700 text-gray-300'
+              }`}
+            >
+              {mealType}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Date Range Filter */}
+      <div>
+        <div className="text-sm text-gray-400 mb-2">Time Range</div>
+        <div className="flex gap-2">
+          {[
+            { value: 'week', label: 'Week' },
+            { value: 'month', label: 'Month' },
+            { value: 'all', label: 'All' }
+          ].map(range => (
+            <button
+              key={range.value}
+              onClick={() => setDateRange(range.value)}
+              className={`px-3 py-2 rounded-full text-sm flex-1 ${
+                dateRange === range.value
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-700 text-gray-300'
+              }`}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Mobile List View for detailed meal data
+  const MobileDetailedView = () => {
+    const mealData = [];
+    
+    mealPlans.forEach(plan => {
+      Object.entries(plan.dates).forEach(([dateStr, dateData]) => {
+        Object.entries(dateData.meals).forEach(([mealType, meal]) => {
+          if (meal.plannedMacros && selectedMealTypes.includes(mealType)) {
+            const mealDate = new Date(dateStr);
+            
+            // Apply date range filter
+            if (dateRange === 'week' && mealDate < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) return;
+            if (dateRange === 'month' && mealDate < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) return;
+            
+            mealData.push({
+              date: mealDate,
+              mealType,
+              macros: meal.plannedMacros,
+              recipeName: meal.recipe.name
+            });
+          }
+        });
+      });
+    });
+
+    // Sort by date (most recent first)
+    mealData.sort((a, b) => b.date - a.date);
+    
+    // Limit to recent meals for mobile
+    const recentMeals = mealData.slice(0, 10);
+
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Recent Meals</h3>
+          <span className="text-sm text-gray-400">Showing {recentMeals.length} of {mealData.length}</span>
+        </div>
+        
+        {recentMeals.map((meal, index) => (
+          <div
+            key={index}
+            className={`bg-[#2A3142] rounded-lg p-4 border-l-4 ${
+              meal.mealType === 'breakfast' ? 'border-yellow-400' :
+              meal.mealType === 'lunch' ? 'border-green-400' :
+              'border-blue-400'
+            }`}
+          >
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <div className="font-semibold text-white">{meal.recipeName}</div>
+                <div className="text-sm text-gray-400 capitalize">
+                  {meal.mealType} • {meal.date.toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-[rgb(75,192,192)]">🔥</span>
+                <span>{meal.macros.calories} cal</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[rgb(255,99,132)]">🥩</span>
+                <span>{meal.macros.protein_g}g protein</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[rgb(54,162,235)]">🍞</span>
+                <span>{meal.macros.carbs_g}g carbs</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[rgb(255,206,86)]">🥑</span>
+                <span>{meal.macros.fat_g}g fat</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -297,106 +514,150 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
   }
 
   return (
-    <div className="h-full flex flex-col  bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)] space-y-6">
+    <div className="h-full flex flex-col bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)] space-y-4 md:space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Meal Plan Report Card</h2>
-        <button
-          onClick={fetchMealPlans}
-          disabled={isRefreshing}
-          className="p-2 hover:bg-[#374151] rounded-lg transition-colors duration-200 disabled:opacity-50"
-          title="Refresh meal plan history"
-        >
-          <svg
-            className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg md:text-2xl font-bold">
+            {isMobile ? 'Meal Report' : 'Meal Plan Report Card'}
+          </h2>
+          {isMobile && (
+            <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+              {stats.totalMeals}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Mobile view toggle */}
+          {isMobile && (
+            <button
+              onClick={() => setShowChartView(!showChartView)}
+              className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {showChartView ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                )}
+              </svg>
+              {showChartView ? 'List' : 'Chart'}
+            </button>
+          )}
+          
+          <button
+            onClick={fetchMealPlans}
+            disabled={isRefreshing}
+            className="p-2 hover:bg-[#374151] rounded-lg transition-colors duration-200 disabled:opacity-50"
+            title="Refresh meal plan history"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-        </button>
-      </div>
-      {/* Controls */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        {/* Meal Type Filters */}
-        <div className="flex gap-2">
-          {['breakfast', 'lunch', 'dinner'].map(mealType => (
-            <button
-              key={mealType}
-              onClick={() => setSelectedMealTypes(prev => 
-                prev.includes(mealType) 
-                  ? prev.filter(t => t !== mealType)
-                  : [...prev, mealType]
-              )}
-              className={`px-3 py-1 rounded-full text-sm capitalize ${
-                selectedMealTypes.includes(mealType)
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
+            <svg
+              className={`w-4 h-4 md:w-5 md:h-5 ${isRefreshing ? 'animate-spin' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              {mealType}
-            </button>
-          ))}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
         </div>
+      </div>
 
-        {/* Date Range Filter */}
-        <div className="flex gap-2">
-          {[
-            { value: 'week', label: 'Last Week' },
-            { value: 'month', label: 'Last Month' },
-            { value: 'all', label: 'All Time' }
-          ].map(range => (
-            <button
-              key={range.value}
-              onClick={() => setDateRange(range.value)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                dateRange === range.value
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              {range.label}
-            </button>
-          ))}
+      {/* Mobile Controls */}
+      {isMobile ? (
+        <MobileControls />
+      ) : (
+        /* Desktop Controls */
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          {/* Meal Type Filters */}
+          <div className="flex gap-2">
+            {['breakfast', 'lunch', 'dinner'].map(mealType => (
+              <button
+                key={mealType}
+                onClick={() => setSelectedMealTypes(prev => 
+                  prev.includes(mealType) 
+                    ? prev.filter(t => t !== mealType)
+                    : [...prev, mealType]
+                )}
+                className={`px-3 py-1 rounded-full text-sm capitalize ${
+                  selectedMealTypes.includes(mealType)
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-700 text-gray-300'
+                }`}
+              >
+                {mealType}
+              </button>
+            ))}
+          </div>
+
+          {/* Date Range Filter */}
+          <div className="flex gap-2">
+            {[
+              { value: 'week', label: 'Last Week' },
+              { value: 'month', label: 'Last Month' },
+              { value: 'all', label: 'All Time' }
+            ].map(range => (
+              <button
+                key={range.value}
+                onClick={() => setDateRange(range.value)}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  dateRange === range.value
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-700 text-gray-300'
+                }`}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-          <div className="text-gray-400 text-sm">Total Meals</div>
-          <div className="text-2xl font-bold text-white">{stats.totalMeals}</div>
+      {isMobile ? (
+        <MobileSummaryCards />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
+            <div className="text-gray-400 text-sm">Total Meals</div>
+            <div className="text-2xl font-bold text-white">{stats.totalMeals}</div>
+          </div>
+          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
+            <div className="text-gray-400 text-sm">Avg. Calories</div>
+            <div className="text-2xl font-bold text-[rgb(75,192,192)]">{stats.averageCalories}</div>
+          </div>
+          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
+            <div className="text-gray-400 text-sm">Avg. Protein</div>
+            <div className="text-2xl font-bold text-[rgb(255,99,132)]">{stats.averageProtein}g</div>
+          </div>
+          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
+            <div className="text-gray-400 text-sm">Avg. Carbs</div>
+            <div className="text-2xl font-bold text-[rgb(54,162,235)]">{stats.averageCarbs}g</div>
+          </div>
+          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
+            <div className="text-gray-400 text-sm">Avg. Fat</div>
+            <div className="text-2xl font-bold text-[rgb(255,206,86)]">{stats.averageFat}g</div>
+          </div>
         </div>
-        <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-          <div className="text-gray-400 text-sm">Avg. Calories</div>
-          <div className="text-2xl font-bold text-[rgb(75,192,192)]">{stats.averageCalories}</div>
-        </div>
-        <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-          <div className="text-gray-400 text-sm">Avg. Protein</div>
-          <div className="text-2xl font-bold text-[rgb(255,99,132)]">{stats.averageProtein}g</div>
-        </div>
-        <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-          <div className="text-gray-400 text-sm">Avg. Carbs</div>
-          <div className="text-2xl font-bold text-[rgb(54,162,235)]">{stats.averageCarbs}g</div>
-        </div>
-        <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-          <div className="text-gray-400 text-sm">Avg. Fat</div>
-          <div className="text-2xl font-bold text-[rgb(255,206,86)]">{stats.averageFat}g</div>
-        </div>
+      )}
+
+      {/* Content Area - Chart or List */}
+      <div className="flex-1 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-[#ffffff0f]">
+        {isMobile && !showChartView ? (
+          <MobileDetailedView />
+        ) : (
+          <div className="w-full h-full" style={{ minHeight: isMobile ? '300px' : '400px' }}>
+            <Line data={chartData} options={chartOptions} />
+          </div>
+        )}
       </div>
 
-      {/* Chart */}
-      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full">
-      <div className="w-full h-full">
-          <Line data={chartData} options={chartOptions} />
-        </div>
-      </div>
+      
     </div>
   );
 });
