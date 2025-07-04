@@ -21,20 +21,14 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
   const [showMealModal, setShowMealModal] = useState(false);
   const [showRecipeView, setShowRecipeView] = useState(false);
   const [consumedMeals, setConsumedMeals] = useState(new Set());
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileView, setMobileView] = useState('day');
-  const [currentDate, setCurrentDate] = useState(moment().toDate());
 
   // Check if device is mobile
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth <= 768;
       setIsMobile(isMobileDevice);
-      
-      // Set initial view based on screen size
-      if (isMobileDevice && mobileView === 'week') {
-        setMobileView('day');
-      }
     };
 
     checkMobile();
@@ -335,18 +329,6 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     }
   };
 
-  // Mobile navigation functions
-  const navigateDate = (direction) => {
-    const increment = mobileView === 'day' ? 1 : 7;
-    const newDate = moment(currentDate).add(direction * increment, 'days').toDate();
-    setCurrentDate(newDate);
-  };
-
-  // Mobile view toggle
-  const toggleMobileView = () => {
-    setMobileView(prev => prev === 'day' ? 'week' : 'day');
-  };
-
   // Expose the refresh function to parent components
   useImperativeHandle(ref, () => ({
     refresh: fetchMealPlans
@@ -426,107 +408,6 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     return uniqueEvents;
   }, [mealPlans, consumedMeals]);
 
-  // Get events for current date in mobile day view
-  const todaysEvents = useMemo(() => {
-    if (!isMobile || mobileView !== 'day') return [];
-    
-    const currentDateStr = moment(currentDate).format('YYYY-MM-DD');
-    return events.filter(event => 
-      moment(event.start).format('YYYY-MM-DD') === currentDateStr
-    ).sort((a, b) => moment(a.start).hour() - moment(b.start).hour());
-  }, [events, currentDate, isMobile, mobileView]);
-
-  // Mobile List View Component
-  const MobileListView = () => (
-    <div className="space-y-4">
-      {/* Date Navigation */}
-      <div className="flex items-center justify-between bg-[#2A3142] rounded-lg p-4">
-        <button
-          onClick={() => navigateDate(-1)}
-          className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        
-        <div className="text-center">
-          <div className="text-lg font-semibold">
-            {moment(currentDate).format('dddd')}
-          </div>
-          <div className="text-sm text-gray-400">
-            {moment(currentDate).format('MMMM Do, YYYY')}
-          </div>
-        </div>
-        
-        <button
-          onClick={() => navigateDate(1)}
-          className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Meals List */}
-      <div className="space-y-3">
-        {todaysEvents.length > 0 ? (
-          todaysEvents.map((event) => (
-            <div
-              key={event.id}
-              onClick={() => handleSelectEvent(event)}
-              className={`bg-[#2A3142] rounded-lg p-4 cursor-pointer transition-all duration-200 hover:bg-[#374151] border-l-4 ${
-                event.resource === 'breakfast' ? 'border-yellow-400' :
-                event.resource === 'lunch' ? 'border-green-400' :
-                'border-blue-400'
-              } ${event.consumed ? 'opacity-60 bg-red-900/20' : ''}`}
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium capitalize text-gray-300">
-                      {event.mealType}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {moment(event.start).format('h:mm A')}
-                    </span>
-                    {event.consumed && (
-                      <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">
-                        Consumed ✓
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-semibold text-white mb-2 leading-tight">
-                    {event.meal?.name || 'Unknown meal'}
-                  </h3>
-                  {event.plannedMacros && (
-                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
-                      <span>🔥 {event.plannedMacros.calories || 0} cal</span>
-                      <span>🥩 {event.plannedMacros.protein_g || 0}g protein</span>
-                      <span>🍞 {event.plannedMacros.carbs_g || 0}g carbs</span>
-                      <span>🥑 {event.plannedMacros.fat_g || 0}g fat</span>
-                    </div>
-                  )}
-                </div>
-                <svg className="w-5 h-5 text-gray-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-8 text-gray-400">
-            <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <p>No meals planned for this day</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   // Modal close handler
   const handleCloseModal = () => {
     setShowRecipeView(false);
@@ -587,19 +468,6 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
           </div>
           
           <div className="flex gap-2">
-            {/* Mobile View Toggle */}
-            {isMobile && (
-              <button
-                onClick={toggleMobileView}
-                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {mobileView === 'day' ? 'Week' : 'Day'}
-              </button>
-            )}
-            
             {/* ICS Export Button */}
             <button
               onClick={handleExportToCalendar}
@@ -628,16 +496,95 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
         </div>
 
         <div className={`flex-1 ${isMobile ? 'min-h-0' : 'min-h-[600px]'} calendar-container`}>
-          {isMobile && mobileView === 'day' ? (
-            <MobileListView />
+          {isMobile ? (
+            <div className="space-y-4">
+              {/* Date Navigation */}
+              <div className="flex items-center justify-between bg-[#2A3142] rounded-lg p-4">
+                <button
+                  onClick={() => setCurrentDate(moment(currentDate).subtract(1, 'day').toDate())}
+                  className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                
+                <div className="text-center">
+                  <div className="text-lg font-semibold">
+                    {moment(currentDate).format('dddd')}
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {moment(currentDate).format('MMMM Do, YYYY')}
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => setCurrentDate(moment(currentDate).add(1, 'day').toDate())}
+                  className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Meals List */}
+              <div className="space-y-3">
+                {events.filter(event => 
+                  moment(event.start).format('YYYY-MM-DD') === moment(currentDate).format('YYYY-MM-DD')
+                ).sort((a, b) => moment(a.start).hour() - moment(b.start).hour()).map((event) => (
+                  <div
+                    key={event.id}
+                    onClick={() => handleSelectEvent(event)}
+                    className={`bg-[#2A3142] rounded-lg p-4 cursor-pointer transition-all duration-200 hover:bg-[#374151] border-l-4 ${
+                      event.resource === 'breakfast' ? 'border-yellow-400' :
+                      event.resource === 'lunch' ? 'border-green-400' :
+                      'border-blue-400'
+                    } ${event.consumed ? 'opacity-60 bg-red-900/20' : ''}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium capitalize text-gray-300">
+                            {event.mealType}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {moment(event.start).format('h:mm A')}
+                          </span>
+                          {event.consumed && (
+                            <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">
+                              Consumed ✓
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-white mb-2 leading-tight">
+                          {event.meal?.name || 'Unknown meal'}
+                        </h3>
+                        {event.plannedMacros && (
+                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
+                            <span>🔥 {event.plannedMacros.calories || 0} cal</span>
+                            <span>🥩 {event.plannedMacros.protein_g || 0}g protein</span>
+                            <span>🍞 {event.plannedMacros.carbs_g || 0}g carbs</span>
+                            <span>🥑 {event.plannedMacros.fat_g || 0}g fat</span>
+                          </div>
+                        )}
+                      </div>
+                      <svg className="w-5 h-5 text-gray-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <Calendar
               localizer={localizer}
               events={events}
               startAccessor="start"
               endAccessor="end"
-              defaultView={isMobile ? 'day' : 'week'}
-              views={isMobile ? ['day', 'week'] : ['week', 'day']}
+              defaultView="week"
+              views={['week', 'day']}
               date={currentDate}
               onNavigate={setCurrentDate}
               min={moment().hour(6).minute(0).toDate()}

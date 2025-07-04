@@ -39,6 +39,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showChartView, setShowChartView] = useState(true);
+  const [mobileChartDateLimit, setMobileChartDateLimit] = useState('today+2'); // 'today', 'last3', 'today+2'
 
   // Check if device is mobile
   useEffect(() => {
@@ -127,6 +128,8 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     }
   }, [mealPlans, selectedMealTypes, dateRange]);
 
+  // Chart data preparation - mobile has date-based filtering options
+  // Note: Stats above are calculated from all meals (within date range filter)
   const prepareChartData = () => {
     if (!mealPlans.length) return null;
 
@@ -156,14 +159,60 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     // Sort by date
     mealData.sort((a, b) => a.date - b.date);
 
+    // Apply mobile chart date limit (mobile only)
+    let finalMealData = mealData;
+    if (isMobile && showChartView) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      
+      // Filter meals based on their planned date (when they were scheduled)
+      switch (mobileChartDateLimit) {
+        case 'today':
+          // Only meals planned for today's date
+          const todayString = today.toDateString();
+          finalMealData = mealData.filter(meal => {
+            const mealDate = new Date(meal.date);
+            return mealDate.toDateString() === todayString;
+          });
+          break;
+        case 'last3':
+          // Today, yesterday, day before yesterday
+          const twoDaysAgo = new Date(today);
+          twoDaysAgo.setDate(today.getDate() - 2);
+          finalMealData = mealData.filter(meal => {
+            const mealDate = new Date(meal.date);
+            mealDate.setHours(0, 0, 0, 0);
+            return mealDate >= twoDaysAgo && mealDate <= today;
+          });
+          break;
+        case 'today+2':
+          // Today, tomorrow, day after tomorrow
+          const twoDaysLater = new Date(today);
+          twoDaysLater.setDate(today.getDate() + 2);
+          finalMealData = mealData.filter(meal => {
+            const mealDate = new Date(meal.date);
+            mealDate.setHours(0, 0, 0, 0);
+            return mealDate >= today && mealDate <= twoDaysLater;
+          });
+          break;
+        default:
+          finalMealData = mealData;
+          break;
+      }
+    }
+
     // Format labels differently for mobile vs desktop
-    const labels = mealData.map(data => {
+    const labels = finalMealData.map(data => {
       const dateStr = data.date.toLocaleDateString();
       const mealType = data.mealType;
       const recipeName = data.recipeName;
       
       if (isMobile) {
-        // Shorter labels for mobile
+        // Special formatting for TODAY filter - just show meal types
+        if (mobileChartDateLimit === 'today') {
+          return mealType.charAt(0).toUpperCase() + mealType.slice(1); // "Breakfast", "Lunch", "Dinner"
+        }
+        // Shorter labels for other mobile filters
         return `${dateStr.split('/').slice(0, 2).join('/')} ${mealType.charAt(0).toUpperCase()}`;
       } else {
         return `${dateStr} - ${mealType}\n${recipeName}`;
@@ -175,7 +224,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
       datasets: [
         {
           label: 'Calories',
-          data: mealData.map(data => data.macros.calories),
+          data: finalMealData.map(data => data.macros.calories),
           borderColor: 'rgb(75, 192, 192)',
           backgroundColor: 'rgba(75, 192, 192, 0.5)',
           yAxisID: 'y-calories',
@@ -185,7 +234,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         },
         {
           label: 'Protein (g)',
-          data: mealData.map(data => data.macros.protein_g),
+          data: finalMealData.map(data => data.macros.protein_g),
           borderColor: 'rgb(255, 99, 132)',
           backgroundColor: 'rgba(255, 99, 132, 0.5)',
           yAxisID: 'y-macros',
@@ -195,7 +244,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         },
         {
           label: 'Carbs (g)',
-          data: mealData.map(data => data.macros.carbs_g),
+          data: finalMealData.map(data => data.macros.carbs_g),
           borderColor: 'rgb(54, 162, 235)',
           backgroundColor: 'rgba(54, 162, 235, 0.5)',
           yAxisID: 'y-macros',
@@ -205,7 +254,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         },
         {
           label: 'Fat (g)',
-          data: mealData.map(data => data.macros.fat_g),
+          data: finalMealData.map(data => data.macros.fat_g),
           borderColor: 'rgb(255, 206, 86)',
           backgroundColor: 'rgba(255, 206, 86, 0.5)',
           yAxisID: 'y-macros',
@@ -221,7 +270,11 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     plugins: {
       title: {
         display: true,
-        text: isMobile ? 'Meal Macros' : 'Meal Plan Macros by Meal',
+        text: isMobile ? 
+          `Meal Macros - ${mobileChartDateLimit === 'today' ? 'Today\'s Meal Plan' : 
+                           mobileChartDateLimit === 'last3' ? 'Last 3 Days' :
+                           mobileChartDateLimit === 'today+2' ? 'Today + 2 Days' : 'All'}` :
+          'Meal Plan Macros by Meal',
         color: 'white',
         font: {
           size: isMobile ? 14 : 16
@@ -382,29 +435,34 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         </div>
       </div>
 
-      {/* Date Range Filter */}
-      <div>
-        <div className="text-sm text-gray-400 mb-2">Time Range</div>
-        <div className="flex gap-2">
-          {[
-            { value: 'week', label: 'Week' },
-            { value: 'month', label: 'Month' },
-            { value: 'all', label: 'All' }
-          ].map(range => (
-            <button
-              key={range.value}
-              onClick={() => setDateRange(range.value)}
-              className={`px-3 py-2 rounded-full text-sm flex-1 ${
-                dateRange === range.value
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              {range.label}
-            </button>
-          ))}
+      {/* Mobile Chart Date Selector - Only show when viewing chart */}
+      {showChartView && (
+        <div>
+          <div className="text-sm text-gray-400 mb-2">Chart Display 
+            <span className="text-xs text-gray-500 ml-1">(Select time window to show)</span>
+          </div>
+          <div className="flex gap-2">
+            {[
+              { value: 'today', label: 'TODAY', desc: 'Just today' },
+              { value: 'last3', label: 'Last 3 Days', desc: 'Past 3 days' },
+              { value: 'today+2', label: 'Today + 2 Days', desc: 'Today + 2 future' }
+            ].map(limit => (
+              <button
+                key={limit.value}
+                onClick={() => setMobileChartDateLimit(limit.value)}
+                className={`px-3 py-2 rounded-full text-xs flex-1 ${
+                  mobileChartDateLimit === limit.value
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-700 text-gray-300'
+                }`}
+                title={limit.desc}
+              >
+                {limit.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 
