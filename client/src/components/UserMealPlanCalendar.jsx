@@ -783,20 +783,17 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
 
       {/* Mobile-optimized Meal Modal */}
       {showMealModal && selectedMeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4">
-          <div className="flex items-center justify-center w-full h-full">
-            {/* Backdrop */}
-            <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm" 
-              onClick={handleCloseModal}
-            />
-            
-            {/* Modal */}
-            <div className={`relative bg-[#252B3B]/95 backdrop-blur-lg rounded-2xl w-full ${
-              isMobile ? 'max-w-sm max-h-[85vh]' : 'max-w-lg max-h-[90vh]'
-            } overflow-y-auto p-4 md:p-8 shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20`}>
+        <div className={`fixed inset-0 z-50 ${showRecipeView ? '' : 'flex items-center justify-center p-2 md:p-4'}`}>
+          {!showRecipeView && (
+            <div className="flex items-center justify-center w-full h-full">
+              {/* Backdrop */}
+              <div 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm" 
+                onClick={handleCloseModal}
+              />
               
-              {!showRecipeView ? (
+              {/* Summary Modal */}
+              <div className="relative bg-[#252B3B]/95 backdrop-blur-lg rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 md:p-8 shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20">
                 <MealSummaryModal
                   selectedMeal={selectedMeal}
                   consumedMeals={consumedMeals}
@@ -805,14 +802,52 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
                   onMarkConsumed={handleMarkConsumed}
                   onEditMealTime={handleEditMealTime}
                 />
-              ) : (
+              </div>
+            </div>
+          )}
+          
+          {/* Fullscreen Recipe Modal */}
+          {showRecipeView && (
+            <div className="fixed inset-0 bg-[#1F2937] flex flex-col">
+              {/* Header */}
+              <div className="bg-[#252B3B]/95 backdrop-blur-lg px-4 py-3 border-b border-white/10 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={handleBackToSummary}
+                    className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-200"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <div className="text-center flex-1">
+                    <h2 className="text-xl font-bold text-white">
+                      {selectedMeal.meal?.name}
+                    </h2>
+                    <p className="text-blue-400 text-sm">
+                      {selectedMeal.mealType.charAt(0).toUpperCase() + selectedMeal.mealType.slice(1)} Recipe
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCloseModal}
+                    className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-200"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 min-h-0 p-4">
                 <MealRecipeModal
                   selectedMeal={selectedMeal}
                   onBack={handleBackToSummary}
                 />
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

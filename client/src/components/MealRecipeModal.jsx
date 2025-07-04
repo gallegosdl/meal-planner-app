@@ -1,4 +1,97 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+const RecipeContent = ({ selectedMeal }) => {
+  const [activeTab, setActiveTab] = useState('ingredients');
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Tab Navigation */}
+      <div className="flex mb-3 bg-white/5 rounded-xl p-1 flex-shrink-0">
+        <button
+          onClick={() => setActiveTab('ingredients')}
+          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 text-sm ${
+            activeTab === 'ingredients'
+              ? 'bg-green-400 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+          Ingredients
+        </button>
+        <button
+          onClick={() => setActiveTab('instructions')}
+          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 text-sm ${
+            activeTab === 'instructions'
+              ? 'bg-orange-400 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          Instructions
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white/5 rounded-xl p-3 overflow-y-auto flex-1 min-h-0">
+        {activeTab === 'ingredients' && selectedMeal.meal.ingredients && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {Array.isArray(selectedMeal.meal.ingredients) ? (
+              selectedMeal.meal.ingredients.map((ingredient, index) => (
+                <div key={index} className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg text-sm">
+                  <span className="text-gray-200 font-medium">
+                    {ingredient.name || ingredient}
+                  </span>
+                  <div className="text-right ml-3 flex-shrink-0">
+                    <span className="text-blue-400 font-semibold">
+                      {ingredient.amount || ''}
+                    </span>
+                    {ingredient.notes && (
+                      <div className="text-gray-400 text-xs italic">
+                        {ingredient.notes}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400 text-center py-8">Ingredients list not available</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'instructions' && selectedMeal.meal.instructions && (
+          <div className="space-y-3">
+            {selectedMeal.meal.instructions
+              .split(/(?:\d+\.|\n\d+\.|\.\s*\d+\.|\n)/)
+              .filter(step => step.trim())
+              .map((step, index) => {
+                const cleanStep = step.trim().replace(/^\d+\.\s*/, '');
+                if (!cleanStep) return null;
+                
+                return (
+                  <div key={index} className="bg-white/5 rounded-lg p-3 border-l-4 border-orange-400">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">{index + 1}</span>
+                      </div>
+                      <p className="text-gray-200 leading-relaxed text-sm flex-1">
+                        {cleanStep}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+              .filter(Boolean)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const MealRecipeModal = ({ selectedMeal, onBack }) => {
   if (!selectedMeal?.meal) {
@@ -6,29 +99,9 @@ const MealRecipeModal = ({ selectedMeal, onBack }) => {
   }
 
   return (
-    <>
-      {/* Recipe Header */}
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h3 className="text-2xl font-bold text-white mb-1">
-            {selectedMeal.meal.name}
-          </h3>
-          <p className="text-blue-400 text-sm font-medium">
-            {selectedMeal.mealType.charAt(0).toUpperCase() + selectedMeal.mealType.slice(1)} Recipe
-          </p>
-        </div>
-        <button
-          onClick={onBack}
-          className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-200"
-        >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Recipe Meta Info */}
-      <div className="bg-[#1F2937]/50 backdrop-blur-sm rounded-xl p-4 border border-white/10 mb-6">
+    <div className="flex flex-col h-full">
+      {/* Recipe Meta Info - Always Visible */}
+      <div className="bg-[#1F2937]/50 backdrop-blur-sm rounded-xl p-4 border border-white/10 mb-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-sm text-gray-300">
             {selectedMeal.meal.difficulty && (
@@ -61,7 +134,7 @@ const MealRecipeModal = ({ selectedMeal, onBack }) => {
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
-                Original
+                Source
               </a>
             ) : (
               <button
@@ -78,63 +151,11 @@ const MealRecipeModal = ({ selectedMeal, onBack }) => {
         </div>
       </div>
 
-      {/* Ingredients */}
-      {selectedMeal.meal.ingredients && (
-        <div className="bg-white/5 rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <h4 className="text-white font-semibold">Ingredients</h4>
-          </div>
-          <div className="space-y-2">
-            {Array.isArray(selectedMeal.meal.ingredients) ? (
-              selectedMeal.meal.ingredients.map((ingredient, index) => (
-                <div key={index} className="flex justify-between items-center p-2 bg-white/5 rounded-lg">
-                  <span className="text-gray-300 font-medium">{ingredient.name || ingredient}</span>
-                  <span className="text-blue-400 text-sm font-medium">
-                    {ingredient.amount || ''}
-                    {ingredient.notes && (
-                      <span className="ml-2 text-gray-400 italic">({ingredient.notes})</span>
-                    )}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-400">Ingredients list not available</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Instructions */}
-      {selectedMeal.meal.instructions && (
-        <div className="bg-white/5 rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <svg className="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            <h4 className="text-white font-semibold">Instructions</h4>
-          </div>
-          <div className="bg-white/5 rounded-lg p-4">
-            <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-              {selectedMeal.meal.instructions}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Back to Summary Button */}
-      <button
-        onClick={onBack}
-        className="w-full py-3 px-6 bg-gray-600/20 hover:bg-gray-500/30 text-gray-300 hover:text-white rounded-xl font-medium transition-all duration-200 border border-gray-500/30 hover:border-gray-400 flex items-center justify-center gap-2"
-      >
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back to Summary
-      </button>
-    </>
+      {/* Tabbed Interface */}
+      <div className="flex-1 min-h-0">
+        <RecipeContent selectedMeal={selectedMeal} />
+      </div>
+    </div>
   );
 };
 
