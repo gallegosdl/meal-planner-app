@@ -15,8 +15,8 @@ const Header = ({ user, handleLogout }) => {
               />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight border-b-2 border-blue-400/30 pb-1 shadow-[0_4px_8px_-4px_rgba(59,130,246,0.5)]">
-                Nutri IQ
+              <h1 className="text-2xl font-black tracking-tight border-b-2 border-blue-400/30 pb-1 shadow-[0_4px_8px_-4px_rgba(59,130,246,0.5)]">
+                <span className="text-white">Nutri </span><span className="text-blue-400">IQ</span>
               </h1>
               <p className="text-gray-400 mt-1 text-xs tracking-wide">Personalized nutrition planning</p>
             </div>
@@ -74,8 +74,8 @@ const Header = ({ user, handleLogout }) => {
             />
           </div>
           <div>
-            <h1 className="text-4xl font-black text-white tracking-tight border-b-2 border-blue-400/30 pb-1 shadow-[0_4px_8px_-4px_rgba(59,130,246,0.5)]">
-              Nutri IQ
+            <h1 className="text-4xl font-black tracking-tight border-b-2 border-blue-400/30 pb-1 shadow-[0_4px_8px_-4px_rgba(59,130,246,0.5)]">
+              <span className="text-white">Nutri </span><span className="text-blue-400">IQ</span>
             </h1>
             <p className="text-gray-400 mt-3 text-sm tracking-wide">Personalized nutrition planning</p>
           </div>

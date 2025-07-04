@@ -187,7 +187,7 @@ const WelcomeModal = ({ onClose }) => {
                 className="w-16 h-16 rounded-xl"
               />
               <h2 className="text-2xl font-bold text-white">
-                Welcome to <span className="text-white">Nutri IQ</span>
+                Welcome to <span className="text-white">Nutri </span><span className="text-blue-400">IQ</span>
               </h2>
             </div>
 
@@ -202,9 +202,11 @@ const WelcomeModal = ({ onClose }) => {
           <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
             <div className="space-y-4 text-gray-300 text-sm sm:text-base">
               <section>
-                <h3 className="text-lg font-semibold text-white mb-2">About Nutri IQ</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  About <span className="text-white">Nutri </span><span className="text-blue-400">IQ</span>
+                </h3>
                 <p>
-                  Nutri IQ is designed to help you achieve your health and dietary goals 
+                  <span className="text-white">Nutri </span><span className="text-blue-400">IQ</span> is designed to help you achieve your health and dietary goals 
                   through personalized meal planning. Our AI-powered system takes into account your:
                 </p>
                 <ul className="list-disc ml-6 mt-2 space-y-1">
@@ -222,7 +224,7 @@ const WelcomeModal = ({ onClose }) => {
                 <div className="bg-[#1a1f2b] rounded-lg p-4 border border-[#ffffff1a] bg-[#151922]">
                   <p className="text-yellow-400 mb-2">⚠️ Important:</p>
                   <p>
-                    To use Nutri IQ, you'll need to provide your OpenAI API key. 
+                    To use <span className="text-white">Nutri </span><span className="text-blue-400">IQ</span>, you'll need to provide your OpenAI API key. 
                     This key allows our system to generate personalized meal plans using AI technology.
                   </p>
                 </div>
