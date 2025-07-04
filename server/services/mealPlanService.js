@@ -165,9 +165,9 @@ Return ONLY valid JSON matching this EXACT structure:
           "nutrition": {
             "calories": 500,
             "macros": {
-              "protein": 30,
-              "carbs": 40,
-              "fat": 30
+              "protein": 50,
+              "carbs": 35,
+              "fat": 15
             }
           }
         },

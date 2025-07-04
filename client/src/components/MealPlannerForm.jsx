@@ -44,7 +44,7 @@ ChartJS.register(
   PieController
 );
 
-const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
+const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
   // Meal plan generation inputs
   const [mealPlanInputs, setMealPlanInputs] = useState({
     dietGoals: [],
@@ -717,18 +717,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await api.post('/api/auth/logout');
-      clearSession();
-      // Show welcome modal by clearing localStorage
-      localStorage.removeItem('dontShowWelcome');
-      // Refresh the page to reset the app state
-      window.location.reload();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
+  // handleLogout is now passed as a prop from App.js
 
   // Update preferences when user data is available
   useEffect(() => {
@@ -744,7 +733,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
       setVisualData(prev => ({
         ...prev,
         householdMembers: [
-          { id: 1, name: user.name, photo: user.picture || null },
+          { id: 1, name: user.name, photo: user.avatar_url || null },
           ...prev.householdMembers.slice(1)
         ]
       }));
@@ -755,7 +744,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
         email: user.email,
         userId: user.id,
         householdMembers: [
-          { id: 1, name: user.name, photo: user.picture || null },
+          { id: 1, name: user.name, photo: user.avatar_url || null },
           ...prev.householdMembers.slice(1)
         ]
       }));
@@ -771,7 +760,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           { 
             id: 1, 
             name: user.name, 
-            photo: user.picture || null
+            photo: user.avatar_url || null
           },
           ...prev.householdMembers.slice(1)
         ]
@@ -784,13 +773,13 @@ const MealPlannerForm = ({ user, onMealPlanGenerated }) => {
           { 
             id: 1, 
             name: user.name, 
-            photo: user.picture || null
+            photo: user.avatar_url || null
           },
           ...prev.householdMembers.slice(1)
         ]
       }));
     }
-  }, [user?.name, user?.picture]);
+  }, [user?.name, user?.avatar_url]);
 
   const handleDailyTotalsCalculated = React.useCallback((totals) => {
     // Only update if the totals have actually changed

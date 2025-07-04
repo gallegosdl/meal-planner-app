@@ -212,7 +212,7 @@ const initializeApp = () => {
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>NutriSync AI - Data Deletion Instructions</title>
+        <title>Nutri IQ - Data Deletion Instructions</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -232,9 +232,9 @@ const initializeApp = () => {
         </style>
       </head>
       <body>
-        <h1>NutriSync AI - Data Deletion Instructions</h1>
+        <h1>Nutri IQ - Data Deletion Instructions</h1>
         <p>We respect your privacy and are committed to protecting your data.</p>
-        <p>To request deletion of your personal data associated with NutriSync AI, please contact us at:</p>
+        <p>To request deletion of your personal data associated with Nutri IQ, please contact us at:</p>
         <p><strong>Email:</strong> gallegosdl1975@gmail.com</p>
         <p>We will process your request and confirm deletion within 30 days.</p>
       </body>
