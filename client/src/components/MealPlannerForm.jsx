@@ -31,6 +31,8 @@ import StravaDisplay from './StravaDisplay';
 import ApiKeyInput from './ApiKeyInput';
 import Header from './Header';
 import UserMealPlanContainer from './UserMealPlanContainer';
+import { useTheme } from '../contexts/ThemeContext';
+import { getButtonStyles } from '../utils/styleUtils';
 
 // Register ChartJS components
 ChartJS.register(
@@ -45,6 +47,9 @@ ChartJS.register(
 );
 
 const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
+  // Theme context for button styling
+  const { themeMode } = useTheme();
+  
   // Meal plan generation inputs
   const [mealPlanInputs, setMealPlanInputs] = useState({
     dietGoals: [],
@@ -458,9 +463,10 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
       setMealPlan(response.data);
       
       // Refresh both views in the container
-      if (mealPlanContainerRef.current?.refresh) {
-        mealPlanContainerRef.current.refresh();
-      }
+      // TODO: Re-enable after fixing forwardRef issue
+      // if (mealPlanContainerRef.current?.refresh) {
+      //   mealPlanContainerRef.current.refresh();
+      // }
       
       // Show success message based on generation method
       if (response.data.generatedWithStreaming) {
@@ -660,9 +666,10 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
                 setMealPlan(data.mealPlan);
                 
                 // Refresh both views in the container
-                if (mealPlanContainerRef.current?.refresh) {
-                  mealPlanContainerRef.current.refresh();
-                }
+                // TODO: Re-enable after fixing forwardRef issue
+                // if (mealPlanContainerRef.current?.refresh) {
+                //   mealPlanContainerRef.current.refresh();
+                // }
                 
                 // Show success message
                 if (data.mealPlan.partial) {
@@ -835,7 +842,6 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
           <div className="col-span-1 lg:col-span-9 row-span-2 flex flex-col gap-3 sm:gap-6">
             <div className="flex-1 h-full">
               <UserMealPlanContainer 
-                ref={mealPlanContainerRef}
                 userId={user?.id} 
               />
             </div>
@@ -1001,7 +1007,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
           <div className="col-span-1">
             <button
               onClick={handleGenerateMealPlan}
-              className="w-full group px-4 sm:px-8 py-3 sm:py-4 bg-[#111827]/50 text-blue-400 font-semibold border-2 border-blue-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(59,130,246,0.3)] hover:shadow-[0_0_16px_4px_rgba(59,130,246,0.35)] hover:bg-[#1e293b]/60 hover:border-blue-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-4 backdrop-blur relative overflow-hidden text-sm sm:text-lg"
+              className={getButtonStyles(themeMode, 'meal_plan_generate')}
               disabled={isLoading}
             >
               {isLoading ? 'Generating...' : 'Generate Your Meal Plan'}
@@ -1010,7 +1016,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
           <div className="col-span-1">
             <button
               onClick={() => setShowRecipeList((prev) => !prev)}
-              className="w-full group px-4 sm:px-8 py-3 sm:py-4 bg-[#111827]/50 text-emerald-400 font-semibold border-2 border-emerald-400/50 rounded-xl shadow-[0_0_12px_2px_rgba(16,185,129,0.3)] hover:shadow-[0_0_16px_4px_rgba(16,185,129,0.35)] hover:bg-[#1e293b]/60 hover:border-emerald-400/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-4 backdrop-blur relative overflow-hidden text-sm sm:text-lg"
+              className={getButtonStyles(themeMode, 'recipe_list_view')}
             >
               {showRecipeList ? 'Hide Recipe List' : 'View Recipe List'}
             </button>

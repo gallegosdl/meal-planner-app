@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
+import { useTheme } from '../contexts/ThemeContext';
+import { getButtonStyles } from '../utils/styleUtils';
 
 // Normalizes common ASR mis-hearings
 const normalizeTranscript = (text) => {
@@ -26,6 +28,7 @@ const normalizeTranscript = (text) => {
 const VoiceIntentMealPlanButton = ({ onMealPlanGenerated, isLoading, setIsLoading }) => {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const { themeMode } = useTheme();
 
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -139,12 +142,14 @@ const VoiceIntentMealPlanButton = ({ onMealPlanGenerated, isLoading, setIsLoadin
     }
   };
 
+  // Use theme system for button styling
+  const buttonVariant = listening ? 'voice_intent_active' : 'voice_intent';
+  const buttonStyles = getButtonStyles(themeMode, buttonVariant);
+
   return (
     <button
       onClick={startListening}
-      className={`w-full px-6 py-3 text-lg font-semibold rounded-xl shadow-[0_0_12px_2px_rgba(59,130,246,0.3)] hover:shadow-[0_0_16px_4px_rgba(59,130,246,0.35)] transition-all backdrop-blur
-        ${listening ? 'bg-blue-800 text-white' : 'bg-[#111827]/50 text-blue-300 border-2 border-blue-400/40 hover:bg-[#1e293b]/60 hover:border-blue-400/60'}
-        disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
+      className={buttonStyles}
       disabled={isLoading || listening}
     >
       {listening ? 'Listening...' : '🎙️ Drive Your Meal Plan with Intent'}

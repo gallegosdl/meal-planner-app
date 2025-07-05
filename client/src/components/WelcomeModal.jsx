@@ -182,7 +182,7 @@ const WelcomeModal = ({ onClose }) => {
           <div className="flex-shrink-0">
             <div className="flex items-center gap-4 mb-6">
               <img 
-                src="/images/NutriIQ.png" 
+                src="/images/NutriIQ-dark-preferred.png" 
                 alt="Nutri IQ Logo" 
                 className="w-16 h-16 rounded-xl"
               />

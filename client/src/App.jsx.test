@@ -1,0 +1,48 @@
+// ========================================================================
+// 🧪 TEMPORARY THEME SYSTEM TEST 
+// ========================================================================
+// 
+// ⚠️  THIS IS A TEMPORARY TEST SETUP - YOUR ORIGINAL APP IS SAFELY BACKED UP
+// 
+// 📂 Your original App.jsx has been backed up to: App.jsx.backup
+// 
+// 🔄 TO RESTORE YOUR ORIGINAL APP:
+// 1. Delete this file: client/src/App.jsx
+// 2. Rename App.jsx.backup to App.jsx
+// 3. Your meal planner app will be restored exactly as it was
+//
+// 🎯 WHAT THIS FILE DOES:
+// - Tests the new theme system in complete isolation
+// - Shows all component variants (dark/light mode switching)
+// - Validates performance optimizations
+// - Demonstrates style utility functions
+// - Tests cross-platform compatibility features
+//
+// ========================================================================
+
+import React from 'react';
+import ThemeSystemTest from './test/ThemeSystemTest.jsx';
+
+/**
+ * 🧪 TEMPORARY THEME TEST APP
+ * 
+ * This completely replaces your normal meal planner app with a comprehensive
+ * theme system test. All theme functionality is tested in isolation:
+ * 
+ * - Theme switching (dark/light modes)
+ * - Component variants (cards, buttons, forms, etc.)
+ * - Typography styles and spacing
+ * - Performance optimizations
+ * - Style composition utilities
+ * - Cross-platform compatibility
+ * 
+ * The test includes interactive elements to verify everything works correctly
+ * before integrating with your actual app components.
+ */
+export default function App() {
+  return (
+    <div className="theme-test-app">
+      <ThemeSystemTest />
+    </div>
+  );
+}

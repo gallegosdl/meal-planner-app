@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MealPlannerForm from './components/MealPlannerForm';
 import WelcomeModal from './components/WelcomeModal';
-import api from './services/api';
+import api, { clearSession } from './services/api';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { THEME_MODES } from './styles/themes';
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -39,55 +41,106 @@ function App() {
   };
 
   const handleLogout = async () => {
+    console.log('🔥 LOGOUT CLICKED - Starting logout process...');
+    
     try {
-      await api.post('/api/auth/logout');
+      // Show loading toast
+      toast.loading('Logging out...', { id: 'logout' });
+      
+      // Clear session token first
+      console.log('🔥 Clearing session token...');
+      clearSession();
+      
+      // Try to call logout endpoint (may not exist)
+      try {
+        console.log('🔥 Calling logout endpoint...');
+        await api.post('/api/auth/logout');
+        console.log('🔥 Logout endpoint called successfully');
+      } catch (apiError) {
+        // If logout endpoint doesn't exist, that's okay - we already cleared the session
+        console.log('🔥 Logout endpoint not available, but session cleared locally');
+      }
+      
+      // Clear user state
+      console.log('🔥 Clearing user state...');
       setUser(null);
-      // Clear session storage
+      
+      // Clear other session storage items
+      console.log('🔥 Clearing other session storage...');
       sessionStorage.removeItem('google_access_token');
+      sessionStorage.removeItem('session_token'); // Extra cleanup
+      
+      console.log('🔥 User logged out successfully');
+      
+      // Show success toast
+      toast.success('Logged out successfully!', { id: 'logout' });
+      
+      // Force a small delay to show the success message
+      setTimeout(() => {
+        window.location.reload(); // Force refresh to ensure clean state
+      }, 1000);
+      
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('🔥 Logout failed:', error);
+      // Even if logout fails, clear user state and session
+      clearSession();
+      setUser(null);
+      sessionStorage.removeItem('google_access_token');
+      sessionStorage.removeItem('session_token');
+      
+      toast.error('Logout failed, but session cleared locally', { id: 'logout' });
+      
+      // Force refresh even on error
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
   };
 
   return (
-    <Router>
-      <div className="App">
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#2A3142',
-              color: '#fff',
-            },
-            success: {
-              iconTheme: {
-                primary: '#4ade80',
-                secondary: '#2A3142',
+    <ThemeProvider 
+      defaultTheme={THEME_MODES.DARK}
+      enableSystemDetection={false}
+    >
+      <Router>
+        <div className="App">
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#2A3142',
+                color: '#fff',
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#2A3142',
+              success: {
+                iconTheme: {
+                  primary: '#4ade80',
+                  secondary: '#2A3142',
+                },
               },
-            },
-          }}
-        />
-        <Routes>
-          <Route path="/" element={
-            <>
-              {showWelcome && (
-                <WelcomeModal 
-                  onClose={handleWelcomeClose}
-                />
-              )}
-              <MealPlannerForm user={user} handleLogout={handleLogout} />
-            </>
-          } />
-        </Routes>
-      </div>
-    </Router>
+              error: {
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#2A3142',
+                },
+              },
+            }}
+          />
+          <Routes>
+            <Route path="/" element={
+              <>
+                {showWelcome && (
+                  <WelcomeModal 
+                    onClose={handleWelcomeClose}
+                  />
+                )}
+                <MealPlannerForm user={user} handleLogout={handleLogout} />
+              </>
+            } />
+          </Routes>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
 
