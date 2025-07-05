@@ -855,6 +855,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
           </div>
           <div className="col-span-1 lg:col-span-8">
             <DailyCalories 
+              userId={user?.id}
               formData={{ targetCalories: visualData.targetCalories }}
               handleChange={handleVisualChange}
               mealPlan={mealPlan ? {
