@@ -179,6 +179,9 @@ const CustomEvent = ({ event }) => {
 const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
   const { themeMode, currentTheme } = useTheme();
   const isDarkMode = themeMode === 'dark';
+  const styles = calendarStyles[isDarkMode ? 'dark' : 'light'];
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   const [mealPlans, setMealPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -190,19 +193,11 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
   const [showMealModal, setShowMealModal] = useState(false);
   const [showRecipeView, setShowRecipeView] = useState(false);
   const [consumedMeals, setConsumedMeals] = useState(new Set());
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [isMobile, setIsMobile] = useState(false);
 
-  // Check if device is mobile
   useEffect(() => {
-    const checkMobile = () => {
-      const isMobileDevice = window.innerWidth <= 768;
-      setIsMobile(isMobileDevice);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const fetchMealPlans = async () => {
@@ -680,22 +675,121 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
         </div>
 
         <div className={`flex-1 ${isMobile ? 'min-h-0' : 'min-h-[600px]'} calendar-container ${isDarkMode ? 'dark-calendar' : 'light-calendar'}`}>
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            style={{ height: isMobile ? 500 : 600 }}
-            views={['month', 'week', 'day']}
-            defaultView={isMobile ? 'day' : 'week'}
-            components={{
-              toolbar: CustomToolbar,
-              event: CustomEvent
-            }}
-            eventPropGetter={eventStyleGetter}
-            onSelectEvent={handleSelectEvent}
-            className={isDarkMode ? 'dark-theme' : 'light-theme'}
-          />
+          {isMobile ? (
+            <div className="space-y-4">
+              {/* Date Navigation */}
+              <div className={`flex items-center justify-between rounded-lg p-4 ${isDarkMode ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'}`}>
+                <button
+                  onClick={() => setCurrentDate(moment(currentDate).subtract(1, 'day').toDate())}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDarkMode 
+                      ? 'hover:bg-[#374151] text-gray-400 hover:text-white' 
+                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                
+                <div className="text-center">
+                  <div className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {moment(currentDate).format('dddd')}
+                  </div>
+                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {moment(currentDate).format('MMMM Do, YYYY')}
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => setCurrentDate(moment(currentDate).add(1, 'day').toDate())}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDarkMode 
+                      ? 'hover:bg-[#374151] text-gray-400 hover:text-white' 
+                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Meals List */}
+              <div className="space-y-3">
+                {events
+                  .filter(event => moment(event.start).format('YYYY-MM-DD') === moment(currentDate).format('YYYY-MM-DD'))
+                  .sort((a, b) => moment(a.start).hour() - moment(b.start).hour())
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      onClick={() => handleSelectEvent(event)}
+                      className={`${isDarkMode ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} 
+                        rounded-lg p-4 cursor-pointer transition-all duration-200 
+                        ${isDarkMode ? 'hover:bg-[#374151]' : 'hover:bg-gray-50'} 
+                        border-l-4 ${
+                          event.resource === 'breakfast' ? 'border-yellow-400' :
+                          event.resource === 'lunch' ? 'border-green-400' :
+                          'border-blue-400'
+                        } ${event.consumed ? 'opacity-60 bg-red-900/20' : ''}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-sm font-medium capitalize ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {event.mealType}
+                            </span>
+                            <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                              {moment(event.start).format('h:mm A')}
+                            </span>
+                            {event.consumed && (
+                              <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">
+                                Consumed ✓
+                              </span>
+                            )}
+                          </div>
+                          <h3 className={`font-semibold mb-2 leading-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {event.meal?.name || 'Unknown meal'}
+                          </h3>
+                          {event.plannedMacros && (
+                            <div className={`grid grid-cols-2 gap-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              <span>🔥 {event.plannedMacros.calories || 0} cal</span>
+                              <span>🥩 {event.plannedMacros.protein_g || 0}g protein</span>
+                              <span>🍞 {event.plannedMacros.carbs_g || 0}g carbs</span>
+                              <span>🥑 {event.plannedMacros.fat_g || 0}g fat</span>
+                            </div>
+                          )}
+                        </div>
+                        <svg className={`w-5 h-5 ml-2 flex-shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ) : (
+            <Calendar
+              localizer={localizer}
+              events={events}
+              startAccessor="start"
+              endAccessor="end"
+              style={{ height: 600 }}
+              views={['month', 'week', 'day']}
+              defaultView="week"
+              date={currentDate}
+              onNavigate={setCurrentDate}
+              min={moment().hour(6).minute(0).toDate()}
+              max={moment().hour(21).minute(0).toDate()}
+              components={{
+                toolbar: CustomToolbar,
+                event: CustomEvent
+              }}
+              eventPropGetter={eventStyleGetter}
+              onSelectEvent={handleSelectEvent}
+              className={isDarkMode ? 'dark-theme' : 'light-theme'}
+            />
+          )}
         </div>
 
         <style>{`
@@ -828,12 +922,12 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             <div className="flex items-center justify-center w-full h-full">
               {/* Backdrop */}
               <div 
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm" 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm rounded-2xl" 
                 onClick={handleCloseModal}
               />
               
               {/* Summary Modal */}
-              <div className="relative bg-[#252B3B]/95 backdrop-blur-lg rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 md:p-8 shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20">
+              <div className="relative bg-[#252B3B]/95 backdrop-blur-lg rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20">
                 <MealSummaryModal
                   selectedMeal={selectedMeal}
                   consumedMeals={consumedMeals}
@@ -848,43 +942,45 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
           
           {/* Fullscreen Recipe Modal */}
           {showRecipeView && (
-            <div className="fixed inset-0 bg-[#1F2937] flex flex-col">
-              {/* Header */}
-              <div className="bg-[#252B3B]/95 backdrop-blur-lg px-4 py-3 border-b border-white/10 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={handleBackToSummary}
-                    className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-200"
-                  >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <div className="text-center flex-1">
-                    <h2 className="text-xl font-bold text-white">
-                      {selectedMeal.meal?.name}
-                    </h2>
-                    <p className="text-blue-400 text-sm">
-                      {selectedMeal.mealType.charAt(0).toUpperCase() + selectedMeal.mealType.slice(1)} Recipe
-                    </p>
+            <div className="fixed rounded-2xl inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+              <div className={`w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[90vh] overflow-y-auto p-0 sm:p-4 rounded-none sm:rounded-2xl ${isDarkMode ? 'bg-[#252B3B]' : 'bg-white'}`}>
+                {/* Header */}
+                <div className={`px-4 py-3 border-b flex-shrink-0 ${isDarkMode ? 'border-white/10 bg-[#252B3B]' : 'border-gray-200 bg-white'}`}>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={handleBackToSummary}
+                      className={`p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <div className="text-center flex-1">
+                      <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {selectedMeal.meal?.name}
+                      </h2>
+                      <p className="text-blue-400 text-sm">
+                        {selectedMeal.mealType.charAt(0).toUpperCase() + selectedMeal.mealType.slice(1)} Recipe
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleCloseModal}
+                      className={`p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
-                  <button
-                    onClick={handleCloseModal}
-                    className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-200"
-                  >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
-              </div>
-              
-              {/* Content */}
-              <div className="flex-1 min-h-0 p-4">
-                <MealRecipeModal
-                  selectedMeal={selectedMeal}
-                  onBack={handleBackToSummary}
-                />
+                
+                {/* Content */}
+                <div className="flex-1 min-h-0 p-4">
+                  <MealRecipeModal
+                    selectedMeal={selectedMeal}
+                    onBack={handleBackToSummary}
+                  />
+                </div>
               </div>
             </div>
           )}

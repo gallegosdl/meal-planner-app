@@ -1,18 +1,70 @@
 import React, { useState } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const RecipeContent = ({ selectedMeal }) => {
+  const { themeMode } = useTheme();
+  const isDarkMode = themeMode === 'dark';
   const [activeTab, setActiveTab] = useState('ingredients');
 
   return (
     <div className="flex flex-col h-full">
+      {/* Meta Info */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${isDarkMode ? 'bg-yellow-400/10 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}>
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span className="font-medium">{selectedMeal.meal.difficulty || 'Medium'}</span>
+        </div>
+        <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${isDarkMode ? 'bg-blue-400/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="font-medium">{selectedMeal.meal.prepTime || '25 min'}</span>
+        </div>
+        <div className="flex-1 flex justify-end">
+          {selectedMeal.meal.source_url ? (
+            <a
+              href={selectedMeal.meal.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                isDarkMode 
+                  ? 'bg-green-400/10 text-green-300 hover:bg-green-400/20' 
+                  : 'bg-green-50 text-green-700 hover:bg-green-100'
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              <span>Source</span>
+            </a>
+          ) : (
+            <button
+              onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(selectedMeal.meal.name + ' recipe')}`, '_blank')}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                isDarkMode 
+                  ? 'bg-green-400/10 text-green-300 hover:bg-green-400/20' 
+                  : 'bg-green-50 text-green-700 hover:bg-green-100'
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span>Search</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Tab Navigation */}
-      <div className="flex mb-3 bg-white/5 rounded-xl p-1 flex-shrink-0">
+      <div className={`flex mb-3 rounded-xl p-1 flex-shrink-0 ${isDarkMode ? 'bg-white/10' : 'bg-gray-100 border border-gray-100 shadow-sm'}`}>
         <button
           onClick={() => setActiveTab('ingredients')}
           className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 text-sm ${
             activeTab === 'ingredients'
               ? 'bg-green-400 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white'
+              : isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,7 +77,7 @@ const RecipeContent = ({ selectedMeal }) => {
           className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 text-sm ${
             activeTab === 'instructions'
               ? 'bg-orange-400 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white'
+              : isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,13 +88,13 @@ const RecipeContent = ({ selectedMeal }) => {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white/5 rounded-xl p-3 overflow-y-auto flex-1 min-h-0">
+      <div className={`rounded-xl p-3 overflow-y-auto flex-1 min-h-0 ${isDarkMode ? 'bg-white/10' : 'bg-gray-100 border'}`}>
         {activeTab === 'ingredients' && selectedMeal.meal.ingredients && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {Array.isArray(selectedMeal.meal.ingredients) ? (
               selectedMeal.meal.ingredients.map((ingredient, index) => (
-                <div key={index} className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg text-sm">
-                  <span className="text-gray-200 font-medium">
+                <div key={index} className={`flex justify-between items-center py-2 px-3 rounded-lg text-sm ${isDarkMode ? 'bg-white/10' : 'bg-white'}`}>
+                  <span className={isDarkMode ? 'text-gray-200' : 'text-gray-900'}>
                     {ingredient.name || ingredient}
                   </span>
                   <div className="text-right ml-3 flex-shrink-0">
@@ -50,7 +102,7 @@ const RecipeContent = ({ selectedMeal }) => {
                       {ingredient.amount || ''}
                     </span>
                     {ingredient.notes && (
-                      <div className="text-gray-400 text-xs italic">
+                      <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
                         {ingredient.notes}
                       </div>
                     )}
@@ -58,7 +110,7 @@ const RecipeContent = ({ selectedMeal }) => {
                 </div>
               ))
             ) : (
-              <p className="text-gray-400 text-center py-8">Ingredients list not available</p>
+              <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Ingredients list not available</p>
             )}
           </div>
         )}
@@ -73,12 +125,12 @@ const RecipeContent = ({ selectedMeal }) => {
                 if (!cleanStep) return null;
                 
                 return (
-                  <div key={index} className="bg-white/5 rounded-lg p-3 border-l-4 border-orange-400">
+                  <div key={index} className={`rounded-lg p-3 border-l-4 border-orange-400 ${isDarkMode ? 'bg-white/10' : 'bg-white'}`}>
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center">
                         <span className="text-white font-bold text-sm">{index + 1}</span>
                       </div>
-                      <p className="text-gray-200 leading-relaxed text-sm flex-1">
+                      <p className={`leading-relaxed text-sm flex-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                         {cleanStep}
                       </p>
                     </div>
@@ -93,68 +145,14 @@ const RecipeContent = ({ selectedMeal }) => {
   );
 };
 
-const MealRecipeModal = ({ selectedMeal, onBack }) => {
+const MealRecipeModal = ({ selectedMeal }) => {
   if (!selectedMeal?.meal) {
     return null;
   }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Recipe Meta Info - Always Visible */}
-      <div className="bg-[#1F2937]/50 backdrop-blur-sm rounded-xl p-4 border border-white/10 mb-4 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm text-gray-300">
-            {selectedMeal.meal.difficulty && (
-              <span className="flex items-center gap-1">
-                <svg className="h-4 w-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                {selectedMeal.meal.difficulty}
-              </span>
-            )}
-            {selectedMeal.meal.prepTime && (
-              <span className="flex items-center gap-1">
-                <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {selectedMeal.meal.prepTime}
-              </span>
-            )}
-          </div>
-          
-          {/* External Links */}
-          <div className="flex gap-2">
-            {selectedMeal.meal.source_url ? (
-              <a
-                href={selectedMeal.meal.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-green-500/30 hover:border-green-400"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                Source
-              </a>
-            ) : (
-              <button
-                onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(selectedMeal.meal.name + ' recipe')}`, '_blank')}
-                className="inline-flex items-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-green-500/30 hover:border-green-400"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                Search
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Tabbed Interface */}
-      <div className="flex-1 min-h-0">
-        <RecipeContent selectedMeal={selectedMeal} />
-      </div>
+      <RecipeContent selectedMeal={selectedMeal} />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import moment from 'moment';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const MealSummaryModal = ({ 
   selectedMeal, 
@@ -9,21 +10,25 @@ const MealSummaryModal = ({
   onMarkConsumed, 
   onEditMealTime 
 }) => {
+  const { themeMode } = useTheme();
+  const isDarkMode = themeMode === 'dark';
+
   return (
-    <>
+    <div className={`${isDarkMode ? 'bg-[#252B3B]/95' : 'bg-white'} relative backdrop-blur-lg rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_24px_6px_rgba(59,130,246,0.25)] border border-blue-500/20`}>
       {/* Header */}
+      <div className="p-4 md:p-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h3 className="text-2xl font-bold text-white mb-1">
+          <h3 className={`text-2xl font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             {selectedMeal.meal?.name || 'Meal Details'}
           </h3>
-          <p className="text-blue-400 text-sm font-medium">
+          <p className={`text-sm font-medium ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
             {selectedMeal.mealType.charAt(0).toUpperCase() + selectedMeal.mealType.slice(1)}
           </p>
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-200"
+          className={`p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
         >
           <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -32,17 +37,17 @@ const MealSummaryModal = ({
       </div>
 
       {/* Time and Date Info */}
-      <div className="bg-[#1F2937]/50 backdrop-blur-sm rounded-xl p-4 border border-white/10 mb-6">
-        <div className="flex items-center gap-3 text-gray-300">
+      <div className={`backdrop-blur-sm rounded-xl p-4 border mb-6 ${isDarkMode ? 'bg-[#1F2937]/50 border-white/10' : 'bg-gray-50/80 border-gray-200'}`}>
+        <div className={`flex items-center gap-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`h-5 w-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="font-medium">{moment(selectedMeal.start).format('h:mm A')} - {moment(selectedMeal.end).format('h:mm A')}</span>
           </div>
-          <div className="text-gray-400">•</div>
+          <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>•</div>
           <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`h-5 w-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <span className="font-medium">{moment(selectedMeal.start).format('MMMM Do, YYYY')}</span>
@@ -52,29 +57,29 @@ const MealSummaryModal = ({
       
       {/* Nutrition Info */}
       {selectedMeal.plannedMacros && (
-        <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-sm rounded-xl p-4 border border-blue-500/20 mb-6">
+        <div className={`backdrop-blur-sm rounded-xl p-4 border mb-6 ${isDarkMode ? 'bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20' : 'bg-gradient-to-br from-blue-50 to-purple-50/50 border-blue-200'}`}>
           <div className="flex items-center gap-2 mb-3">
-            <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`h-5 w-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <h4 className="text-white font-semibold">Nutrition Info</h4>
+            <h4 className={isDarkMode ? 'text-white font-semibold' : 'text-gray-900 font-semibold'}>Nutrition Info</h4>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/5 rounded-lg p-3 text-center">
+            <div className={`rounded-lg p-3 text-center ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
               <div className="text-2xl font-bold text-orange-400">{selectedMeal.plannedMacros.calories || 0}</div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">Calories</div>
+              <div className={`text-xs uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Calories</div>
             </div>
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-blue-400">{selectedMeal.plannedMacros.protein_g || 0}g</div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">Protein</div>
+            <div className={`rounded-lg p-3 text-center ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
+              <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>{selectedMeal.plannedMacros.protein_g || 0}g</div>
+              <div className={`text-xs uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Protein</div>
             </div>
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-green-400">{selectedMeal.plannedMacros.carbs_g || 0}g</div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">Carbs</div>
+            <div className={`rounded-lg p-3 text-center ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
+              <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>{selectedMeal.plannedMacros.carbs_g || 0}g</div>
+              <div className={`text-xs uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Carbs</div>
             </div>
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-purple-400">{selectedMeal.plannedMacros.fat_g || 0}g</div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">Fat</div>
+            <div className={`rounded-lg p-3 text-center ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
+              <div className={`text-2xl font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>{selectedMeal.plannedMacros.fat_g || 0}g</div>
+              <div className={`text-xs uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Fat</div>
             </div>
           </div>
         </div>
@@ -122,37 +127,38 @@ const MealSummaryModal = ({
         </button>
 
         {/* Quick Time Changes */}
-        <div className="bg-[#1F2937]/30 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+        <div className={`backdrop-blur-sm rounded-xl p-4 border ${isDarkMode ? 'bg-[#1F2937]/30 border-white/10' : 'bg-gray-50/80 border-gray-200'}`}>
           <div className="flex items-center gap-2 mb-3">
-            <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`h-5 w-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-sm text-gray-300 font-medium">Quick Time Changes</p>
+            <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Quick Time Changes</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {selectedMeal.mealType === 'breakfast' ? (
               <>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '7:00 AM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">7:00 AM</button>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '8:00 AM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">8:00 AM</button>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '9:00 AM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">9:00 AM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '7:00 AM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>7:00 AM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '8:00 AM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>8:00 AM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '9:00 AM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>9:00 AM</button>
               </>
             ) : selectedMeal.mealType === 'lunch' ? (
               <>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '11:00 AM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">11:00 AM</button>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '12:00 PM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">12:00 PM</button>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '1:00 PM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">1:00 PM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '11:00 AM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>11:00 AM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '12:00 PM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>12:00 PM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '1:00 PM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>1:00 PM</button>
               </>
             ) : (
               <>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '5:00 PM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">5:00 PM</button>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '6:00 PM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">6:00 PM</button>
-                <button onClick={() => onEditMealTime(selectedMeal.id, '7:00 PM')} className="py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white rounded-lg text-sm font-medium transition-all duration-200 border border-blue-500/30 hover:border-blue-400">7:00 PM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '5:00 PM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>5:00 PM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '6:00 PM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>6:00 PM</button>
+                <button onClick={() => onEditMealTime(selectedMeal.id, '7:00 PM')} className={`py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-white border-blue-500/30 hover:border-blue-400' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300'}`}>7:00 PM</button>
               </>
             )}
           </div>
         </div>
       </div>
-    </>
+    </div>
+    </div>
   );
 };
 
