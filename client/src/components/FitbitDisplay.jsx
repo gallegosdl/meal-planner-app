@@ -2,8 +2,17 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useTheme } from '../contexts/ThemeContext';
+import { getCardStyles, getTextStyles, getButtonStyles } from '../utils/styleUtils';
 
 const FitbitDisplay = ({ onCaloriesUpdate }) => {
+  // THEME FRAMEWORK INTEGRATION
+  const { themeMode, currentTheme } = useTheme();
+  
+  // Generate theme-aware styles using the theme system
+  const containerStyles = getCardStyles(themeMode, 'base', { layout: 'full' });
+  const connectButtonStyles = getButtonStyles(themeMode, 'fitbit_connect');
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -157,8 +166,7 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
 
   if (!data) {
     return (
-      <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-transparent h-full flex flex-col justify-center items-center shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
-      {/*<div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col justify-center items-center">*/}
+      <div className={containerStyles}>
         {error && (
           <div className="text-red-400 text-center mb-4">
             <p>{error}</p>
@@ -167,8 +175,7 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
         <button 
           onClick={handleFitbitLogin}
           disabled={loading}
-          // Old className: "bg-[#00B0B9] text-white px-6 py-3 rounded-lg hover:bg-[#00919A] transition-colors flex items-center gap-2 disabled:opacity-50"
-          className="group px-8 py-4 bg-gradient-to-r from-[#00B0B9]/20 to-[#111827]/60 text-[#00B0B9] font-semibold border-2 border-[#00B0B9]/50 rounded-xl shadow-[0_0_12px_2px_rgba(0,176,185,0.3)] hover:shadow-[0_0_16px_4px_rgba(0,176,185,0.35)] hover:bg-[#1e293b]/60 hover:border-[#00B0B9]/60 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 backdrop-blur relative overflow-hidden text-lg"
+          className={connectButtonStyles}
         >
           {loading ? (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -186,25 +193,36 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
   const height = formatHeight(data.height);
   
   return (
-    //old class name: <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#ffffff0f] h-full flex flex-col">
-    <div className="bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#00B0B9]/30 h-full flex flex-col shadow-[0_0_0_1px_rgba(0,176,185,0.6),0_0_12px_3px_rgba(0,176,185,0.25)]">
-      <div className="text-white">
+    <div className={containerStyles}>
+      <div className={currentTheme.text.primary}>
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-lg font-semibold">
-              <span className="text-green-400">Fitbit Connected</span> - <span className="text-white font-normal">{data.displayName || data.fullName}</span>
-              {data.age && <span className="text-white font-normal"> ({data.age} years)</span>}
+            <h3 className="text-lg font-semibold flex items-center gap-3">
+              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                themeMode === 'light' 
+                  ? 'bg-[#00B0B9]/10 text-[#00B0B9] border border-[#00B0B9]/30' 
+                  : 'bg-[#00B0B9]/20 text-[#00B0B9] border border-[#00B0B9]/40'
+              }`}>
+                <div className="w-2 h-2 bg-current rounded-full animate-pulse"></div>
+                Fitbit Connected
+              </div>
+              <span className={`${currentTheme.text.primary} font-normal`}>{data.displayName || data.fullName}</span>
+              {data.age && <span className={`${currentTheme.text.primary} font-normal`}> ({data.age} years)</span>}
             </h3>
-            <p className="text-sm text-gray-400">Last synced: {new Date().toLocaleString()}</p>
+            <p className={`text-sm ${currentTheme.text.secondary}`}>Last synced: {new Date().toLocaleString()}</p>
           </div>
           <div className="flex items-end gap-6">
-            <div className="text-right">
-              <p className="text-sm text-gray-400">Member Since</p>
-              <p className="text-base">{new Date(data.memberSince).toLocaleDateString()}</p>
+            <div className={`text-right p-3 rounded-lg ${
+              themeMode === 'light' 
+                ? 'bg-[#00B0B9]/5 border border-[#00B0B9]/20' 
+                : 'bg-[#00B0B9]/10 border border-[#00B0B9]/30'
+            }`}>
+              <p className={`text-sm ${currentTheme.text.secondary}`}>Member Since</p>
+              <p className={`text-base ${currentTheme.text.primary}`}>{new Date(data.memberSince).toLocaleDateString()}</p>
             </div>
             <button 
               onClick={handleFitbitLogin}
-              className="self-start mt-[8px] text-green-400 hover:text-green-300 transition-colors"
+              className="self-start mt-[8px] text-[#00B0B9] hover:text-[#00B0B9]/80 transition-colors"
             >
               <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -217,70 +235,103 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
         <div className="mb-3">
           {data.allData?.activities?.daily?.summary?.steps && (
             <div>
-              <p className="text-sm text-gray-400">Today's Steps</p>
-              <p className="text-xl">{Number(data.allData.activities.daily.summary.steps).toLocaleString()}</p>
+              <p className="text-sm text-gray-500 mb-1">Today's Steps</p>
+              <p className="text-2xl font-semibold text-[#00B0B9]">{Number(data.allData.activities.daily.summary.steps).toLocaleString()}</p>
             </div>
           )}
         </div>
 
-        {/* Bottom Section - Daily Activities */}
-        <div className="mt-3 pt-4 border-t border-[#ffffff1a]">
-          <h4 className="text-lg font-semibold mb-4">Today's Activities</h4>
+        {/* Bottom Section - Activity Badges */}
+        <div className={`mt-3 pt-4 border-t ${themeMode === 'light' ? 'border-[#00B0B9]/30' : 'border-[#00B0B9]/40'}`}>
+          <h4 className={`text-lg font-semibold mb-4 ${currentTheme.text.primary}`}>Today's Activities</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.allData?.activities?.daily?.activities?.map((activity, index) => {
               if (!activity) return null;
 
-              // Determine which icon to show
-              let iconPath;
+              // Determine which icon to show and activity type/colors with rings
+              let iconPath, activityType, bgColor, ringColor;
               const activityName = activity.name?.toLowerCase() || '';
 
               if (activityName.includes('rowing')) {
                 iconPath = "/images/rowerWhite64.png";
+                activityType = 'Row';
+                bgColor = themeMode === 'light' ? 'bg-purple-50' : 'bg-purple-400/10';
+                ringColor = 'border-purple-500';
               } else if (activityName.includes('run')) {
-                iconPath = "/images/speed.png";
+                iconPath = themeMode === 'light' ? "/images/speed-blue.png" : "/images/speed.png";
+                activityType = 'Run';
+                bgColor = themeMode === 'light' ? 'bg-blue-50' : 'bg-blue-200/20';
+                ringColor = 'border-blue-900';
               } else if (activityName.includes('walk')) {
                 iconPath = "/images/walking.png";
+                activityType = 'Walk';
+                bgColor = themeMode === 'light' ? 'bg-green-50' : 'bg-green-400/10';
+                ringColor = 'border-green-500';
               } else if (activityName.includes('weightlifting')) {
                 iconPath = "/images/workout.png";
+                activityType = 'Workout';
+                bgColor = themeMode === 'light' ? 'bg-orange-50' : 'bg-orange-400/10';
+                ringColor = 'border-orange-500';
               } else if (activityName.includes('activity')) {
                 iconPath = "/images/workout.png";
+                activityType = 'Activity';
+                bgColor = themeMode === 'light' ? 'bg-gray-50' : 'bg-gray-400/10';
+                ringColor = 'border-gray-500';
+              } else {
+                iconPath = "/images/workout.png";
+                activityType = 'Exercise';
+                bgColor = themeMode === 'light' ? 'bg-gray-50' : 'bg-gray-400/10';
+                ringColor = 'border-gray-500';
               }
-
-              const isRowing = activityName.includes('rowing');
 
               return (
                 <div 
                   key={index}
-                  className={`bg-[#ffffff0a] rounded-lg p-4 flex flex-col ${
-                    isRowing ? 'sm:col-span-2 lg:col-span-2' : ''
-                  }`}
+                  className="flex flex-col items-center gap-2 p-3 rounded-lg hover:scale-105 transition-all duration-200 hover:shadow-md text-center"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {iconPath && (
-                        <img 
-                          src={iconPath}
-                          alt={activity.type}
-                          className={`${isRowing ? 'w-12 h-12' : 'w-8 h-8'}`}
-                        />
-                      )}
-                      <h5 className={`${isRowing ? 'text-xl' : 'text-lg'} font-medium`}>{activity.name}</h5>
-                    </div>
+                  {/* Activity Type - Above */}
+                  <div className="flex flex-col items-center">
+                    <span className={`font-semibold ${currentTheme.text.primary}`}>
+                      {activityType === 'Run' && activity.distance 
+                        ? `${activityType} - ${parseFloat(activity.distance).toFixed(1)} km`
+                        : activityType
+                      }
+                    </span>
                   </div>
                   
-                  <div className="space-y-2 text-sm text-gray-400">
-                    {activity.distance && (
-                      <p className="text-[#FC4C02] font-medium">
-                        {(activity.distance)} km
-                      </p>
+                  {/* Activity Badge Circle with Ring */}
+                  <div className={`w-32 h-32 rounded-full flex items-center justify-center ${bgColor} ${ringColor} border-[6px] flex-shrink-0`}>
+                    {iconPath && (
+                      <img 
+                        src={iconPath}
+                        alt={activity.type}
+                        className="w-15 h-15"
+                      />
                     )}
-                    {activity.calories && (
-                      <p className="text-green-400 font-medium">
-                        {activity.calories} cal
-                      </p>
+                  </div>
+                  
+                  {/* Activity Metrics - Below */}
+                  <div className="flex flex-col items-center gap-1 text-sm">
+                    {/* Show distance only for non-run activities */}
+                    {activity.distance && activityType !== 'Run' && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-2xl font-bold text-blue-600">{parseFloat(activity.distance).toFixed(1)}</span>
+                        <span className="text-gray-500 font-medium">km</span>
+                      </div>
                     )}
-                    <p>{Math.round(activity.duration / 60000)} minutes</p>
-                    <p className="text-xs">{(activity.startTime)}</p>
+                    <div className="flex items-center gap-3">
+                      {activity.calories && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xl font-bold text-orange-600">{activity.calories}</span>
+                          <span className="text-gray-500 font-medium">cal</span>
+                        </div>
+                      )}
+                      <span className="text-gray-400">•</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xl font-bold text-green-600">{Math.round(activity.duration / 60000)}</span>
+                        <span className="text-gray-500 font-medium">min</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );

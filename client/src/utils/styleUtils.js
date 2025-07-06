@@ -36,7 +36,9 @@ const BUTTON_VARIANTS = Object.freeze({
   MEAL_PLAN_GENERATE: 'meal_plan_generate',
   RECIPE_LIST_VIEW: 'recipe_list_view',
   VOICE_INTENT: 'voice_intent',
-  VOICE_INTENT_ACTIVE: 'voice_intent_active'
+  VOICE_INTENT_ACTIVE: 'voice_intent_active',
+  FITBIT_CONNECT: 'fitbit_connect',
+  STRAVA_CONNECT: 'strava_connect'
 });
 
 const TEXT_VARIANTS = Object.freeze({

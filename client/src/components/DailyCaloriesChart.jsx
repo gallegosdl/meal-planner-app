@@ -60,11 +60,24 @@ const DailyCaloriesChart = ({
       });
     }
 
+    //Find the correct index for today's date to plot activities
+    const today = new Date();
+    const todayLabel = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const todayIndex = chartLabels.findIndex(label => label === todayLabel);
+    
+    console.log('📊 Chart: Today is', todayLabel, 'found at index', todayIndex, 'in labels:', chartLabels);
+
     // Add Strava calories dataset if we have any
     if (activityCalories.strava > 0) {
+      // Create array with nulls and put Strava calories at the correct index for today
+      const stravaData = new Array(chartLabels.length).fill(null);
+      if (todayIndex >= 0) {
+        stravaData[todayIndex] = activityCalories.strava;
+      }
+
       datasets.push({
         label: 'Strava',
-        data: [activityCalories.strava, ...new Array(chartLabels.length - 1).fill(null)],
+        data: stravaData,
         borderColor: '#FC4C02',
         backgroundColor: '#FC4C02',
         borderWidth: 2,
@@ -81,9 +94,15 @@ const DailyCaloriesChart = ({
 
     // Add Fitbit calories dataset if we have any
     if (activityCalories.fitbit > 0) {
+      // Create array with nulls and put Fitbit calories at the correct index for today
+      const fitbitData = new Array(chartLabels.length).fill(null);
+      if (todayIndex >= 0) {
+        fitbitData[todayIndex] = activityCalories.fitbit;
+      }
+
       datasets.push({
         label: 'Fitbit',
-        data: [activityCalories.fitbit, ...new Array(chartLabels.length - 1).fill(null)],
+        data: fitbitData,
         borderColor: '#00B0B9',
         backgroundColor: '#00B0B9',
         borderWidth: 2,

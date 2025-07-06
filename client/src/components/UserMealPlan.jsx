@@ -1,4 +1,4 @@
-import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useState, forwardRef, useImperativeHandle, useContext } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -11,6 +11,9 @@ import {
   Legend
 } from 'chart.js';
 import api from '../services/api';
+import { useTheme } from '../contexts/ThemeContext';
+import { getCardStyles, getButtonStyles, getTextStyles } from '../utils/styleUtils';
+import { THEME_MODES } from '../styles/themes';
 
 // Register Chart.js components
 ChartJS.register(
@@ -24,6 +27,7 @@ ChartJS.register(
 );
 
 const UserMealPlan = forwardRef(({ userId }, ref) => {
+  const { currentTheme } = useTheme();
   const [mealPlans, setMealPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,11 +45,35 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
   const [showChartView, setShowChartView] = useState(true);
   const [mobileChartDateLimit, setMobileChartDateLimit] = useState('today+2'); // 'today', 'last3', 'today+2'
 
+  // Get current theme mode from document class
+  const getCurrentTheme = () => {
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  };
+  const [themeMode, setThemeMode] = useState(getCurrentTheme());
+
+  // Update theme mode when document class changes
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          setThemeMode(getCurrentTheme());
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
+
   // Check if device is mobile
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth <= 768;
       setIsMobile(isMobileDevice);
+      // Reset to chart view when switching to mobile
+      if (isMobileDevice) {
+        setShowChartView(true);
+      }
     };
 
     checkMobile();
@@ -129,7 +157,6 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
   }, [mealPlans, selectedMealTypes, dateRange]);
 
   // Chart data preparation - mobile has date-based filtering options
-  // Note: Stats above are calculated from all meals (within date range filter)
   const prepareChartData = () => {
     if (!mealPlans.length) return null;
 
@@ -165,10 +192,9 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
       
-      // Filter meals based on their planned date (when they were scheduled)
+      // Filter meals based on their planned date
       switch (mobileChartDateLimit) {
         case 'today':
-          // Only meals planned for today's date
           const todayString = today.toDateString();
           finalMealData = mealData.filter(meal => {
             const mealDate = new Date(meal.date);
@@ -176,7 +202,6 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           });
           break;
         case 'last3':
-          // Today, yesterday, day before yesterday
           const twoDaysAgo = new Date(today);
           twoDaysAgo.setDate(today.getDate() - 2);
           finalMealData = mealData.filter(meal => {
@@ -186,7 +211,6 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           });
           break;
         case 'today+2':
-          // Today, tomorrow, day after tomorrow
           const twoDaysLater = new Date(today);
           twoDaysLater.setDate(today.getDate() + 2);
           finalMealData = mealData.filter(meal => {
@@ -205,7 +229,6 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     const labels = finalMealData.map(data => {
       const dateStr = data.date.toLocaleDateString();
       const mealType = data.mealType;
-      const recipeName = data.recipeName;
       
       if (isMobile) {
         // Special formatting for TODAY filter - just show meal types
@@ -215,7 +238,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         // Shorter labels for other mobile filters
         return `${dateStr.split('/').slice(0, 2).join('/')} ${mealType.charAt(0).toUpperCase()}`;
       } else {
-        return `${dateStr} - ${mealType}\n${recipeName}`;
+        return `${dateStr} ${mealType.charAt(0).toUpperCase()}`;
       }
     });
 
@@ -230,7 +253,8 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           yAxisID: 'y-calories',
           pointRadius: isMobile ? 4 : 6,
           pointHoverRadius: isMobile ? 6 : 8,
-          borderWidth: isMobile ? 2 : 3
+          borderWidth: isMobile ? 2 : 3,
+          tension: 0.4
         },
         {
           label: 'Protein (g)',
@@ -240,7 +264,8 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           yAxisID: 'y-macros',
           pointRadius: isMobile ? 4 : 6,
           pointHoverRadius: isMobile ? 6 : 8,
-          borderWidth: isMobile ? 2 : 3
+          borderWidth: isMobile ? 2 : 3,
+          tension: 0.4
         },
         {
           label: 'Carbs (g)',
@@ -250,7 +275,8 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           yAxisID: 'y-macros',
           pointRadius: isMobile ? 4 : 6,
           pointHoverRadius: isMobile ? 6 : 8,
-          borderWidth: isMobile ? 2 : 3
+          borderWidth: isMobile ? 2 : 3,
+          tension: 0.4
         },
         {
           label: 'Fat (g)',
@@ -260,7 +286,8 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           yAxisID: 'y-macros',
           pointRadius: isMobile ? 4 : 6,
           pointHoverRadius: isMobile ? 6 : 8,
-          borderWidth: isMobile ? 2 : 3
+          borderWidth: isMobile ? 2 : 3,
+          tension: 0.4
         }
       ]
     };
@@ -275,31 +302,42 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
                            mobileChartDateLimit === 'last3' ? 'Last 3 Days' :
                            mobileChartDateLimit === 'today+2' ? 'Today + 2 Days' : 'All'}` :
           'Meal Plan Macros by Meal',
-        color: 'white',
+        color: themeMode === 'dark' ? '#ffffff' : '#1e293b',
         font: {
-          size: isMobile ? 14 : 16
+          size: isMobile ? 14 : 16,
+          weight: 'bold'
+        },
+        padding: {
+          top: 10,
+          bottom: 20
         }
       },
       legend: {
-        position: isMobile ? 'bottom' : 'bottom',
+        position: 'bottom',
         labels: {
-          color: 'white',
+          color: themeMode === 'dark' ? '#ffffff' : '#1e293b',
           padding: isMobile ? 10 : 15,
           font: {
             size: isMobile ? 10 : 12
           },
-          usePointStyle: isMobile,
-          pointStyle: 'circle'
+          usePointStyle: true,
+          pointStyle: 'circle',
+          boxWidth: 8,
+          boxHeight: 8
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: themeMode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+        titleColor: themeMode === 'dark' ? '#ffffff' : '#1e293b',
+        bodyColor: themeMode === 'dark' ? '#ffffff' : '#1e293b',
         titleFont: {
           size: isMobile ? 12 : 14
         },
         bodyFont: {
           size: isMobile ? 11 : 12
         },
+        padding: 12,
+        boxPadding: 6,
         callbacks: {
           label: function(context) {
             const value = context.raw;
@@ -319,23 +357,17 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
     scales: {
       x: {
         ticks: {
-          color: 'white',
+          color: themeMode === 'dark' ? '#ffffff' : '#1e293b',
           maxRotation: isMobile ? 60 : 45,
           minRotation: isMobile ? 45 : 45,
           font: {
             size: isMobile ? 9 : 11
           },
-          callback: function(value, index) {
-            const label = this.getLabelForValue(value);
-            if (isMobile) {
-              return label;
-            } else {
-              return label.split('\n')[0];
-            }
-          }
+          padding: 8
         },
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)'
+          color: themeMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+          drawBorder: false
         }
       },
       'y-calories': {
@@ -345,19 +377,21 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         title: {
           display: !isMobile,
           text: 'Calories',
-          color: 'white',
+          color: themeMode === 'dark' ? '#ffffff' : '#1e293b',
           font: {
             size: isMobile ? 10 : 12
           }
         },
         ticks: {
-          color: 'white',
+          color: themeMode === 'dark' ? '#ffffff' : '#1e293b',
           font: {
             size: isMobile ? 9 : 11
-          }
+          },
+          padding: 8
         },
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)'
+          color: themeMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+          drawBorder: false
         }
       },
       'y-macros': {
@@ -367,20 +401,22 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         title: {
           display: !isMobile,
           text: 'Grams',
-          color: 'white',
+          color: themeMode === 'dark' ? '#ffffff' : '#1e293b',
           font: {
             size: isMobile ? 10 : 12
           }
         },
         ticks: {
-          color: 'white',
+          color: themeMode === 'dark' ? '#ffffff' : '#1e293b',
           font: {
             size: isMobile ? 9 : 11
-          }
+          },
+          padding: 8
         },
         grid: {
           drawOnChartArea: false,
-          color: 'rgba(255, 255, 255, 0.1)'
+          color: themeMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+          drawBorder: false
         }
       }
     }
@@ -389,20 +425,20 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
   // Mobile Summary Cards Component
   const MobileSummaryCards = () => (
     <div className="grid grid-cols-2 gap-3 mb-4">
-      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
-        <div className="text-gray-400 text-xs mb-1">Avg. Calories</div>
+      <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-3 text-center`}>
+        <div className={`text-xs mb-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Calories</div>
         <div className="text-lg font-bold text-[rgb(75,192,192)]">{stats.averageCalories}</div>
       </div>
-      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
-        <div className="text-gray-400 text-xs mb-1">Avg. Protein</div>
+      <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-3 text-center`}>
+        <div className={`text-xs mb-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Protein</div>
         <div className="text-lg font-bold text-[rgb(255,99,132)]">{stats.averageProtein}g</div>
       </div>
-      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
-        <div className="text-gray-400 text-xs mb-1">Avg. Carbs</div>
+      <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-3 text-center`}>
+        <div className={`text-xs mb-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Carbs</div>
         <div className="text-lg font-bold text-[rgb(54,162,235)]">{stats.averageCarbs}g</div>
       </div>
-      <div className="bg-[#2A3142] rounded-lg p-3 text-center">
-        <div className="text-gray-400 text-xs mb-1">Avg. Fat</div>
+      <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-3 text-center`}>
+        <div className={`text-xs mb-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Fat</div>
         <div className="text-lg font-bold text-[rgb(255,206,86)]">{stats.averageFat}g</div>
       </div>
     </div>
@@ -426,7 +462,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
               className={`px-3 py-2 rounded-full text-sm capitalize flex-1 min-w-0 ${
                 selectedMealTypes.includes(mealType)
                   ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
+                  : themeMode === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
               }`}
             >
               {mealType}
@@ -435,8 +471,8 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         </div>
       </div>
 
-      {/* Mobile Chart Date Selector - Only show when viewing chart */}
-      {showChartView && (
+      {/* Mobile Chart Date Selector - Show when in chart view or initially switching to mobile */}
+      {(showChartView || isMobile) && (
         <div>
           <div className="text-sm text-gray-400 mb-2">Chart Display 
             <span className="text-xs text-gray-500 ml-1">(Select time window to show)</span>
@@ -449,11 +485,14 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
             ].map(limit => (
               <button
                 key={limit.value}
-                onClick={() => setMobileChartDateLimit(limit.value)}
+                onClick={() => {
+                  setMobileChartDateLimit(limit.value);
+                  setShowChartView(true); // Ensure chart view is shown when selecting a date limit
+                }}
                 className={`px-3 py-2 rounded-full text-xs flex-1 ${
                   mobileChartDateLimit === limit.value
                     ? 'bg-green-500 text-white'
-                    : 'bg-gray-700 text-gray-300'
+                    : themeMode === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}
                 title={limit.desc}
               >
@@ -548,7 +587,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className={`flex items-center justify-center h-64 ${getCardStyles(themeMode, 'base')}`}>
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -556,7 +595,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
 
   if (error) {
     return (
-      <div className="text-red-500 p-4 rounded-lg bg-red-100/10">
+      <div className={`text-red-500 p-4 rounded-lg ${getCardStyles(themeMode, 'base')}`}>
         Error: {error}
       </div>
     );
@@ -565,17 +604,21 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
   const chartData = prepareChartData();
   if (!chartData) {
     return (
-      <div className="text-gray-400 p-4 text-center">
+      <div className={`text-gray-400 p-4 text-center ${getCardStyles(themeMode, 'base')}`}>
         No meal plan data available.
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)] space-y-4 md:space-y-6">
+    <div className={`h-full flex flex-col ${themeMode === 'dark' ? 'bg-[#252B3B]/50' : 'bg-white'} backdrop-blur-sm rounded-2xl p-3 md:p-6 ${
+      themeMode === 'dark' 
+        ? 'border border-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]'
+        : 'border border-gray-200 shadow-lg'
+    } space-y-4 md:space-y-6`}>
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg md:text-2xl font-bold">
+          <h2 className={`text-lg md:text-2xl font-bold ${themeMode === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             {isMobile ? 'Meal Report' : 'Meal Plan Report Card'}
           </h2>
           {isMobile && (
@@ -589,7 +632,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           {isMobile && (
             <button
               onClick={() => setShowChartView(!showChartView)}
-              className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm flex items-center gap-1"
+              className={getButtonStyles(themeMode, 'primary')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {showChartView ? (
@@ -605,7 +648,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           <button
             onClick={fetchMealPlans}
             disabled={isRefreshing}
-            className="p-2 hover:bg-[#374151] rounded-lg transition-colors duration-200 disabled:opacity-50"
+            className={getButtonStyles(themeMode, 'secondary')}
             title="Refresh meal plan history"
           >
             <svg
@@ -613,7 +656,6 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 strokeLinecap="round"
@@ -642,11 +684,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
                     ? prev.filter(t => t !== mealType)
                     : [...prev, mealType]
                 )}
-                className={`px-3 py-1 rounded-full text-sm capitalize ${
-                  selectedMealTypes.includes(mealType)
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                }`}
+                className={getButtonStyles(themeMode, selectedMealTypes.includes(mealType) ? 'primary' : 'secondary')}
               >
                 {mealType}
               </button>
@@ -663,11 +701,7 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
               <button
                 key={range.value}
                 onClick={() => setDateRange(range.value)}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  dateRange === range.value
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                }`}
+                className={getButtonStyles(themeMode, dateRange === range.value ? 'primary' : 'secondary')}
               >
                 {range.label}
               </button>
@@ -681,31 +715,35 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
         <MobileSummaryCards />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm">Total Meals</div>
-            <div className="text-2xl font-bold text-white">{stats.totalMeals}</div>
+          <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-4 text-center`}>
+            <div className={`text-sm ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total Meals</div>
+            <div className={`text-2xl font-bold ${themeMode === 'dark' ? 'text-white' : 'text-gray-900'}`}>{stats.totalMeals}</div>
           </div>
-          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm">Avg. Calories</div>
+          <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-4 text-center`}>
+            <div className={`text-sm ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Calories</div>
             <div className="text-2xl font-bold text-[rgb(75,192,192)]">{stats.averageCalories}</div>
           </div>
-          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm">Avg. Protein</div>
+          <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-4 text-center`}>
+            <div className={`text-sm ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Protein</div>
             <div className="text-2xl font-bold text-[rgb(255,99,132)]">{stats.averageProtein}g</div>
           </div>
-          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm">Avg. Carbs</div>
+          <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-4 text-center`}>
+            <div className={`text-sm ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Carbs</div>
             <div className="text-2xl font-bold text-[rgb(54,162,235)]">{stats.averageCarbs}g</div>
           </div>
-          <div className="bg-[#2A3142] rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm">Avg. Fat</div>
+          <div className={`${themeMode === 'dark' ? 'bg-[#2A3142]' : 'bg-white border border-gray-200'} rounded-lg p-4 text-center`}>
+            <div className={`text-sm ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Avg. Fat</div>
             <div className="text-2xl font-bold text-[rgb(255,206,86)]">{stats.averageFat}g</div>
           </div>
         </div>
       )}
 
       {/* Content Area - Chart or List */}
-      <div className="flex-1 bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-[#ffffff0f]">
+      <div className={`flex-1 ${themeMode === 'dark' ? 'bg-[#252B3B]/50' : 'bg-white'} backdrop-blur-sm rounded-2xl p-3 md:p-6 ${
+        themeMode === 'dark' 
+          ? 'border border-[#ffffff0f]' 
+          : 'border border-gray-100'
+      }`}>
         {isMobile && !showChartView ? (
           <MobileDetailedView />
         ) : (
@@ -714,8 +752,6 @@ const UserMealPlan = forwardRef(({ userId }, ref) => {
           </div>
         )}
       </div>
-
-      
     </div>
   );
 });
