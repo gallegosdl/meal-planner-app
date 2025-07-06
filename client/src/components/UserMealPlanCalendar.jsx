@@ -3,6 +3,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { toast } from 'react-hot-toast';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 import CalendarService from '../services/calendarService';
 import MealSummaryModal from './MealSummaryModal';
 import MealRecipeModal from './MealRecipeModal';
@@ -10,7 +11,175 @@ import api from '../services/api';
 
 const localizer = momentLocalizer(moment);
 
+// Calendar theme styles
+const calendarStyles = {
+  dark: {
+    calendar: {
+      backgroundColor: 'transparent',
+      color: '#fff',
+      borderColor: 'rgba(59, 130, 246, 0.2)',
+    },
+    header: {
+      backgroundColor: 'rgba(37, 43, 59, 0.5)',
+      color: '#fff',
+      borderColor: 'rgba(59, 130, 246, 0.2)',
+    },
+    toolbar: {
+      backgroundColor: 'transparent',
+      color: '#fff',
+      buttonBg: 'rgba(37, 43, 59, 0.8)',
+      buttonHoverBg: 'rgba(59, 130, 246, 0.2)',
+      buttonActiveColor: '#60a5fa',
+    },
+    event: {
+      backgroundColor: 'rgba(59, 130, 246, 0.2)',
+      color: '#93c5fd',
+      borderColor: 'rgba(59, 130, 246, 0.4)',
+      hoverBg: 'rgba(59, 130, 246, 0.3)',
+    },
+    cell: {
+      backgroundColor: 'rgba(37, 43, 59, 0.3)',
+      todayBg: 'rgba(59, 130, 246, 0.1)',
+      selectedBg: 'rgba(59, 130, 246, 0.2)',
+    }
+  },
+  light: {
+    calendar: {
+      backgroundColor: '#fff',
+      color: '#1e293b',
+      borderColor: '#e2e8f0',
+    },
+    header: {
+      backgroundColor: '#f8fafc',
+      color: '#1e293b',
+      borderColor: '#e2e8f0',
+    },
+    toolbar: {
+      backgroundColor: '#fff',
+      color: '#1e293b',
+      buttonBg: '#f1f5f9',
+      buttonHoverBg: '#e2e8f0',
+      buttonActiveColor: '#3b82f6',
+    },
+    event: {
+      backgroundColor: '#eff6ff',
+      color: '#1e40af',
+      borderColor: '#bfdbfe',
+      hoverBg: '#dbeafe',
+    },
+    cell: {
+      backgroundColor: '#fff',
+      todayBg: '#f8fafc',
+      selectedBg: '#eff6ff',
+    }
+  }
+};
+
+// Custom calendar components
+const CustomToolbar = ({ label, onNavigate, onView, view }) => {
+  const { themeMode } = useTheme();
+  const isDarkMode = themeMode === 'dark';
+  const styles = calendarStyles[isDarkMode ? 'dark' : 'light'];
+
+  return (
+    <div className={`flex items-center justify-between p-4 ${isDarkMode ? 'bg-[#252B3B]/50' : 'bg-white'} border-b ${isDarkMode ? 'border-blue-400/20' : 'border-gray-200'}`}>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onNavigate('TODAY')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+            ${isDarkMode 
+              ? 'bg-[#374151] text-gray-300 hover:bg-[#3f4a61] hover:text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'}`}
+        >
+          Today
+        </button>
+        <button
+          onClick={() => onNavigate('PREV')}
+          className={`p-1.5 rounded-lg transition-colors
+            ${isDarkMode 
+              ? 'text-gray-400 hover:text-white hover:bg-[#374151]' 
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={() => onNavigate('NEXT')}
+          className={`p-1.5 rounded-lg transition-colors
+            ${isDarkMode 
+              ? 'text-gray-400 hover:text-white hover:bg-[#374151]' 
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+        <span className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          {label}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onView('month')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+            ${view === 'month'
+              ? (isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700')
+              : (isDarkMode 
+                  ? 'bg-[#374151] text-gray-300 hover:bg-[#3f4a61] hover:text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900')}`}
+        >
+          Month
+        </button>
+        <button
+          onClick={() => onView('week')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+            ${view === 'week'
+              ? (isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700')
+              : (isDarkMode 
+                  ? 'bg-[#374151] text-gray-300 hover:bg-[#3f4a61] hover:text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900')}`}
+        >
+          Week
+        </button>
+        <button
+          onClick={() => onView('day')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+            ${view === 'day'
+              ? (isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700')
+              : (isDarkMode 
+                  ? 'bg-[#374151] text-gray-300 hover:bg-[#3f4a61] hover:text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900')}`}
+        >
+          Day
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const CustomEvent = ({ event }) => {
+  const { themeMode } = useTheme();
+  const isDarkMode = themeMode === 'dark';
+
+  return (
+    <div 
+      className={`
+        p-1 rounded-lg text-sm truncate border
+        ${event.consumed 
+          ? (isDarkMode ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-green-100 border-green-200 text-green-700')
+          : (isDarkMode ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' : 'bg-blue-100 border-blue-200 text-blue-700')}
+      `}
+    >
+      {event.title}
+    </div>
+  );
+};
+
 const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
+  const { themeMode, currentTheme } = useTheme();
+  const isDarkMode = themeMode === 'dark';
+  
   const [mealPlans, setMealPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -424,17 +593,31 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     setShowRecipeView(false);
   };
 
+  // Calendar event styling
+  const eventStyleGetter = (event) => {
+    const isDarkMode = themeMode === 'dark';
+    const styles = calendarStyles[isDarkMode ? 'dark' : 'light'].event;
+
+    return {
+      style: {
+        backgroundColor: event.consumed ? (isDarkMode ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7') : styles.backgroundColor,
+        color: event.consumed ? (isDarkMode ? '#4ade80' : '#15803d') : styles.color,
+        borderColor: event.consumed ? (isDarkMode ? 'rgba(34, 197, 94, 0.4)' : '#86efac') : styles.borderColor,
+      }
+    };
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className={`flex items-center justify-center h-64 ${currentTheme.backgrounds.secondary.translucent} rounded-xl`}>
+        <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${isDarkMode ? 'border-blue-400' : 'border-blue-600'}`}></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-red-500 p-4 rounded-lg bg-red-100/10">
+      <div className={`${isDarkMode ? 'bg-red-500/10 text-red-400' : 'bg-red-100 text-red-600'} p-4 rounded-lg border ${isDarkMode ? 'border-red-500/20' : 'border-red-200'}`}>
         Error: {error}
       </div>
     );
@@ -444,21 +627,21 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     <div className="relative">
       
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
-          <p className="text-red-400">{error}</p>
+        <div className={`${isDarkMode ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-red-100 border-red-200 text-red-600'} rounded-lg p-4 mb-4 border`}>
+          <p>{error}</p>
         </div>
       )}
 
-      <div className="h-full flex flex-col bg-[#252B3B]/50 backdrop-blur-sm rounded-2xl p-3 md:p-6 border border-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.6),0_0_12px_3px_rgba(59,130,246,0.25)]">
+      <div className={`h-full flex flex-col ${currentTheme.components.card.base}`}>
         <div className="flex justify-between items-center mb-4 md:mb-6">
           <div className="flex items-center gap-2 md:gap-3">
-            <h2 className="text-lg md:text-2xl font-bold">
+            <h2 className={`text-lg md:text-2xl font-bold ${currentTheme.text.primary}`}>
               {isMobile ? 'Meal Calendar' : 'Weekly Meal Calendar'}
             </h2>
             <button
               onClick={fetchMealPlans}
               disabled={isRefreshing}
-              className="p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              className={`p-2 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'} transition-colors disabled:opacity-50`}
               title="Refresh calendar"
             >
               <svg className={`w-4 h-4 md:w-5 md:h-5 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -473,6 +656,7 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
               onClick={handleExportToCalendar}
               disabled={isExporting || !mealPlans.length}
               className="px-2 md:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 md:gap-2 text-sm"
+              //className={`${currentTheme.components.button.primary} text-sm flex items-center gap-1 md:gap-2`}
             >
               {isExporting ? (
                 <>
@@ -495,114 +679,23 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
           </div>
         </div>
 
-        <div className={`flex-1 ${isMobile ? 'min-h-0' : 'min-h-[600px]'} calendar-container`}>
-          {isMobile ? (
-            <div className="space-y-4">
-              {/* Date Navigation */}
-              <div className="flex items-center justify-between bg-[#2A3142] rounded-lg p-4">
-                <button
-                  onClick={() => setCurrentDate(moment(currentDate).subtract(1, 'day').toDate())}
-                  className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                
-                <div className="text-center">
-                  <div className="text-lg font-semibold">
-                    {moment(currentDate).format('dddd')}
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    {moment(currentDate).format('MMMM Do, YYYY')}
-                  </div>
-                </div>
-                
-                <button
-                  onClick={() => setCurrentDate(moment(currentDate).add(1, 'day').toDate())}
-                  className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Meals List */}
-              <div className="space-y-3">
-                {events.filter(event => 
-                  moment(event.start).format('YYYY-MM-DD') === moment(currentDate).format('YYYY-MM-DD')
-                ).sort((a, b) => moment(a.start).hour() - moment(b.start).hour()).map((event) => (
-                  <div
-                    key={event.id}
-                    onClick={() => handleSelectEvent(event)}
-                    className={`bg-[#2A3142] rounded-lg p-4 cursor-pointer transition-all duration-200 hover:bg-[#374151] border-l-4 ${
-                      event.resource === 'breakfast' ? 'border-yellow-400' :
-                      event.resource === 'lunch' ? 'border-green-400' :
-                      'border-blue-400'
-                    } ${event.consumed ? 'opacity-60 bg-red-900/20' : ''}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium capitalize text-gray-300">
-                            {event.mealType}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {moment(event.start).format('h:mm A')}
-                          </span>
-                          {event.consumed && (
-                            <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">
-                              Consumed ✓
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="font-semibold text-white mb-2 leading-tight">
-                          {event.meal?.name || 'Unknown meal'}
-                        </h3>
-                        {event.plannedMacros && (
-                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
-                            <span>🔥 {event.plannedMacros.calories || 0} cal</span>
-                            <span>🥩 {event.plannedMacros.protein_g || 0}g protein</span>
-                            <span>🍞 {event.plannedMacros.carbs_g || 0}g carbs</span>
-                            <span>🥑 {event.plannedMacros.fat_g || 0}g fat</span>
-                          </div>
-                        )}
-                      </div>
-                      <svg className="w-5 h-5 text-gray-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <Calendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              defaultView="week"
-              views={['week', 'day']}
-              date={currentDate}
-              onNavigate={setCurrentDate}
-              min={moment().hour(6).minute(0).toDate()}
-              max={moment().hour(21).minute(0).toDate()}
-              onSelectEvent={handleSelectEvent}
-              eventPropGetter={(event) => ({
-                className: `meal-event ${event.consumed ? 'consumed' : ''} ${
-                  event.resource === 'breakfast' ? 'breakfast-event' :
-                  event.resource === 'lunch' ? 'lunch-event' :
-                  'dinner-event'
-                }`,
-              })}
-              tooltipAccessor={(event) => {
-                const meal = event.meal;
-                return `${meal.name}\n\nCalories: ${meal.nutrition?.calories || 'N/A'}\nProtein: ${meal.nutrition?.protein_g || 'N/A'}g\nCarbs: ${meal.nutrition?.carbs_g || 'N/A'}g\nFat: ${meal.nutrition?.fat_g || 'N/A'}g\n\nClick to edit or mark as consumed`;
-              }}
-            />
-          )}
+        <div className={`flex-1 ${isMobile ? 'min-h-0' : 'min-h-[600px]'} calendar-container ${isDarkMode ? 'dark-calendar' : 'light-calendar'}`}>
+          <Calendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: isMobile ? 500 : 600 }}
+            views={['month', 'week', 'day']}
+            defaultView={isMobile ? 'day' : 'week'}
+            components={{
+              toolbar: CustomToolbar,
+              event: CustomEvent
+            }}
+            eventPropGetter={eventStyleGetter}
+            onSelectEvent={handleSelectEvent}
+            className={isDarkMode ? 'dark-theme' : 'light-theme'}
+          />
         </div>
 
         <style>{`
@@ -800,5 +893,103 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
     </div>
   );
 });
+
+// Add calendar theme styles
+const calendarThemeStyles = `
+  /* Dark theme styles */
+  .dark-calendar .rbc-calendar {
+    background-color: ${calendarStyles.dark.calendar.backgroundColor};
+    color: ${calendarStyles.dark.calendar.color};
+    border-color: ${calendarStyles.dark.calendar.borderColor};
+  }
+  
+  .dark-calendar .rbc-header {
+    background-color: ${calendarStyles.dark.header.backgroundColor};
+    color: ${calendarStyles.dark.header.color};
+    border-color: ${calendarStyles.dark.header.borderColor};
+  }
+  
+  .dark-calendar .rbc-toolbar button {
+    color: ${calendarStyles.dark.toolbar.color};
+    background-color: ${calendarStyles.dark.toolbar.buttonBg};
+  }
+  
+  .dark-calendar .rbc-toolbar button:hover {
+    background-color: ${calendarStyles.dark.toolbar.buttonHoverBg};
+  }
+  
+  .dark-calendar .rbc-toolbar button.rbc-active {
+    color: ${calendarStyles.dark.toolbar.buttonActiveColor};
+  }
+  
+  .dark-calendar .rbc-event {
+    background-color: ${calendarStyles.dark.event.backgroundColor};
+    color: ${calendarStyles.dark.event.color};
+    border-color: ${calendarStyles.dark.event.borderColor};
+  }
+  
+  .dark-calendar .rbc-event:hover {
+    background-color: ${calendarStyles.dark.event.hoverBg};
+  }
+  
+  .dark-calendar .rbc-today {
+    background-color: ${calendarStyles.dark.cell.todayBg};
+  }
+  
+  .dark-calendar .rbc-selected {
+    background-color: ${calendarStyles.dark.cell.selectedBg};
+  }
+  
+  /* Light theme styles */
+  .light-calendar .rbc-calendar {
+    background-color: ${calendarStyles.light.calendar.backgroundColor};
+    color: ${calendarStyles.light.calendar.color};
+    border-color: ${calendarStyles.light.calendar.borderColor};
+  }
+  
+  .light-calendar .rbc-header {
+    background-color: ${calendarStyles.light.header.backgroundColor};
+    color: ${calendarStyles.light.header.color};
+    border-color: ${calendarStyles.light.header.borderColor};
+  }
+  
+  .light-calendar .rbc-toolbar button {
+    color: ${calendarStyles.light.toolbar.color};
+    background-color: ${calendarStyles.light.toolbar.buttonBg};
+  }
+  
+  .light-calendar .rbc-toolbar button:hover {
+    background-color: ${calendarStyles.light.toolbar.buttonHoverBg};
+  }
+  
+  .light-calendar .rbc-toolbar button.rbc-active {
+    color: ${calendarStyles.light.toolbar.buttonActiveColor};
+  }
+  
+  .light-calendar .rbc-event {
+    background-color: ${calendarStyles.light.event.backgroundColor};
+    color: ${calendarStyles.light.event.color};
+    border-color: ${calendarStyles.light.event.borderColor};
+  }
+  
+  .light-calendar .rbc-event:hover {
+    background-color: ${calendarStyles.light.event.hoverBg};
+  }
+  
+  .light-calendar .rbc-today {
+    background-color: ${calendarStyles.light.cell.todayBg};
+  }
+  
+  .light-calendar .rbc-selected {
+    background-color: ${calendarStyles.light.cell.selectedBg};
+  }
+`;
+
+// Inject styles into document head
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = calendarThemeStyles;
+  document.head.appendChild(styleElement);
+}
 
 export default UserMealPlanCalendar; 
