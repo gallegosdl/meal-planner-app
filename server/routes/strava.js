@@ -146,15 +146,17 @@ router.get('/callback', async (req, res) => {
     //const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
 
     const userTimezoneOffsetMinutes = req.session.stravaOauth?.timezoneOffset || 0;
+
+    // Build "today" in user's local time
+    const now = new Date();
+    const userLocalDate = new Date(now.getTime() - userTimezoneOffsetMinutes * 60 * 1000);
+    userLocalDate.setHours(0, 0, 0, 0);
     
-    const userTimezoneOffsetMillis = userTimezoneOffsetMinutes * 60 * 1000;
-
-    const nowUTC = new Date();
-    const userToday = new Date(nowUTC.getTime() - userTimezoneOffsetMillis);
-    userToday.setHours(0, 0, 0, 0);
-    const userTodayTimestamp = Math.floor((userToday.getTime() + userTimezoneOffsetMillis) / 1000);
-
-    console.log('User-local start-of-today (UTC timestamp):', userTodayTimestamp);
+    // Convert that moment back to UTC
+    const userLocalMidnightUTC = new Date(userLocalDate.getTime() + userTimezoneOffsetMinutes * 60 * 1000);
+    const userTodayTimestamp = Math.floor(userLocalMidnightUTC.getTime() / 1000);
+    
+    console.log('User-local start-of-today in UTC timestamp:', userTodayTimestamp);
 
     const activitiesResponse = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
       headers: {
