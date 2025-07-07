@@ -1,3 +1,11 @@
+// Strava API integration
+// This file handles the OAuth process, token exchange, and activity fetching
+// It also includes endpoints for profile, activity details, and recent activities
+// The Strava API is used to get user's activities and calculate calories burned
+// The Strava API is also used to get user's profile information
+// The Strava API is also used to get user's recent activities
+// The Strava API is also used to get user's activity details
+// The Strava API is also used to get user's activity details
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
@@ -141,9 +149,10 @@ router.get('/callback', async (req, res) => {
     // Fetch recent activities
     console.log('Fetching Strava activities...');
     // Get start of today in Unix timestamp
-    //const todayStart = new Date();
-    //todayStart.setHours(0,0,0,0);
-    //const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+    const todayStart = new Date();
+    todayStart.setHours(0,0,0,0);
+    const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+    console.log('Today timestamp:', todayTimestamp);
 
 
     const activitiesResponse = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
@@ -152,8 +161,8 @@ router.get('/callback', async (req, res) => {
       },
       params: {
         per_page: 10,
-        page: 1
-        //after: todayTimestamp // Only get activities after start of today
+        page: 1,
+        after: todayTimestamp // Only get activities after start of today
       }
     });
 
