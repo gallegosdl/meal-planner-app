@@ -145,18 +145,6 @@ router.get('/callback', async (req, res) => {
     //todayStart.setHours(0,0,0,0);
     //const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
 
-    const userTimezoneOffsetMinutes = req.session.stravaOauth?.timezoneOffset || 0;
-
-    // Build "today" in user's local time
-    const now = new Date();
-    const userLocalDate = new Date(now.getTime() - userTimezoneOffsetMinutes * 60 * 1000);
-    userLocalDate.setHours(0, 0, 0, 0);
-    
-    // Convert that moment back to UTC
-    const userLocalMidnightUTC = new Date(userLocalDate.getTime() + userTimezoneOffsetMinutes * 60 * 1000);
-    const userTodayTimestamp = Math.floor(userLocalMidnightUTC.getTime() / 1000);
-    
-    console.log('User-local start-of-today in UTC timestamp:', userTodayTimestamp);
 
     const activitiesResponse = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
       headers: {
@@ -164,11 +152,29 @@ router.get('/callback', async (req, res) => {
       },
       params: {
         per_page: 10,
-        page: 1,
-        after: userTodayTimestamp
+        page: 1
         //after: todayTimestamp // Only get activities after start of today
       }
     });
+
+    // User timezone math
+    const userOffsetMinutes = req.session.stravaOauth?.timezoneOffset || 0;
+    const nowUTC = new Date();
+    const localNow = new Date(nowUTC.getTime() - userOffsetMinutes * 60 * 1000);
+    const userTodayString = localNow.toISOString().slice(0, 10);
+
+    // Filter for today's local activities
+    const allActivities = activitiesResponse.data;
+    const todaysActivities = allActivities.filter(activity => {
+      const activityUTC = new Date(activity.start_date);
+      const activityLocal = new Date(activityUTC.getTime() - userOffsetMinutes * 60 * 1000);
+      const activityDateString = activityLocal.toISOString().slice(0, 10);
+      return activityDateString === userTodayString;
+    });
+
+    // Log
+    console.log(`User's local today: ${userTodayString}`);
+    console.log(`Activities found for today: ${todaysActivities.length}`);
 
     // Log raw activities response
     console.log('Raw Strava activities response:', JSON.stringify(activitiesResponse.data, null, 2));
