@@ -10,21 +10,39 @@ router.get('/auth', async (req, res) => {
     const redirectUri = process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-app-3m20.onrender.com/api/strava/callback'
       : 'http://localhost:3001/api/strava/callback';
-
-    const timezoneOffset = parseInt(req.query.timezoneOffset, 10) || 0;
+    
+    // Generate state for CSRF protection
     const state = crypto.randomBytes(32).toString('hex');
-
+    
+    // Store state in session for verification
     req.session.stravaOauth = {
       state,
-      timestamp: Date.now(),
-      timezoneOffset
+      timestamp: Date.now()
     };
 
-    await new Promise((resolve, reject) => {
-      req.session.save(err => (err ? reject(err) : resolve()));
+    // Debug session before save
+    console.log('Session before save:', {
+      id: req.sessionID,
+      oauth: req.session.stravaOauth,
+      cookie: req.session.cookie,
+      hasSession: !!req.session
     });
 
-    const authUrl = `https://www.strava.com/oauth/authorize?` +
+    // Save session explicitly before sending response
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) {
+          console.error('Failed to save session:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully. Session ID:', req.sessionID);
+          resolve();
+        }
+      });
+    });
+
+    // Construct Strava authorization URL
+    const authUrl = `https://www.strava.com/oauth/authorize?` + 
       `client_id=${clientId}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=code&` +
@@ -32,34 +50,85 @@ router.get('/auth', async (req, res) => {
       `state=${state}&` +
       `approval_prompt=force`;
 
+    // Log the OAuth request for debugging
+    console.log('Initiating Strava OAuth with:', {
+      clientId,
+      redirectUri,
+      state: state.substring(0, 8) + '...',
+      authUrl
+    });
+
     res.json({ authUrl });
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error('Strava OAuth error:', error);
     res.status(500).json({ error: 'Failed to initiate Strava OAuth' });
   }
 });
 
-
 // Callback endpoint for Strava OAuth
 router.get('/callback', async (req, res) => {
+  console.log('\n=== Strava Callback Started ===');
+  console.log('Callback received. Session debug:', {
+    id: req.sessionID,
+    hasSession: !!req.session,
+    sessionData: req.session,
+    cookies: req.cookies,
+    headers: {
+      cookie: req.headers.cookie,
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    }
+  });
+
   try {
     const { code, state } = req.query;
+    console.log('Strava callback params:', { 
+      hasCode: !!code,
+      hasState: !!state,
+      sessionState: req.session.stravaOauth?.state?.substring(0, 8) + '...',
+      sessionTimestamp: req.session.stravaOauth?.timestamp
+    });
 
-    if (!req.session.stravaOauth ||
-        !req.session.stravaOauth.state ||
+    // Validate state and ensure OAuth session exists
+    if (!req.session.stravaOauth || 
+        !req.session.stravaOauth.state || 
         state !== req.session.stravaOauth.state ||
-        Date.now() - req.session.stravaOauth.timestamp > 300000) {
+        Date.now() - req.session.stravaOauth.timestamp > 300000) { // 5 minute expiry
+      console.error('OAuth validation failed:', {
+        hasSession: !!req.session.stravaOauth,
+        hasSessionState: !!req.session.stravaOauth?.state,
+        stateMatch: state === req.session.stravaOauth?.state,
+        timeValid: Date.now() - (req.session.stravaOauth?.timestamp || 0) <= 300000
+      });
       throw new Error('Invalid or expired OAuth session');
     }
 
-    const userOffsetMinutes = req.session.stravaOauth.timezoneOffset || 0;
-    delete req.session.stravaOauth;
+    delete req.session.stravaOauth; // Clear OAuth session data
+    console.log('OAuth session validated and cleared');
 
-    const tokenResponse = await axios.post('https://www.strava.com/oauth/token', {
-      client_id: process.env.STRAVA_CLIENT_ID,
-      client_secret: process.env.STRAVA_CLIENT_SECRET,
-      code,
-      grant_type: 'authorization_code'
+    const clientId = process.env.STRAVA_CLIENT_ID;
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+    const redirectUri = process.env.NODE_ENV === 'production'
+      ? 'https://meal-planner-app-3m20.onrender.com/api/strava/callback'
+      : 'http://localhost:3001/api/strava/callback';
+
+    console.log('Exchanging code for tokens...');
+    console.log('Using client ID:', clientId);
+
+    // Exchange authorization code for tokens
+    const tokenResponse = await axios.post('https://www.strava.com/oauth/token',
+      {
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        grant_type: 'authorization_code'
+      }
+    );
+
+    console.log('Token exchange successful:', {
+      hasAccessToken: !!tokenResponse.data.access_token,
+      hasRefreshToken: !!tokenResponse.data.refresh_token,
+      hasAthlete: !!tokenResponse.data.athlete
     });
 
     const {
@@ -69,37 +138,87 @@ router.get('/callback', async (req, res) => {
       athlete
     } = tokenResponse.data;
 
+    // Fetch recent activities
+    console.log('Fetching Strava activities...');
+    // Get start of today in Unix timestamp
+    //const todayStart = new Date();
+    //todayStart.setHours(0,0,0,0);
+    //const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+
+
     const activitiesResponse = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
-      headers: { 'Authorization': `Bearer ${access_token}` },
-      params: { per_page: 30, page: 1 }
+      headers: {
+        'Authorization': `Bearer ${access_token}`
+      },
+      params: {
+        per_page: 10,
+        page: 1
+        //after: todayTimestamp // Only get activities after start of today
+      }
     });
 
+    // User timezone math
+    const userOffsetMinutes = req.session.stravaOauth?.timezoneOffset || 0;
     const nowUTC = new Date();
     const localNow = new Date(nowUTC.getTime() - userOffsetMinutes * 60 * 1000);
     const userTodayString = localNow.toISOString().slice(0, 10);
 
-    const todaysActivities = activitiesResponse.data.filter(activity => {
+    // Filter for today's local activities
+    const allActivities = activitiesResponse.data;
+    const todaysActivities = allActivities.filter(activity => {
       const activityUTC = new Date(activity.start_date);
       const activityLocal = new Date(activityUTC.getTime() - userOffsetMinutes * 60 * 1000);
-      return activityLocal.toISOString().slice(0, 10) === userTodayString;
+      const activityDateString = activityLocal.toISOString().slice(0, 10);
+      return activityDateString === userTodayString;
     });
 
+    // Log
+    console.log(`User's local today: ${userTodayString}`);
+    console.log(`Activities found for today: ${todaysActivities.length}`);
+
+    // Log raw activities response
+    console.log('Raw Strava activities response:', JSON.stringify(activitiesResponse.data, null, 2));
+
+    // Fetch detailed data for each activity
+    const activities = activitiesResponse.data;
+    console.log(`Fetching details for ${activities.length} today's activities...`);
+    
     const detailedActivities = await Promise.all(
-      todaysActivities.map(async (activity) => {
+      activities.map(async (activity) => {
         try {
           const detailResponse = await axios.get(
             `https://www.strava.com/api/v3/activities/${activity.id}`,
-            { headers: { 'Authorization': `Bearer ${access_token}` } }
+            {
+              headers: {
+                'Authorization': `Bearer ${access_token}`
+              }
+            }
           );
 
+          console.log('Detailed activity response:', {
+            id: activity.id,
+            type: detailResponse.data.type,
+            name: detailResponse.data.name,
+            sport_type: detailResponse.data.sport_type,
+            full_response: JSON.stringify(detailResponse.data, null, 2)
+          });
+
+          // Calculate calories if needed
           let calories = detailResponse.data.calories;
           if (!calories && detailResponse.data.kilojoules) {
-            calories = Math.round(detailResponse.data.kilojoules * 0.239);
+            calories = Math.round(detailResponse.data.kilojoules * 0.239); // Convert kJ to kcal
           }
           if (!calories) {
-            const duration = detailResponse.data.moving_time;
+            const duration = detailResponse.data.moving_time; // in seconds
             const type = detailResponse.data.type.toLowerCase();
-            const metValues = { run: 8, ride: 6, swim: 7, walk: 3.5, hike: 5.3, workout: 5 };
+            const metValues = {
+              run: 8,
+              ride: 6,
+              swim: 7,
+              walk: 3.5,
+              hike: 5.3,
+              workout: 5
+            };
             const met = metValues[type] || 5;
             const weight = athlete.weight || 70;
             calories = Math.round((met * weight * (duration / 3600)));
@@ -112,14 +231,18 @@ router.get('/callback', async (req, res) => {
             average_heartrate: detailResponse.data.average_heartrate,
             max_heartrate: detailResponse.data.max_heartrate
           };
-        } catch {
-          return activity;
+        } catch (error) {
+          console.error(`Error fetching details for activity ${activity.id}:`, error.message);
+          return activity; // Return basic activity data if detail fetch fails
         }
       })
     );
 
+    // Calculate total calories burned today
     const totalCaloriesToday = detailedActivities.reduce((sum, activity) => sum + (activity.calories || 0), 0);
+    console.log('Total calories burned today:', totalCaloriesToday);
 
+    // Store tokens in session
     req.session.strava = {
       accessToken: access_token,
       refreshToken: refresh_token,
@@ -128,14 +251,31 @@ router.get('/callback', async (req, res) => {
       obtainedAt: new Date().toISOString()
     };
 
+    console.log('Storing session data...');
+    // Save session explicitly
     await new Promise((resolve, reject) => {
-      req.session.save(err => (err ? reject(err) : resolve()));
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully');
+          resolve();
+        }
+      });
     });
 
     const clientOrigin = process.env.NODE_ENV === 'production'
       ? 'https://meal-planner-frontend-woan.onrender.com'
       : 'http://localhost:3000';
 
+    console.log('Sending response to client:', {
+      hasAthlete: !!athlete,
+      hasActivities: !!detailedActivities.length,
+      clientOrigin
+    });
+
+    // Send HTML that posts message to parent window with all data
     res.send(`
       <html>
         <body>
@@ -156,7 +296,7 @@ router.get('/callback', async (req, res) => {
               }, '${clientOrigin}');
               window.close();
             } else {
-              window.location.href = '${clientOrigin}/strava/success?data=' +
+              window.location.href = '${clientOrigin}/strava/success?data=' + 
                 encodeURIComponent(JSON.stringify({
                   profile: ${JSON.stringify(athlete)},
                   tokens: {
@@ -172,13 +312,15 @@ router.get('/callback', async (req, res) => {
         </body>
       </html>
     `);
+
   } catch (error) {
     console.error('Strava OAuth error:', error);
-    const errorMessage = error.response?.data?.message || error.message || 'Failed to authenticate with Strava';
-    const clientOrigin = process.env.NODE_ENV === 'production'
-      ? 'https://meal-planner-frontend-woan.onrender.com'
-      : 'http://localhost:3000';
+    
+    const errorMessage = error.response?.data?.message 
+      || error.message 
+      || 'Failed to authenticate with Strava';
 
+    // Send error HTML that handles both popup and redirect cases
     res.send(`
       <html>
         <body>
@@ -188,10 +330,10 @@ router.get('/callback', async (req, res) => {
               window.opener.postMessage({
                 type: 'strava_callback',
                 error: errorMessage
-              }, '${clientOrigin}');
+              }, '${clientOrigin}');  // Use specific origin instead of *
               window.close();
             } else {
-              window.location.href = '${clientOrigin}/strava/error?message=' +
+              window.location.href = '${clientOrigin}/strava/error?message=' + 
                 encodeURIComponent(errorMessage);
             }
           </script>
