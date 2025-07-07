@@ -804,7 +804,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white p-3 sm:p-6">
+    <div className="p-3 sm:p-6">
       <div className="max-w-[1400px] mx-auto">
         <Header user={user} handleLogout={handleLogout} />
 

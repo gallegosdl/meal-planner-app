@@ -6,6 +6,22 @@ import WelcomeModal from './components/WelcomeModal';
 import api, { clearSession } from './services/api';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { THEME_MODES } from './styles/themes';
+import { useTheme } from './contexts/ThemeContext';
+
+// Wrap the main content in a theme-aware container
+const ThemedApp = ({ children }) => {
+  const { themeMode } = useTheme();
+  
+  return (
+    <div className={`min-h-screen ${
+      themeMode === 'dark' 
+        ? 'bg-gradient-to-br from-[#1a1f2b] to-[#2d3748] text-white'
+        : 'bg-gradient-to-br from-gray-50 to-white text-gray-900'
+    }`}>
+      {children}
+    </div>
+  );
+};
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -98,47 +114,26 @@ function App() {
   };
 
   return (
-    <ThemeProvider 
-      defaultTheme={THEME_MODES.DARK}
-      enableSystemDetection={false}
-    >
+    <ThemeProvider defaultTheme={THEME_MODES.DARK}>
       <Router>
-        <div className="App">
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#2A3142',
-                color: '#fff',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#4ade80',
-                  secondary: '#2A3142',
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#2A3142',
-                },
-              },
-            }}
-          />
+        <ThemedApp>
           <Routes>
-            <Route path="/" element={
-              <>
-                {showWelcome && (
-                  <WelcomeModal 
-                    onClose={handleWelcomeClose}
-                  />
-                )}
-                <MealPlannerForm user={user} handleLogout={handleLogout} />
-              </>
-            } />
+            <Route 
+              path="/" 
+              element={
+                <>
+                  <MealPlannerForm user={user} handleLogout={handleLogout} />
+                  {showWelcome && (
+                    <WelcomeModal 
+                      onClose={handleWelcomeClose} 
+                    />
+                  )}
+                </>
+              } 
+            />
           </Routes>
-        </div>
+          <Toaster position="top-right" />
+        </ThemedApp>
       </Router>
     </ThemeProvider>
   );

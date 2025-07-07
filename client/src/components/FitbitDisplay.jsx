@@ -275,13 +275,13 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
               } else if (activityName.includes('activity')) {
                 iconPath = "/images/workout.png";
                 activityType = 'Activity';
-                bgColor = themeMode === 'light' ? 'bg-gray-50' : 'bg-gray-400/10';
-                ringColor = 'border-gray-500';
+                bgColor = themeMode === 'light' ? 'bg-orange-50' : 'bg-orange-400/10';
+                ringColor = 'border-orange-500';
               } else {
                 iconPath = "/images/workout.png";
                 activityType = 'Exercise';
-                bgColor = themeMode === 'light' ? 'bg-gray-50' : 'bg-gray-400/10';
-                ringColor = 'border-gray-500';
+                bgColor = themeMode === 'light' ? 'bg-orange-50' : 'bg-orange-400/10';
+                ringColor = 'border-orange-500';
               }
 
               return (
