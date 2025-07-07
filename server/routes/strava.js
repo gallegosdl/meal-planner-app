@@ -141,9 +141,20 @@ router.get('/callback', async (req, res) => {
     // Fetch recent activities
     console.log('Fetching Strava activities...');
     // Get start of today in Unix timestamp
-    const todayStart = new Date();
-    todayStart.setHours(0,0,0,0);
-    const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+    //const todayStart = new Date();
+    //todayStart.setHours(0,0,0,0);
+    //const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+
+    const userTimezoneOffsetMinutes = req.session.stravaOauth?.timezoneOffset || 0;
+    
+    const userTimezoneOffsetMillis = userTimezoneOffsetMinutes * 60 * 1000;
+
+    const nowUTC = new Date();
+    const userToday = new Date(nowUTC.getTime() - userTimezoneOffsetMillis);
+    userToday.setHours(0, 0, 0, 0);
+    const userTodayTimestamp = Math.floor((userToday.getTime() + userTimezoneOffsetMillis) / 1000);
+
+    console.log('User-local start-of-today (UTC timestamp):', userTodayTimestamp);
 
     const activitiesResponse = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
       headers: {
@@ -152,7 +163,8 @@ router.get('/callback', async (req, res) => {
       params: {
         per_page: 10,
         page: 1,
-        after: todayTimestamp // Only get activities after start of today
+        after: userTodayTimestamp
+        //after: todayTimestamp // Only get activities after start of today
       }
     });
 
