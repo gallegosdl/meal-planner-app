@@ -846,72 +846,6 @@ const UserMealPlanCalendar = forwardRef(({ userId }, ref) => {
             color: #ffffff !important;
             font-weight: bold !important;
           }
-
-          /* Mobile specific calendar styles */
-          @media (max-width: 768px) {
-            .rbc-toolbar {
-              flex-direction: column !important;
-              gap: 8px !important;
-              margin-bottom: 16px !important;
-            }
-            
-            .rbc-toolbar-label {
-              font-size: 16px !important;
-              font-weight: 600 !important;
-              margin: 0 !important;
-            }
-            
-            .rbc-btn-group {
-              gap: 4px !important;
-            }
-            
-            .rbc-btn-group button {
-              padding: 8px 12px !important;
-              font-size: 12px !important;
-              border-radius: 6px !important;
-            }
-            
-            .rbc-time-view .rbc-time-gutter {
-              width: 50px !important;
-              font-size: 11px !important;
-            }
-            
-            .rbc-time-view .rbc-time-content {
-              margin-left: 50px !important;
-            }
-            
-            .rbc-time-slot {
-              height: 40px !important;
-            }
-            
-            .rbc-day-slot .rbc-time-slot {
-              border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-            }
-            
-            .rbc-header {
-              padding: 8px 4px !important;
-              font-size: 12px !important;
-              font-weight: 600 !important;
-            }
-            
-            .rbc-week-view .rbc-header {
-              font-size: 10px !important;
-            }
-            
-            .rbc-event {
-              font-size: 10px !important;
-              padding: 2px 4px !important;
-            }
-          }
-
-          /* Ensure mobile touch targets are large enough */
-          @media (max-width: 768px) {
-            .rbc-event {
-              min-height: 32px !important;
-              display: flex !important;
-              align-items: center !important;
-            }
-          }
         `}</style>
       </div>
 
@@ -1004,6 +938,18 @@ const calendarThemeStyles = `
     color: ${calendarStyles.dark.header.color};
     border-color: ${calendarStyles.dark.header.borderColor};
   }
+
+  .dark-calendar .rbc-time-slot {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .dark-calendar .rbc-day-slot,
+  .dark-calendar .rbc-timeslot-group,
+  .dark-calendar .rbc-time-content,
+  .dark-calendar .rbc-row,
+  .dark-calendar .rbc-row-segment {
+    border-color: rgba(255, 255, 255, 0.07) !important;
+  }
   
   .dark-calendar .rbc-toolbar button {
     color: ${calendarStyles.dark.toolbar.color};
@@ -1047,6 +993,18 @@ const calendarThemeStyles = `
     background-color: ${calendarStyles.light.header.backgroundColor};
     color: ${calendarStyles.light.header.color};
     border-color: ${calendarStyles.light.header.borderColor};
+  }
+
+  .light-calendar .rbc-time-slot {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .light-calendar .rbc-time-content,
+  .light-calendar .rbc-day-slot,
+  .light-calendar .rbc-timeslot-group,
+  .light-calendar .rbc-row,
+  .light-calendar .rbc-row-segment {
+    border-color: rgba(0, 0, 0, 0.07) !important;
   }
   
   .light-calendar .rbc-toolbar button {
