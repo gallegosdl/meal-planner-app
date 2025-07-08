@@ -1,6 +1,10 @@
 {
   "dependencies": {
+    "@craco/craco": "^7.1.0",
     "openai": "^4.103.0",
     "react-router-dom": "^7.6.2"
+  },
+  "devDependencies": {
+    "babel-plugin-transform-remove-console": "^6.9.4"
   }
 }

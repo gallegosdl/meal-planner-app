@@ -22,10 +22,6 @@ const mealPlanRoutes = require('./routes/mealPlan');
 const parseIntentRoutes = require('./routes/parseIntentRoutes');
 require('dotenv').config({ path: './server/.env' });
 
-// Disable all console.log output in production
-if (process.env.NODE_ENV === 'production') {
-  console.log = function () {};
-}
 
 const app = express();
 const sessions = new Map();
