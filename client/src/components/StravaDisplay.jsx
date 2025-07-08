@@ -1,3 +1,4 @@
+// client/src/components/StravaDisplay.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -5,7 +6,13 @@ import api from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCardStyles, getTextStyles, getButtonStyles } from '../utils/styleUtils';
 
-const StravaDisplay = ({ onCaloriesUpdate }) => {
+const StravaDisplay = ({ user, onCaloriesUpdate }) => {
+  const isGuest = user?.guest === true;
+  const isLoggedIn = user && (user.guest === false || user.sessionToken);
+  console.log('[StravaDisplay] rendering with user:', user);
+  console.log('[StravaDisplay] isGuest:', isGuest);
+  console.log('[StravaDisplay] isLoggedIn:', isLoggedIn);
+
   // THEME FRAMEWORK INTEGRATION
   const { themeMode, currentTheme } = useTheme();
   
@@ -66,6 +73,20 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
     handleStravaData(event.data.data);
   };
 
+  const fetchGuestData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/strava/guest');
+      console.log('Guest Strava JSON:', response.data);
+      handleStravaData(response.data);
+    } catch (err) {
+      console.error('Error fetching guest Strava data:', err);
+      setError('Could not load guest Strava data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleStravaData = async (responseData) => {
     try {
       console.log('Full Strava response data:', responseData);
@@ -80,16 +101,21 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
       })));
 
       // Store tokens in session
-      console.log('Storing Strava tokens...');
-      await api.post('/api/strava/store-tokens', tokens);
+      if (tokens) {
+        console.log('Storing Fitbit tokens...');
+        await api.post('/api/fitbit/store-tokens', tokens);
+        console.log('Fitbit tokens stored successfully');
+      } else {
+        console.log('Guest mode - no tokens to store');
+      }
       console.log('Strava tokens stored successfully');
 
       // Format the data for display
       setData({
         displayName: `${profile.firstname} ${profile.lastname}`,
-        memberSince: profile.created_at,
+        memberSince: profile.created_at || '2020-01-01',
         activities: activities,
-        id: profile.id
+        id: profile.id || 'GUEST123'
       });
 
       // Pass calories to parent if available
@@ -167,20 +193,35 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
             <p>{error}</p>
           </div>
         )}
-        <button 
-          onClick={handleStravaLogin}
-          disabled={loading}
-          className={connectButtonStyles}
-        >
-          {loading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          ) : (
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="currentColor"/>
-            </svg>
-          )}
-          {loading ? 'Connecting...' : 'Connect Strava'}
-        </button>
+  
+        {(isGuest || !user) && (
+          <button
+            onClick={fetchGuestData}
+            disabled={loading}
+            className={connectButtonStyles}
+          >
+            {loading ? 'Loading Guest Data...' : 'Load Guest Strava Data'}
+          </button>
+        )}
+  
+        {isLoggedIn && (
+          <button 
+            onClick={handleStravaLogin}
+            disabled={loading}
+            className={connectButtonStyles}
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : (
+              <>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="currentColor"/>
+                </svg>
+                Connect Strava
+              </>
+            )}
+          </button>
+        )}
       </div>
     );
   }
@@ -251,7 +292,7 @@ const StravaDisplay = ({ onCaloriesUpdate }) => {
                 bgColor = themeMode === 'light' ? 'bg-green-50' : 'bg-green-400/10';
                 ringColor = 'border-green-500';
               } else if (['WeightTraining', 'Crossfit', 'Workout', 'Yoga'].includes(stravaActivityType) || activityName.includes('training')) {
-                iconPath = "/images/workout.png";
+                iconPath = themeMode === 'light' ? "/images/workoutOrange.png" : "/images/workout.png";
                 activityType = 'Workout';
                 bgColor = themeMode === 'light' ? 'bg-orange-50' : 'bg-orange-400/10';
                 ringColor = 'border-orange-500';

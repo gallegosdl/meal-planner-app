@@ -1,3 +1,4 @@
+// client/src/App.js
 import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -7,6 +8,7 @@ import api, { clearSession } from './services/api';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { THEME_MODES } from './styles/themes';
 import { useTheme } from './contexts/ThemeContext';
+import { useAuth } from './contexts/AuthContext';
 
 // Wrap the main content in a theme-aware container
 const ThemedApp = ({ children }) => {
@@ -122,7 +124,7 @@ function App() {
               path="/" 
               element={
                 <>
-                  <MealPlannerForm user={user} handleLogout={handleLogout} />
+                  <MealPlannerForm user={user} setUser={setUser} handleLogout={handleLogout} />
                   {showWelcome && (
                     <WelcomeModal 
                       onClose={handleWelcomeClose} 

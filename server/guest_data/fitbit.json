@@ -1,0 +1,49 @@
+{
+  "profile": {
+    "displayName": "Guest User",
+    "fullName": "Guest User",
+    "memberSince": "2020-01-01",
+    "encodedId": "GUEST123"
+  },
+  "allData": {
+    "activities": {
+      "daily": {
+        "summary": {
+          "steps": 14567
+        },
+        "activities": [
+          {
+            "logId": 602188925560039000,
+            "activityId": 3000,
+            "name": "Workout",
+            "calories": 350,
+            "steps": 9,
+            "duration": 2700000,
+            "startTime": "06:00",
+            "startDate": "2025-07-08"
+          },
+          {
+            "logId": 2014156431581233000,
+            "activityId": 90009,
+            "name": "Run",
+            "calories": 350,
+            "distance": 8.0,
+            "steps": 7868,
+            "duration": 2700000,
+            "startTime": "07:30",
+            "startDate": "2025-07-08"
+          },
+          {
+            "logId": 404591735693294460,
+            "activityId": 91041,
+            "name": "Rowing machine",
+            "calories": 250,
+            "duration": 1800000,
+            "startTime": "13:30",
+            "startDate": "2025-07-08"
+          }
+        ]
+      }
+    }
+  }
+}

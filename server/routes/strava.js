@@ -6,6 +6,7 @@
 // The Strava API is also used to get user's recent activities
 // The Strava API is also used to get user's activity details
 // The Strava API is also used to get user's activity details
+const path = require('path');
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
@@ -616,6 +617,17 @@ router.get('/activity/:activityId', async (req, res) => {
       strava_error: error.response?.data
     });
   }
+});
+
+router.get('/guest', (req, res) => {
+  const data = require('../guest_data/strava.json');
+  
+  // Calculate if missing
+  if (!data.dailyCalories && data.activities) {
+    data.dailyCalories = data.activities.reduce((sum, a) => sum + (a.calories || 0), 0);
+  }
+  
+  res.json(data);
 });
 
 // Upload a new activity to Strava

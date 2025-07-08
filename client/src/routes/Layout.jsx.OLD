@@ -1,0 +1,17 @@
+// client/src/routes/Layout.jsx
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import Header from '../components/Header';
+
+export default function Layout({ user, handleLogout }) {
+  return (
+    <div>
+      <div className="p-6">
+        <Header user={user} handleLogout={handleLogout} />
+      </div>
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+}

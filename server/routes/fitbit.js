@@ -1,3 +1,5 @@
+// server/routes/fitbit.js
+const path = require('path');
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
@@ -636,6 +638,10 @@ router.post('/log-fitbit-activity', async (req, res) => {
       details: error?.response?.data
     });
   }
+});
+
+router.get('/guest', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'guest_data', 'fitbit.json'));
 });
 
 module.exports = router; 

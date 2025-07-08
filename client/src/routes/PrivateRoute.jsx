@@ -1,15 +1,20 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 
-const PrivateRoute = ({ user, children }) => {
-  const location = useLocation();
+export default function PrivateRoute({ user, children }) {
+  console.log('[PrivateRoute] received user:', user);
 
   if (!user) {
-    // Redirect to login but save the attempted URL
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    console.warn('[PrivateRoute] BLOCKED: no user');
+    return <Navigate to="/auth/error" />;
   }
 
-  return children;
-};
+  // Optional: if you want to block *only* guest users
+  // if (user.guest) {
+  //   console.warn('[PrivateRoute] BLOCKED: guest user');
+  //   return <Navigate to="/auth/error" />;
+  // }
 
-export default PrivateRoute; 
+  console.log('[PrivateRoute] ALLOWED: user:', user);
+  return children;
+}

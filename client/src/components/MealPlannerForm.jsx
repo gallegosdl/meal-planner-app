@@ -1,3 +1,4 @@
+// client/src/components/MealPlannerForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
@@ -32,7 +33,14 @@ import ApiKeyInput from './ApiKeyInput';
 import Header from './Header';
 import UserMealPlanContainer from './UserMealPlanContainer';
 import { useTheme } from '../contexts/ThemeContext';
-import { getButtonStyles } from '../utils/styleUtils';
+import { 
+  getButtonStyles, 
+  getCardStyles, 
+  getInputStyles, 
+  getTextStyles, 
+  getTagStyles,
+  getContainerStyles
+} from '../utils/styleUtils';
 
 // Register ChartJS components
 ChartJS.register(
@@ -46,9 +54,9 @@ ChartJS.register(
   PieController
 );
 
-const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
-  // Theme context for button styling
-  const { themeMode } = useTheme();
+const MealPlannerForm = ({ user, setUser, onMealPlanGenerated, handleLogout }) => {
+  // Theme context for comprehensive styling
+  const { themeMode, currentTheme } = useTheme();
   
   // Meal plan generation inputs
   const [mealPlanInputs, setMealPlanInputs] = useState({
@@ -804,7 +812,7 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
   }, []);
 
   return (
-    <div className="p-3 sm:p-6">
+    <div className={getContainerStyles(themeMode, { padding: true })}>
       <div className="max-w-[1400px] mx-auto">
         <Header user={user} handleLogout={handleLogout} />
 
@@ -843,6 +851,8 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
             <div className="flex-1 h-full">
               <UserMealPlanContainer 
                 userId={user?.id} 
+                setUser={setUser} 
+                guestData={user?.guest && user?.guestData ? user.guestData : null}
               />
             </div>
           </div>
@@ -858,10 +868,15 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
               userId={user?.id}
               formData={{ targetCalories: visualData.targetCalories }}
               handleChange={handleVisualChange}
-              mealPlan={mealPlan ? {
-                days: mealPlan.days || [],
-                dailyCalorieTotals: dailyCalorieTotals
-              } : null}
+              mealPlan={
+                // If user is guest, pass guest data directly to DailyCalories
+                user?.guest && user?.guestData ? user.guestData : 
+                // Otherwise use generated meal plan
+                mealPlan ? {
+                  days: mealPlan.days || [],
+                  dailyCalorieTotals: dailyCalorieTotals
+                } : null
+              }
               isFormMode={false}
               stravaActivities={[{ calories: activityCalories.strava, start_date: new Date() }]}
               fitbitActivities={[{ calories: activityCalories.fitbit, startTime: new Date() }]}
@@ -872,10 +887,16 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
         {/* Dietary Goals & Fitbit/Strava side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
           <div className="col-span-1">
-            <FitbitDisplay onCaloriesUpdate={handleFitbitCalories} />
+            <FitbitDisplay 
+              user={user} 
+              onCaloriesUpdate={handleFitbitCalories} 
+            />
           </div>
           <div className="col-span-1">
-            <StravaDisplay onCaloriesUpdate={handleStravaCalories} />
+          <StravaDisplay 
+            user={user} 
+            onCaloriesUpdate={handleStravaCalories} 
+          />
           </div>
         </div>
 
@@ -909,10 +930,10 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
         {/* NEW: Test Controls for Streaming */}
         <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
           <div className="col-span-1">
-            <div className="bg-[#1a1f2b]/50 border border-yellow-400/30 rounded-xl p-4 sm:p-6 shadow-[0_0_20px_rgba(250,204,21,0.1)] backdrop-blur">
+            <div className={getCardStyles(themeMode, 'elevated', { additionalClasses: 'border-yellow-400/30 shadow-[0_0_20px_rgba(250,204,21,0.1)]' })}>
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-yellow-400 font-semibold text-lg">Testing NEW Streaming Capability</span>
-                <span className="text-xs text-gray-400 bg-yellow-500/10 px-2 py-1 rounded">BETA</span>
+                <span className={`${getTextStyles(themeMode, 'heading', { weight: 'semibold' })} text-yellow-400`}>Testing NEW Streaming Capability</span>
+                <span className={getTagStyles(themeMode, 'yellow', { size: 'sm' })}>BETA</span>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -924,13 +945,13 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
                     onChange={(e) => handleMealPlanChange('useStreaming', e.target.checked)}
                     className="w-5 h-5 text-yellow-400 bg-gray-800 border-gray-600 rounded focus:ring-yellow-400 focus:ring-2"
                   />
-                  <label htmlFor="useStreaming" className="text-yellow-300 font-medium">
+                  <label htmlFor="useStreaming" className={`${getTextStyles(themeMode, 'label')} text-yellow-300`}>
                     Enable Streaming Generation
                   </label>
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <label htmlFor="totalDays" className="text-yellow-300 font-medium">
+                  <label htmlFor="totalDays" className={`${getTextStyles(themeMode, 'label')} text-yellow-300`}>
                     Days:
                   </label>
                   <input
@@ -940,12 +961,12 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
                     max="14"
                     value={mealPlanInputs.totalDays || 2}
                     onChange={(e) => handleMealPlanChange('totalDays', parseInt(e.target.value))}
-                    className="w-20 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className={`w-20 ${getInputStyles(themeMode, { size: 'sm', fullWidth: false })} focus:ring-yellow-400`}
                   />
                 </div>
               </div>
               
-              <div className="mt-3 text-xs text-gray-400">
+              <div className={`mt-3 ${getTextStyles(themeMode, 'caption')}`}>
                 {mealPlanInputs.useStreaming ? 
                   `Will generate ${mealPlanInputs.totalDays || 2} days using NEW streaming method` : 
                   'Will use ORIGINAL generation method (2 days)'
@@ -959,15 +980,15 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
         {isStreaming && (
           <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
             <div className="col-span-1">
-              <div className="bg-[#1a1f2b]/50 border border-green-400/30 rounded-xl p-4 sm:p-6 shadow-[0_0_20px_rgba(16,185,129,0.1)] backdrop-blur">
+              <div className={getCardStyles(themeMode, 'elevated', { additionalClasses: 'border-green-400/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]' })}>
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-green-400 font-semibold text-lg">Streaming Progress</span>
-                  <span className="text-xs text-gray-400 bg-green-500/10 px-2 py-1 rounded">LIVE</span>
+                  <span className={`${getTextStyles(themeMode, 'heading', { weight: 'semibold' })} text-green-400`}>Streaming Progress</span>
+                  <span className={getTagStyles(themeMode, 'green', { size: 'sm' })}>LIVE</span>
                 </div>
                 
                 <div className="space-y-4">
                   {/* Progress Bar */}
-                  <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div className={`w-full ${currentTheme.backgrounds.surface.base} rounded-full h-2`}>
                     <div 
                       className="bg-green-400 h-2 rounded-full transition-all duration-500 ease-out"
                       style={{ width: `${streamingProgress.percentage}%` }}
@@ -975,22 +996,22 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
                   </div>
                   
                   {/* Progress Text */}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-300">
+                  <div className="flex justify-between">
+                    <span className={`${getTextStyles(themeMode, 'body', { weight: 'medium' })} text-green-300`}>
                       {streamingProgress.currentDay ? `Generating Day ${streamingProgress.currentDay}...` : 'Starting generation...'}
                     </span>
-                    <span className="text-gray-400">
+                    <span className={getTextStyles(themeMode, 'body')}>
                       {streamingProgress.completed} / {streamingProgress.total} days ({streamingProgress.percentage}%)
                     </span>
                   </div>
                   
                   {/* Generated Days Preview */}
                   {streamingProgress.generatedDays.length > 0 && (
-                    <div className="mt-4 p-3 bg-gray-800/50 rounded-lg">
-                      <div className="text-xs text-gray-400 mb-2">Generated Days:</div>
+                    <div className={`mt-4 p-3 ${currentTheme.backgrounds.surface.elevated} rounded-lg`}>
+                      <div className={`${getTextStyles(themeMode, 'caption')} mb-2`}>Generated Days:</div>
                       <div className="flex flex-wrap gap-2">
                         {streamingProgress.generatedDays.map((day, index) => (
-                          <span key={index} className="inline-block bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">
+                          <span key={index} className={getTagStyles(themeMode, 'green', { size: 'sm' })}>
                             Day {day.day}
                           </span>
                         ))}
@@ -1034,26 +1055,22 @@ const MealPlannerForm = ({ user, onMealPlanGenerated, handleLogout }) => {
             {/* Generation method badges */}
             <div className="mb-4 flex flex-wrap items-center gap-3">
               {mealPlan.generatedWithStreaming && (
-                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${
-                  mealPlan.partial 
-                    ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
-                    : 'bg-green-500/20 text-green-400 border-green-500/30'
-                }`}>
+                <span className={getTagStyles(themeMode, mealPlan.partial ? 'yellow' : 'green')}>
                   {mealPlan.partial ? '⚠️' : '✅'} Generated with NEW streaming method ({mealPlan.totalDays} days{mealPlan.partial ? ` of ${mealPlan.requestedDays} requested` : ''})
                 </span>
               )}
               {mealPlan.generatedWithPantry && (
-                <span className="inline-block bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium border border-green-500/30">
+                <span className={getTagStyles(themeMode, 'green')}>
                   🍽️ Generated with {mealPlan.pantryItemCount} Pantry Items
                 </span>
               )}
               {!mealPlan.generatedWithStreaming && (
-                <span className="inline-block bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm font-medium border border-blue-500/30">
+                <span className={getTagStyles(themeMode, 'blue')}>
                   📋 Generated with ORIGINAL method
                 </span>
               )}
               {mealPlan.error && (
-                <span className="inline-block bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-sm font-medium border border-red-500/30">
+                <span className={getTagStyles(themeMode, 'red')}>
                   ⚠️ {mealPlan.error}
                 </span>
               )}

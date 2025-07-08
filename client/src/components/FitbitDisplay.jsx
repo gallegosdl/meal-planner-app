@@ -1,3 +1,4 @@
+// FitbitDisplay.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -5,7 +6,14 @@ import api from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCardStyles, getTextStyles, getButtonStyles } from '../utils/styleUtils';
 
-const FitbitDisplay = ({ onCaloriesUpdate }) => {
+const FitbitDisplay = ({ user, onCaloriesUpdate }) => {
+  
+  const isGuest = user?.guest === true;
+  const isLoggedIn = user && (user.guest === false || user.sessionToken);
+  console.log('[FitbitDisplay] rendering with user:', user);
+  console.log('[FitbitDisplay] isGuest:', isGuest);
+  console.log('[FitbitDisplay] isLoggedIn:', isLoggedIn);
+
   // THEME FRAMEWORK INTEGRATION
   const { themeMode, currentTheme } = useTheme();
   
@@ -71,9 +79,13 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
       const { profile, tokens, allData } = responseData;
       
       // Store tokens in session
-      console.log('Storing Fitbit tokens...');
-      await api.post('/api/fitbit/store-tokens', tokens);
-      console.log('Fitbit tokens stored successfully');
+      if (tokens) {
+        console.log('Storing Fitbit tokens...');
+        await api.post('/api/fitbit/store-tokens', tokens);
+        console.log('Fitbit tokens stored successfully');
+      } else {
+        console.log('Guest mode - no tokens to store');
+      }
       console.log('Activities data structure:', allData);
 
       // Calculate total calories from activities only
@@ -112,6 +124,20 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
     window.addEventListener('message', handleOAuthCallback);
     return () => window.removeEventListener('message', handleOAuthCallback);
   }, []);
+
+  const fetchGuestData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/fitbit/guest');
+      console.log('Guest Fitbit JSON:', response.data);
+      handleFitbitData(response.data);
+    } catch (err) {
+      console.error('Error fetching guest Fitbit data:', err);
+      setError('Could not load guest Fitbit data.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFitbitLogin = async () => {
     try {
@@ -172,6 +198,16 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
             <p>{error}</p>
           </div>
         )}
+        {(isGuest || !user) && (
+        <button
+          onClick={fetchGuestData}
+          disabled={loading}
+          className={connectButtonStyles}
+        >
+          {loading ? 'Loading Guest Data...' : 'Load Guest Fitbit Data'}
+        </button>
+        )}
+        {isLoggedIn && (
         <button 
           onClick={handleFitbitLogin}
           disabled={loading}
@@ -186,6 +222,7 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
           )}
           {loading ? 'Connecting...' : 'Connect Fitbit'}
         </button>
+        )}
       </div>
     );
   }
@@ -253,7 +290,7 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
               const activityName = activity.name?.toLowerCase() || '';
 
               if (activityName.includes('rowing')) {
-                iconPath = "/images/rowerWhite64.png";
+                iconPath = themeMode === 'light' ? "/images/rowerPurple64.png" : "/images/rowerWhite64.png";
                 activityType = 'Row';
                 bgColor = themeMode === 'light' ? 'bg-purple-50' : 'bg-purple-400/10';
                 ringColor = 'border-purple-500';
@@ -268,17 +305,17 @@ const FitbitDisplay = ({ onCaloriesUpdate }) => {
                 bgColor = themeMode === 'light' ? 'bg-green-50' : 'bg-green-400/10';
                 ringColor = 'border-green-500';
               } else if (activityName.includes('weightlifting')) {
-                iconPath = "/images/workout.png";
+                iconPath = themeMode === 'light' ? "/images/workoutOrange.png" : "/images/workout.png";
                 activityType = 'Workout';
                 bgColor = themeMode === 'light' ? 'bg-orange-50' : 'bg-orange-400/10';
                 ringColor = 'border-orange-500';
               } else if (activityName.includes('activity')) {
-                iconPath = "/images/workout.png";
+                iconPath = themeMode === 'light' ? "/images/workoutOrange.png" : "/images/workout.png";
                 activityType = 'Activity';
                 bgColor = themeMode === 'light' ? 'bg-orange-50' : 'bg-orange-400/10';
                 ringColor = 'border-orange-500';
               } else {
-                iconPath = "/images/workout.png";
+                iconPath = themeMode === 'light' ? "/images/workoutOrange.png" : "/images/workout.png";
                 activityType = 'Exercise';
                 bgColor = themeMode === 'light' ? 'bg-orange-50' : 'bg-orange-400/10';
                 ringColor = 'border-orange-500';

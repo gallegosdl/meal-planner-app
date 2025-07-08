@@ -1,3 +1,4 @@
+// client/src/components/Header.jsx
 import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';

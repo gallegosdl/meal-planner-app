@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 
-const XAuthButton = ({ onSuccess, onError }) => {
+const XAuthButton = ({ onSuccess, onError, children, className = '' }) => {
     const [showPopupHelp, setShowPopupHelp] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -166,7 +166,7 @@ const XAuthButton = ({ onSuccess, onError }) => {
       <button
         onClick={handleXLogin}
         disabled={isLoading}
-        className={`flex items-center justify-center w-12 h-12 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors ${
+        className={`flex items-center justify-center gap-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors ${className} ${
           isLoading ? 'opacity-50 cursor-not-allowed' : ''
         }`}
         title="Sign in with X"
@@ -174,12 +174,12 @@ const XAuthButton = ({ onSuccess, onError }) => {
         {isLoading ? (
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
         ) : (
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path
-              fill="currentColor"
-              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-            />
-          </svg>
+          <>
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            {children ?? null}
+          </>
         )}
       </button>
 

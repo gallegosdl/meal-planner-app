@@ -1,0 +1,70 @@
+{
+  "profile": {
+    "firstname": "Guest",
+    "lastname": "User",
+    "created_at": "2020-01-01T00:00:00Z"
+  },
+  "activities": [
+    {
+      "resource_state": 2,
+      "athlete": {
+        "id": 149115063,
+        "resource_state": 1
+      },
+      "name": "Monday Morning Row",
+      "distance": 4800,
+      "moving_time": 1200,
+      "elapsed_time": 1200,
+      "total_elevation_gain": 0,
+      "type": "Rowing",
+      "sport_type": "Rowing",
+      "id": 15035157749,
+      "start_date": "2025-07-09T12:30:05Z",
+      "start_date_local": "2025-07-09T05:30:05Z",
+      "timezone": "(GMT-08:00) America/Los_Angeles",
+      "utc_offset": -25200,
+      "calories": 420
+    },
+    {
+      "resource_state": 2,
+      "athlete": {
+        "id": 149115063,
+        "resource_state": 1
+      },
+      "name": "Afternoon Workout",
+      "distance": 0,
+      "moving_time": 3600,
+      "elapsed_time": 3600,
+      "total_elevation_gain": 0,
+      "type": "WeightTraining",
+      "sport_type": "WeightTraining",
+      "id": 15040031074,
+      "start_date": "2025-07-09T21:00:29Z",
+      "start_date_local": "2025-07-09T14:00:29Z",
+      "timezone": "(GMT-08:00) America/Los_Angeles",
+      "utc_offset": -25200,
+      "calories": 350
+    },
+    {
+      "resource_state": 2,
+      "athlete": {
+        "id": 149115063,
+        "resource_state": 1
+      },
+      "name": "AM Run",
+      "distance": 5632.7,
+      "moving_time": 2700,
+      "elapsed_time": 2700,
+      "total_elevation_gain": 0,
+      "type": "Run",
+      "sport_type": "Run",
+      "workout_type": 2,
+      "id": 15040023941,
+      "start_date": "2025-07-09T23:05:44Z",
+      "start_date_local": "2025-07-09T16:05:44Z",
+      "timezone": "(GMT-08:00) America/Los_Angeles",
+      "utc_offset": -25200,
+      "calories": 560
+    }
+  ]
+}

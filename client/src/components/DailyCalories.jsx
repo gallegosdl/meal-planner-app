@@ -1,3 +1,4 @@
+// client/src/components/DailyCalories.jsx
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Chart as ChartJS,
@@ -192,9 +193,15 @@ const DailyCalories = React.memo(({
     });
   }, [dailyCalorieTotals, mealPlan?.dailyCalorieTotals, activityCalories, targetCalories]);
 
-  // NEW: Fetch meal plans when userId is available
+  // NEW: Fetch meal plans when userId is available (ONLY if no meal plan data provided)
   useEffect(() => {
-    console.log('📊 DailyCalories: Effect triggered - userId:', userId, 'isFormMode:', isFormMode);
+    console.log('📊 DailyCalories: Effect triggered - userId:', userId, 'isFormMode:', isFormMode, 'mealPlan provided:', !!mealPlan);
+    
+    // If meal plan data is already provided via props, don't fetch from API
+    if (mealPlan) {
+      console.log('📊 DailyCalories: Using provided meal plan data, skipping API fetch');
+      return;
+    }
     
     // Try to get userId from prop first, then fallback to other sources
     const userIdToUse = userId || 
@@ -209,33 +216,45 @@ const DailyCalories = React.memo(({
     } else {
       console.log('📊 DailyCalories: Not fetching - missing userId or in form mode');
     }
-  }, [userId, fetchUserMealPlans, isFormMode]);
+  }, [userId, fetchUserMealPlans, isFormMode, mealPlan]);
 
   // NEW: Process meal plan data when it changes
   useEffect(() => {
     if (userMealPlans.length > 0) {
-      console.log('📊 DailyCalories: Processing meal plans:', userMealPlans.length);
+      console.log('📊 DailyCalories: Processing fetched meal plans:', userMealPlans.length);
       calculateDailyCalories(userMealPlans);
     }
   }, [userMealPlans, calculateDailyCalories]);
 
   // NEW: Calculate chart labels and meal calories separately
   const chartDataCalculation = useMemo(() => {
+    // PRIORITY 1: Use provided meal plan data (for guest demo or form-generated data)
+    if (mealPlan && Array.isArray(mealPlan)) {
+      console.log('📊 DailyCalories: Using provided array meal plan data');
+      return calculateDailyCalories(mealPlan);
+    }
+    
+    // PRIORITY 2: Use fetched user meal plans
     if (userMealPlans.length > 0) {
+      console.log('📊 DailyCalories: Using fetched user meal plans');
       return calculateDailyCalories(userMealPlans);
-    } else if (mealPlan?.dailyCalorieTotals?.length > 0) {
-      // Fallback to old structure if available
+    } 
+    
+    // PRIORITY 3: Use legacy mealPlan structure
+    if (mealPlan?.dailyCalorieTotals?.length > 0) {
+      console.log('📊 DailyCalories: Using legacy meal plan structure');
       const totals = mealPlan.dailyCalorieTotals;
       const labels = totals.map((_, index) => `Day ${index + 1}`);
       return { totals, labels };
-    } else {
-      // Default empty data
-      return { 
-        totals: [], 
-        labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'] 
-      };
-    }
-  }, [userMealPlans, mealPlan?.dailyCalorieTotals, calculateDailyCalories]);
+    } 
+    
+    // DEFAULT: Empty data
+    console.log('📊 DailyCalories: No data available, using defaults');
+    return { 
+      totals: [], 
+      labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'] 
+    };
+  }, [mealPlan, userMealPlans, calculateDailyCalories]);
 
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${containerStyles}`}>

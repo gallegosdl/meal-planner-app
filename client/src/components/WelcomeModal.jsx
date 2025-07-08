@@ -174,6 +174,18 @@ const WelcomeModal = ({ onClose }) => {
     }
   };
 
+  const handleAuthModalClose = (userData) => {
+    setShowAuth(false);
+  
+    if (userData) {
+      // The user has just logged in
+      if (dontShowAgain) {
+        localStorage.setItem('dontShowWelcome', 'true');
+      }
+      onClose(dontShowAgain, userData);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="min-h-[calc(100vh-2rem)] md:min-h-0 w-full flex items-center justify-center py-8">
@@ -264,7 +276,7 @@ const WelcomeModal = ({ onClose }) => {
               </label>
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                 <button
-                  onClick={() => onClose(dontShowAgain)}
+                  onClick={() => onClose(dontShowAgain, { guest: true })}
                   className="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg text-white font-medium hover:from-blue-600 hover:to-indigo-600 transition-colors"
                   disabled={isLoading}
                 >

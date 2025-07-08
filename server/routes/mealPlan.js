@@ -1,4 +1,6 @@
 // server/routes/mealPlan.js
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const router = express.Router();
 const MealPlanGenerator = require('../services/mealPlanGenerator');
@@ -16,6 +18,62 @@ const requireApiKey = (req, res, next) => {
   req.apiKey = Buffer.from(token, 'base64').toString();
   next();
 };
+
+// Debug endpoint to test guest data loading
+router.get('/debug-guest-data', (req, res) => {
+  try {
+    const guestDataPath = path.join(__dirname, '../guest_data/mealPlan1.json');
+    console.log('🔍 Debug: Checking guest data file...');
+    console.log('File path:', guestDataPath);
+    console.log('File exists:', fs.existsSync(guestDataPath));
+    
+    if (fs.existsSync(guestDataPath)) {
+      const guestData = JSON.parse(fs.readFileSync(guestDataPath, 'utf8'));
+      res.json({
+        success: true,
+        filePath: guestDataPath,
+        dataType: Array.isArray(guestData) ? 'array' : 'object',
+        dataLength: Array.isArray(guestData) ? guestData.length : Object.keys(guestData).length,
+        firstItem: Array.isArray(guestData) ? guestData[0] : guestData
+      });
+    } else {
+      res.json({
+        success: false,
+        error: 'File not found',
+        filePath: guestDataPath
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Serve guest meal plan JSON
+router.get('/guest-meal-plans', (req, res) => {
+  try {
+    const guestDataPath = path.join(__dirname, '../guest_data/mealPlan1.json');
+    console.log('Loading guest data from:', guestDataPath);
+    
+    // Try to read the file directly instead of require() for better error handling
+    if (fs.existsSync(guestDataPath)) {
+      const guestData = JSON.parse(fs.readFileSync(guestDataPath, 'utf8'));
+      res.json(guestData);
+    } else {
+      // Fallback to require if file path doesn't work
+      console.log('File not found at path, trying require fallback...');
+      const mealPlan = require('../guest_data/mealPlan1.json');
+      res.json(mealPlan);
+    }
+  } catch (error) {
+    console.error('Error serving guest meal plan:', error);
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Failed to load guest meal plan' });
+  }
+});
 
 // Generate meal plan route (requires OpenAI API key)
 router.post('/generate-meal-plan', requireApiKey, async (req, res) => {
@@ -74,6 +132,30 @@ router.get('/user-meal-plans/:userId?', async (req, res) => {
 
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Handle guest user case - return guest meal plan data
+    if (userId === 'guest') {
+      console.log('Guest user detected, returning guest meal plans');
+      try {
+        const guestDataPath = path.join(__dirname, '../guest_data/mealPlan1.json');
+        
+        if (fs.existsSync(guestDataPath)) {
+          const guestData = JSON.parse(fs.readFileSync(guestDataPath, 'utf8'));
+          return res.json(guestData);
+        } else {
+          const guestMealPlan = require('../guest_data/mealPlan1.json');
+          return res.json(guestMealPlan);
+        }
+      } catch (guestError) {
+        console.error('Error loading guest meal plan:', guestError);
+        return res.json([]); // Return empty array as fallback
+      }
+    }
+
+    // Validate that userId is a number for database queries
+    if (isNaN(parseInt(userId))) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
     }
 
     // Initialize without API key since we're just querying the database

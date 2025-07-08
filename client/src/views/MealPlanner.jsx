@@ -1,14 +1,16 @@
+// client/src/views/MealPlanner.jsx
 import React from 'react';
 import MealPlannerForm from '../components/MealPlannerForm';
 import RecipeList from '../components/RecipeList';
 
-const MealPlanner = ({ activeTab, user, handleLogout, onMealPlanGenerated }) => {
+const MealPlanner = ({ activeTab, user, setUser, handleLogout, onMealPlanGenerated }) => {
   return (
     <div className="max-w-7xl mx-auto p-6">
       {activeTab === 'planner' ? (
         <MealPlannerForm 
           onMealPlanGenerated={onMealPlanGenerated}
           user={user}
+          setUser={setUser}
           handleLogout={handleLogout}
         />
       ) : (
