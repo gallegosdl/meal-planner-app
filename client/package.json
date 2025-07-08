@@ -4,6 +4,7 @@
   "private": true,
   "proxy": "http://localhost:3001",
   "dependencies": {
+    "@craco/craco": "^7.1.0",
     "@greatsumini/react-facebook-login": "^3.4.0",
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
@@ -24,7 +25,7 @@
     "react-scripts": "5.0.1",
     "tailwindcss": "^3.3.5"
   },
-    "scripts": {
+  "scripts": {
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
