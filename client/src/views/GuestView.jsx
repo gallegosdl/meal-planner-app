@@ -1,6 +1,6 @@
 // client/src/views/GuestView.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import UserMealPlanContainer from '../components/UserMealPlanContainer';
 import { useTheme } from '../contexts/ThemeContext';
 import AuthModal from '../components/AuthModal';
@@ -49,7 +49,7 @@ const GuestView = ({ setUser }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get('/api/meal-plans/guest-meal-plans');
+      const res = await api.get('/api/meal-plans/guest-meal-plans');
       // if the JSON is already in the expected shape
       setGuestData(res.data);
       setShowDemo(true);
