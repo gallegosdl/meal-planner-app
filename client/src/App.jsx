@@ -1,15 +1,15 @@
 // client/src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { THEME_MODES } from './styles/themes';
 import AppRouter from './routes/AppRouter';
 import { authHandler } from './handlers/authHandler';
 import WelcomeModal from './components/WelcomeModal';
 import { Toaster, toast } from 'react-hot-toast';
 
-export default function App() {
-  console.log('[✅ App.jsx] App component rendered');
+function AppContent() {
+  const { currentTheme } = useTheme();
 
   const [user, setUser] = useState(null);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -85,30 +85,27 @@ export default function App() {
     }
   };
 
-  /** Themed app container using theme system **/
-  const ThemedApp = ({ children }) => {
-    return (
-      <div className="min-h-screen">
-        {children}
-      </div>
-    );
-  };
+  return (
+    <div className={`min-h-screen ${currentTheme.backgrounds.app} ${currentTheme.text.primary}`}>
+      <Router>
+        <AppRouter
+          user={user}
+          setUser={setUser}
+          handleLogout={handleLogout}
+        />
+        {showWelcome && (
+          <WelcomeModal onClose={handleWelcomeClose} />
+        )}
+        <Toaster position="top-right" />
+      </Router>
+    </div>
+  );
+}
 
+export default function App() {
   return (
     <ThemeProvider defaultTheme={THEME_MODES.DARK}>
-      <Router>
-        <ThemedApp>
-          <AppRouter
-            user={user}
-            setUser={setUser}
-            handleLogout={handleLogout}
-          />
-          {showWelcome && (
-            <WelcomeModal onClose={handleWelcomeClose} />
-          )}
-          <Toaster position="top-right" />
-        </ThemedApp>
-      </Router>
+      <AppContent />
     </ThemeProvider>
   );
 }
