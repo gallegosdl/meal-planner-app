@@ -20,19 +20,16 @@ router.get('/auth', async (req, res) => {
       ? 'https://meal-planner-app-3m20.onrender.com/api/strava/callback'
       : 'http://localhost:3001/api/strava/callback';
     
-    // Generate state for CSRF protection
-    const state = crypto.randomBytes(32).toString('hex');
-    
-    // Store state in session for verification
-    req.session.stravaOauth = {
-      state,
-      timestamp: Date.now()
-    };
+      // ✅ Generate nonce for CSRF protection
+      const nonce = crypto.randomBytes(16).toString('hex');
+
+      // ✅ Encode state as JSON
+      const statePayload = { nonce };
+      const state = Buffer.from(JSON.stringify(statePayload)).toString('base64url');
 
     // Debug session before save
     console.log('Session before save:', {
       id: req.sessionID,
-      oauth: req.session.stravaOauth,
       cookie: req.session.cookie,
       hasSession: !!req.session
     });
@@ -93,26 +90,24 @@ router.get('/callback', async (req, res) => {
     const { code, state } = req.query;
     console.log('Strava callback params:', { 
       hasCode: !!code,
-      hasState: !!state,
-      sessionState: req.session.stravaOauth?.state?.substring(0, 8) + '...',
-      sessionTimestamp: req.session.stravaOauth?.timestamp
+      hasState: !!state
     });
 
-    // Validate state and ensure OAuth session exists
-    if (!req.session.stravaOauth || 
-        !req.session.stravaOauth.state || 
-        state !== req.session.stravaOauth.state ||
-        Date.now() - req.session.stravaOauth.timestamp > 300000) { // 5 minute expiry
-      console.error('OAuth validation failed:', {
-        hasSession: !!req.session.stravaOauth,
-        hasSessionState: !!req.session.stravaOauth?.state,
-        stateMatch: state === req.session.stravaOauth?.state,
-        timeValid: Date.now() - (req.session.stravaOauth?.timestamp || 0) <= 300000
-      });
-      throw new Error('Invalid or expired OAuth session');
+    // ✅ Decode and parse state param
+    let stateDecoded;
+    try {
+      stateDecoded = JSON.parse(Buffer.from(state, 'base64url').toString());
+    } catch (err) {
+      console.error('Failed to parse state param:', err);
+      throw new Error('Invalid OAuth state');
     }
 
-    delete req.session.stravaOauth; // Clear OAuth session data
+    // Extract nonce
+    const { nonce } = stateDecoded;
+    if (!nonce) {
+      throw new Error('Missing nonce in OAuth state');
+    }
+
     console.log('OAuth session validated and cleared');
 
     const clientId = process.env.STRAVA_CLIENT_ID;
@@ -166,12 +161,6 @@ router.get('/callback', async (req, res) => {
         after: todayTimestamp // Only get activities after start of today
       }
     });
-
-    // User timezone math
-    const userOffsetMinutes = req.session.stravaOauth?.timezoneOffset || 0;
-    const nowUTC = new Date();
-    const localNow = new Date(nowUTC.getTime() - userOffsetMinutes * 60 * 1000);
-    const userTodayString = localNow.toISOString().slice(0, 10);
 
     // Filter for today's local activities
     const allActivities = activitiesResponse.data;
@@ -380,7 +369,6 @@ router.get('/profile', async (req, res) => {
     // Check if token expired
     if (error.response?.status === 401) {
       // Clear invalid session
-      delete req.session.strava;
       return res.status(401).json({ error: 'Strava session expired' });
     }
 
@@ -507,7 +495,6 @@ router.get('/activities', async (req, res) => {
     console.error('Error fetching Strava activities:', error);
     
     if (error.response?.status === 401) {
-      delete req.session.strava;
       return res.status(401).json({ error: 'Strava session expired' });
     }
 
@@ -607,7 +594,6 @@ router.get('/activity/:activityId', async (req, res) => {
     });
     
     if (error.response?.status === 401) {
-      delete req.session.strava;
       return res.status(401).json({ error: 'Strava session expired' });
     }
 

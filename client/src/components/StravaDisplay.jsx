@@ -55,13 +55,23 @@ const StravaDisplay = ({ user, onCaloriesUpdate }) => {
   // Function to handle messages from popup window
   const handleOAuthCallback = async (event) => {
     console.log('Received postMessage event:', event.data?.type);
-    if (!event.data || event.data.type !== 'strava_callback') return;
-    
-    if (event.data.error) {
-      console.error('Strava OAuth error:', event.data.error);
-      setError(event.data.error);
-      setLoading(false);
-      return;
+    if (event.data && event.data.data) {
+      try {
+        const parsedState = JSON.parse(atob(event.data.data.state || ''));
+        const savedNonce = localStorage.getItem('strava_oauth_nonce');
+        if (!savedNonce || parsedState.nonce !== savedNonce) {
+          console.error('Nonce mismatch! Potential CSRF.');
+          setError('OAuth state verification failed');
+          setLoading(false);
+          return;
+        }
+        console.log('✅ Nonce verified');
+      } catch (err) {
+        console.error('Failed to parse returned state for nonce check', err);
+        setError('OAuth state parse error');
+        setLoading(false);
+        return;
+      }
     }
 
     console.log('Received Strava callback data:', {
@@ -125,6 +135,7 @@ const StravaDisplay = ({ user, onCaloriesUpdate }) => {
       }
 
       setError(null);
+      localStorage.removeItem('strava_oauth_nonce');
     } catch (err) {
       console.error('Failed to process Strava data:', err);
       setError('Failed to process Strava data. Please try again.');
@@ -146,6 +157,17 @@ const StravaDisplay = ({ user, onCaloriesUpdate }) => {
 
       // Get auth URL from backend using api service
       console.log('Fetching Strava auth URL...');
+      // ✅ Generate and store nonce
+      function generateNonce() {
+        return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+      }
+
+      const nonce = generateNonce();
+      localStorage.setItem('strava_oauth_nonce', nonce);
+
+      // Get auth URL from backend
       const response = await api.get('/api/strava/auth');
       console.log('Received auth URL from server');
 
