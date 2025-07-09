@@ -162,19 +162,6 @@ router.get('/callback', async (req, res) => {
       }
     });
 
-    // Filter for today's local activities
-    const allActivities = activitiesResponse.data;
-    const todaysActivities = allActivities.filter(activity => {
-      const activityUTC = new Date(activity.start_date);
-      const activityLocal = new Date(activityUTC.getTime() - userOffsetMinutes * 60 * 1000);
-      const activityDateString = activityLocal.toISOString().slice(0, 10);
-      return activityDateString === userTodayString;
-    });
-
-    // Log
-    console.log(`User's local today: ${userTodayString}`);
-    console.log(`Activities found for today: ${todaysActivities.length}`);
-
     // Log raw activities response
     console.log('Raw Strava activities response:', JSON.stringify(activitiesResponse.data, null, 2));
 
