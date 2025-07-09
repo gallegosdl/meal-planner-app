@@ -66,34 +66,26 @@ const FitbitDisplay = ({ user, onCaloriesUpdate }) => {
       console.log('Not a Fitbit callback event:', event.data?.type);
       return;
     }
-    
+  
     if (event.data.error) {
       console.error('Fitbit OAuth error:', event.data.error);
       setError(event.data.error);
       setLoading(false);
       return;
     }
-
+  
     if (event.data && event.data.data) {
-      // Verify nonce
-      try {
-        const parsedState = JSON.parse(atob(event.data.data.state || ''));
-        const savedNonce = localStorage.getItem('fitbit_oauth_nonce');
-        if (!savedNonce || parsedState.nonce !== savedNonce) {
-          console.error('Nonce mismatch! Potential CSRF.');
-          setError('OAuth state verification failed');
-          setLoading(false);
-          return;
-        }
-        console.log('✅ Nonce verified');
-      } catch (err) {
-        console.error('Failed to parse returned state for nonce check', err);
-        setError('OAuth state parse error');
+      // Verify state
+      const savedState = localStorage.getItem('fitbit_oauth_state');
+      if (!savedState || event.data.data.state !== savedState) {
+        console.error('State mismatch! Potential CSRF.');
+        setError('OAuth state verification failed');
         setLoading(false);
         return;
       }
+      console.log('✅ State verified');
     }
-
+  
     console.log('Received valid Fitbit callback data:', event.data);
     handleFitbitData(event.data.data);
   };
@@ -137,7 +129,7 @@ const FitbitDisplay = ({ user, onCaloriesUpdate }) => {
       });
 
       setError(null);
-      localStorage.removeItem('fitbit_oauth_nonce');
+      localStorage.removeItem('fitbit_oauth_state');
     } catch (err) {
       console.error('Failed to process Fitbit data:', err);
       setError('Failed to process Fitbit data. Please try again.');
@@ -170,33 +162,32 @@ const FitbitDisplay = ({ user, onCaloriesUpdate }) => {
     try {
       setLoading(true);
       setError(null);
-
-      // Generate nonce
-      const nonce = generateNonce();
-      localStorage.setItem('fitbit_oauth_nonce', nonce);
-
-      // Get auth URL from backend with embedded state
+  
+      // Get auth URL from backend
       const response = await api.get('/api/fitbit/auth');
-
-      // Try popup first
+      const authUrl = response.data.authUrl;
+  
+      // Parse and store state
+      const urlObj = new URL(authUrl);
+      const state = urlObj.searchParams.get('state');
+      localStorage.setItem('fitbit_oauth_state', state);
+  
+      // Open popup
       const width = 600;
       const height = 800;
       const left = window.screen.width / 2 - width / 2;
       const top = window.screen.height / 2 - height / 2;
-      
       const popup = window.open(
-        response.data.authUrl,
+        authUrl,
         'Fitbit Authorization',
         `width=${width},height=${height},left=${left},top=${top}`
       );
-
-      // If popup blocked, fallback to redirect
+  
       if (!popup) {
-        window.location.href = response.data.authUrl;
+        window.location.href = authUrl;
         return;
       }
-
-      // Monitor popup window
+  
       const checkPopup = setInterval(() => {
         if (!popup || popup.closed) {
           console.log('Popup window was closed');
@@ -204,7 +195,7 @@ const FitbitDisplay = ({ user, onCaloriesUpdate }) => {
           setLoading(false);
         }
       }, 1000);
-
+  
     } catch (err) {
       setError('Failed to initialize Fitbit authentication');
       console.error('Fitbit auth error:', err);
