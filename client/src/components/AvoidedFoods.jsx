@@ -1,3 +1,4 @@
+//src/components/AvoidedFoods.jsx
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCardStyles, getTagStyles, getTextStyles } from '../utils/styleUtils';

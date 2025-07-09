@@ -1,3 +1,4 @@
+//src/components/MealPreferences.jsx
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCardStyles, getTextStyles, getInputStyles } from '../utils/styleUtils';
