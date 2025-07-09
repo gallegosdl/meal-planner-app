@@ -99,17 +99,16 @@ const StravaDisplay = ({ user, onCaloriesUpdate }) => {
         name: activity.name,
         sport_type: activity.sport_type
       })));
-
+  
       // Store tokens in session
       if (tokens) {
-        console.log('Storing Fitbit tokens...');
-        await api.post('/api/fitbit/store-tokens', tokens);
-        console.log('Fitbit tokens stored successfully');
+        console.log('Storing Strava tokens...');
+        await api.post('/api/strava/store-tokens', tokens);
+        console.log('Strava tokens stored successfully');
       } else {
         console.log('Guest mode - no tokens to store');
       }
-      console.log('Strava tokens stored successfully');
-
+  
       // Format the data for display
       setData({
         displayName: `${profile.firstname} ${profile.lastname}`,
@@ -117,15 +116,14 @@ const StravaDisplay = ({ user, onCaloriesUpdate }) => {
         activities: activities,
         id: profile.id || 'GUEST123'
       });
-
+  
       // Pass calories to parent if available
       if (dailyCalories && onCaloriesUpdate) {
         console.log('Passing Strava daily calories to parent:', dailyCalories);
         onCaloriesUpdate(dailyCalories);
       }
-
+  
       setError(null);
-      localStorage.removeItem('strava_oauth_nonce');
     } catch (err) {
       console.error('Failed to process Strava data:', err);
       setError('Failed to process Strava data. Please try again.');
