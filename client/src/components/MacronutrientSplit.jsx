@@ -1,3 +1,4 @@
+//src/components/MacronutrientSplit.jsx
 import React, { useMemo } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 

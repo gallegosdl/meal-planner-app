@@ -1,3 +1,4 @@
+// client/src/components/MealSummaryModal.jsx
 import React from 'react';
 import moment from 'moment';
 import { useTheme } from '../contexts/ThemeContext.jsx';

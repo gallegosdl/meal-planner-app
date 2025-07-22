@@ -1,3 +1,4 @@
+//src/components/FacebookAuthButton.jsx
 import React, { useState } from 'react';
 import FacebookLogin from '@greatsumini/react-facebook-login';
 import api from '../services/api';

@@ -1,3 +1,4 @@
+//src/components/ApiKeyInput.jsx
 import React from 'react';
 import { authenticate, clearSession } from '../services/api';
 import { toast } from 'react-hot-toast';

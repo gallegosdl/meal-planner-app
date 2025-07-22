@@ -1,3 +1,4 @@
+// server/services/togetherAiService.js
 const { Together } = require('together-ai');
 
 class TogetherAiService {

@@ -1,3 +1,4 @@
+// server/routes/api.js
 const express = require('express');
 const multer = require('multer');
 const ReceiptParser = require('../services/receiptParser');

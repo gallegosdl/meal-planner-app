@@ -1,3 +1,4 @@
+//src/components/Recipe.jsx
 import React, { useState } from 'react';
 import { StarIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import api from '../services/api';

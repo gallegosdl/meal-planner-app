@@ -1,3 +1,4 @@
+//src/components/DailyCaloriesSummary.jsx
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 

@@ -1,3 +1,4 @@
+//src/components/GoogleAuthButton.jsx
 import React from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import api from '../services/api';

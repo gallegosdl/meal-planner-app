@@ -1,3 +1,4 @@
+// server/services/mealPlanGenerator.js
 const OpenAI = require('openai');
 require('dotenv').config();
 const db = require('../services/database');

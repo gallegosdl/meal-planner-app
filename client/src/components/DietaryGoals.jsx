@@ -1,3 +1,4 @@
+//src/components/DietaryGoals.jsx
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCardStyles, getTextStyles, getButtonStyles } from '../utils/styleUtils';

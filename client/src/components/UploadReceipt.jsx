@@ -1,3 +1,4 @@
+//src/components/UploadReceipt.jsx
 import React from 'react';
 
 const UploadReceipt = ({ handleReceiptUpload, isParsingReceipt, receiptItems }) => (

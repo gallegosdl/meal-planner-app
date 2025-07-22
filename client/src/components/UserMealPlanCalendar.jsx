@@ -1,3 +1,4 @@
+// client/src/components/UserMealPlanCalendar.jsx
 import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';

@@ -1,3 +1,4 @@
+//src/components/AppleAuthButton.jsx
 import React from 'react';
 import api from '../services/api';
 

@@ -1,3 +1,4 @@
+//src/components/CuisinePreferences.jsx
 import React, { useMemo, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import MealOfTheDay from './MealOfTheDay';
