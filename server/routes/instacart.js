@@ -9,20 +9,100 @@ const { isPantryItem, DEFAULT_PANTRY_SETTINGS } = require('../config/pantryConfi
 const INSTACART_API = 'https://connect.dev.instacart.tools/idp/v1/products/products_link'; // DEV
 
 router.post('/create-link', async (req, res) => {
-  console.log('Server: Received Instacart request');
+  console.log('🔵 ========== INSTACART CREATE-LINK REQUEST ==========');
+  console.log('🔵 Server: Received Instacart request');
+  console.log('🔵 Request headers:', {
+    'x-session-token': req.headers['x-session-token'] ? `${req.headers['x-session-token'].substring(0, 20)}...` : 'MISSING',
+    'cookie': req.headers.cookie ? 'PRESENT' : 'MISSING',
+    'content-type': req.headers['content-type'],
+    'origin': req.headers.origin
+  });
   
-  const sessionToken = req.headers['x-session-token'];
+  const sessionToken = req.headers['x-session-token'] || req.cookies?.session_token;
+  console.log('🔵 Session token extracted:', sessionToken ? 'YES' : 'NO');
+  console.log('🔵 Session token value:', sessionToken ? `${sessionToken.substring(0, 20)}...` : 'NONE');
+  
   if (!sessionToken) {
-    console.log('Server: No session token provided');
+    console.log('❌ Server: No session token provided');
     return res.status(401).json({ error: 'No session token provided' });
   }
 
-  // Get session to validate user is authenticated
-  const session = req.app.get('sessions').get(sessionToken);
+  // Check in-memory sessions first (for backwards compatibility)
+  const inMemorySessions = req.app.get('sessions');
+  console.log('🔵 In-memory sessions store:', {
+    exists: !!inMemorySessions,
+    size: inMemorySessions?.size || 0,
+    hasToken: inMemorySessions?.has(sessionToken) || false
+  });
+  
+  const inMemorySession = inMemorySessions?.get(sessionToken);
+  console.log('🔵 In-memory session found:', {
+    found: !!inMemorySession,
+    hasApiKey: !!inMemorySession?.apiKey,
+    hasUserId: !!inMemorySession?.userId
+  });
+
+  // Check database sessions
+  console.log('🔵 Checking database sessions...');
+  const { pool } = require('../services/database');
+  const client = await pool.connect();
+  let dbSession = null;
+  try {
+    const result = await client.query(
+      `SELECT s.user_id, s.token, s.expires_at
+       FROM sessions s
+       WHERE s.token = $1`,
+      [sessionToken]
+    );
+
+    console.log('🔵 Database session query result:', {
+      found: result.rows.length > 0,
+      user_id: result.rows[0]?.user_id,
+      expires_at: result.rows[0]?.expires_at,
+      is_expired: result.rows[0] ? new Date(result.rows[0].expires_at) < new Date() : null
+    });
+
+    if (result.rows.length > 0) {
+      const expiresAt = new Date(result.rows[0].expires_at);
+      if (expiresAt >= new Date()) {
+        dbSession = {
+          userId: result.rows[0].user_id,
+          apiKey: process.env.OPENAI_API_KEY // Use environment API key
+        };
+        console.log('✅ Database session valid, user_id:', dbSession.userId);
+      } else {
+        console.log('❌ Database session expired');
+      }
+    } else {
+      console.log('❌ Database session not found');
+    }
+  } catch (dbError) {
+    console.error('❌ Database session lookup error:', dbError);
+  } finally {
+    client.release();
+  }
+
+  // Use database session if available, otherwise fall back to in-memory
+  const session = dbSession || inMemorySession;
+  console.log('🔵 Final session object:', {
+    found: !!session,
+    hasApiKey: !!session?.apiKey,
+    hasUserId: !!session?.userId,
+    source: dbSession ? 'database' : (inMemorySession ? 'memory' : 'none')
+  });
+
   if (!session?.apiKey) {
-    console.log('Server: Invalid session');
+    console.log('❌ Server: Invalid session - no API key available');
+    console.log('❌ Session details:', {
+      dbSession: !!dbSession,
+      inMemorySession: !!inMemorySession,
+      hasApiKey: !!session?.apiKey,
+      envApiKey: !!process.env.OPENAI_API_KEY
+    });
     return res.status(401).json({ error: 'Invalid session' });
   }
+
+  console.log('✅ Session validated successfully, proceeding with Instacart request');
 
   try {
     // Log the full request and ingredients payload
