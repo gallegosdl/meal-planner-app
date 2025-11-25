@@ -10,12 +10,10 @@ PantryItem.init({
     autoIncrement: true
   },
   user_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+    type: DataTypes.UUID,
+    allowNull: false
+    // Note: Database column is UUID, but sessions.user_id is INTEGER
+    // The authenticateToken middleware now queries users table to get UUID
   },
   item_name: {
     type: DataTypes.TEXT,

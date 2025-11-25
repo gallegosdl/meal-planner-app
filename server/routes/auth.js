@@ -736,16 +736,82 @@ router.post('/session', async (req, res) => {
   }
 });
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
+  console.log('🔐 authenticateToken middleware called');
+  console.log('🔐 Request headers:', {
+    'x-session-token': req.headers['x-session-token'] ? `${req.headers['x-session-token'].substring(0, 10)}...` : 'MISSING',
+    'cookie': req.headers.cookie ? 'PRESENT' : 'MISSING',
+    'cookies.session_token': req.cookies?.session_token ? `${req.cookies.session_token.substring(0, 10)}...` : 'MISSING'
+  });
+
   // Accept token from cookie OR header
-  const sessionToken = req.cookies.session_token || req.headers['x-session-token'];
+  const sessionToken = req.cookies?.session_token || req.headers['x-session-token'];
+  console.log('🔐 Session token found:', sessionToken ? 'YES' : 'NO');
+
   if (!sessionToken) {
+    console.log('❌ No session token provided');
     return res.status(401).json({ error: 'No session token' });
   }
-  // TODO: Lookup user by sessionToken in your DB/session store
-  req.user = { id: 1 }; // Dummy user for now, replace with real lookup
-  console.log('Authenticated user in the auth.js file:', req.user);
-  next();
+
+  console.log('🔐 Looking up session in database...');
+  const client = await pool.connect();
+  try {
+    // First, get the session with user_id
+    const sessionResult = await client.query(
+      `SELECT s.user_id, s.token, s.expires_at
+       FROM sessions s
+       WHERE s.token = $1 AND s.expires_at > CURRENT_TIMESTAMP`,
+      [sessionToken]
+    );
+
+    console.log('🔐 Session query result:', {
+      found: sessionResult.rows.length > 0,
+      user_id: sessionResult.rows[0]?.user_id,
+      user_id_type: typeof sessionResult.rows[0]?.user_id,
+      expires_at: sessionResult.rows[0]?.expires_at
+    });
+
+    if (sessionResult.rows.length === 0) {
+      console.log('❌ Session not found in database or expired');
+      return res.status(401).json({ error: 'Invalid or expired session' });
+    }
+
+    const expiresAt = new Date(sessionResult.rows[0].expires_at);
+    if (expiresAt < new Date()) {
+      console.log('❌ Session expired', { expires_at: expiresAt, now: new Date() });
+      return res.status(401).json({ error: 'Invalid or expired session' });
+    }
+
+    // Get the user_id from session (INTEGER)
+    const sessionUserId = sessionResult.rows[0].user_id;
+    
+    // Query users table to get the actual id (check if it's UUID or INTEGER)
+    const userResult = await client.query(
+      `SELECT id, pg_typeof(id) as id_type FROM users WHERE id = $1`,
+      [sessionUserId]
+    );
+
+    console.log('🔐 User query result:', {
+      found: userResult.rows.length > 0,
+      user_id: userResult.rows[0]?.id,
+      id_type: userResult.rows[0]?.id_type
+    });
+
+    if (userResult.rows.length === 0) {
+      console.log('❌ User not found');
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Use the user's id (could be UUID or INTEGER)
+    req.user = { id: userResult.rows[0].id };
+    console.log('✅ Authenticated user:', req.user, 'type:', typeof req.user.id, 'value:', req.user.id);
+    next();
+  } catch (error) {
+    console.error('❌ Session lookup error:', error);
+    return res.status(500).json({ error: 'Failed to authenticate', details: error.message });
+  } finally {
+    client.release();
+  }
 }
 
 router.get('/', (req, res) => {

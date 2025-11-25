@@ -8,6 +8,19 @@ const { Op } = require('sequelize');
 // In routes/pantry.js
 console.log('pantry.js loaded');
 
+// Helper to convert user_id to appropriate format for database
+const formatUserId = (userId) => {
+  console.log('🔍 formatUserId called with userId:', userId, 'type:', typeof userId);
+  // If userId is already a string that looks like UUID, return it
+  if (typeof userId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+    return userId;
+  }
+  // If it's an integer, we need to handle it - but UUID columns can't accept integers
+  // So we'll return it as-is and let Sequelize handle the conversion
+  // The database will reject it if it's not a valid UUID
+  return userId;
+};
+
 // Helper to create user_id where clause with type casting for UUID/INTEGER mismatch
 const getUserWhereClause = (userId) => {
   console.log('🔍 getUserWhereClause called with userId:', userId, 'type:', typeof userId);
@@ -50,8 +63,10 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { item_name, quantity, category } = req.body;
     console.log('🔍 Creating pantry item with user_id:', req.user.id, 'type:', typeof req.user.id);
+    const formattedUserId = formatUserId(req.user.id);
+    console.log('🔍 Formatted user_id:', formattedUserId, 'type:', typeof formattedUserId);
     const newItem = await PantryItem.create({
-      user_id: req.user.id,
+      user_id: formattedUserId,
       item_name,
       quantity,
       category
@@ -166,8 +181,9 @@ router.post('/bulk', authenticateToken, async (req, res) => {
         } else {
           // Item doesn't exist - create new
           console.log('🔍 Creating new pantry item:', newItem.item_name, 'user_id:', req.user.id);
+          const formattedUserId = formatUserId(req.user.id);
           const createdItem = await PantryItem.create({
-            user_id: req.user.id,
+            user_id: formattedUserId,
             item_name: newItem.item_name,
             quantity: newItem.quantity || 1,
             category: newItem.category
@@ -261,8 +277,10 @@ router.post('/bulk-smart', authenticateToken, async (req, res) => {
         } else {
           // Item doesn't exist - create new
           console.log('🔍 Creating new pantry item (bulk-smart):', newItem.item_name, 'user_id:', req.user.id);
+          const formattedUserId = formatUserId(req.user.id);
+          console.log('🔍 Formatted user_id for bulk-smart:', formattedUserId, 'type:', typeof formattedUserId);
           const createdItem = await PantryItem.create({
-            user_id: req.user.id,
+            user_id: formattedUserId,
             item_name: newItem.item_name,
             quantity: addQuantity,
             category: newItem.category,
