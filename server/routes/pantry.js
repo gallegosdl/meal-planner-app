@@ -2,18 +2,32 @@ const express = require('express');
 const router = express.Router();
 const PantryItem = require('../models/PantryItem');
 const { authenticateToken } = require('./auth');
+const sequelize = require('../db/config');
+const { Op } = require('sequelize');
 
 // In routes/pantry.js
 console.log('pantry.js loaded');
+
+// Helper to create user_id where clause with type casting for UUID/INTEGER mismatch
+const getUserWhereClause = (userId) => {
+  console.log('🔍 getUserWhereClause called with userId:', userId, 'type:', typeof userId);
+  // Cast user_id to TEXT to handle UUID/INTEGER mismatch
+  return sequelize.where(
+    sequelize.cast(sequelize.col('PantryItem.user_id'), 'TEXT'),
+    sequelize.cast(userId, 'TEXT')
+  );
+};
 
 // Get all pantry items for the authenticated user, grouped by category
 router.get('/', authenticateToken, async (req, res) => {
   try {
     console.log('GET /api/pantry handler, user:', req.user);
+    console.log('🔍 Querying pantry with user_id:', req.user.id, 'type:', typeof req.user.id);
     const items = await PantryItem.findAll({
-      where: { user_id: req.user.id },
+      where: getUserWhereClause(req.user.id),
       order: [['item_name', 'ASC']]
     });
+    console.log('✅ Found', items.length, 'pantry items');
 
     // Group items by category
     const groupedItems = items.reduce((acc, item) => {
@@ -35,16 +49,18 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { item_name, quantity, category } = req.body;
+    console.log('🔍 Creating pantry item with user_id:', req.user.id, 'type:', typeof req.user.id);
     const newItem = await PantryItem.create({
       user_id: req.user.id,
       item_name,
       quantity,
       category
     });
+    console.log('✅ Created pantry item:', newItem.id);
 
     // Fetch and return updated list
     const items = await PantryItem.findAll({
-      where: { user_id: req.user.id },
+      where: getUserWhereClause(req.user.id),
       order: [['item_name', 'ASC']]
     });
 
@@ -67,7 +83,10 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     const { quantity } = req.body;
 
     const item = await PantryItem.findOne({
-      where: { id, user_id: req.user.id }
+      where: {
+        id,
+        [Op.and]: [getUserWhereClause(req.user.id)]
+      }
     });
 
     if (!item) {
@@ -88,7 +107,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     
     const item = await PantryItem.findOne({
-      where: { id, user_id: req.user.id }
+      where: {
+        id,
+        [Op.and]: [getUserWhereClause(req.user.id)]
+      }
     });
 
     if (!item) {
@@ -113,7 +135,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
 
     // Get existing pantry items for the user
     const existingItems = await PantryItem.findAll({
-      where: { user_id: req.user.id }
+      where: getUserWhereClause(req.user.id)
     });
 
     // Create a map of existing items for quick lookup
@@ -141,21 +163,22 @@ router.post('/bulk', authenticateToken, async (req, res) => {
           new_quantity: newQuantity,
           added: newItem.quantity || 1
         });
-      } else {
-        // Item doesn't exist - create new
-        const createdItem = await PantryItem.create({
-          user_id: req.user.id,
-          item_name: newItem.item_name,
-          quantity: newItem.quantity || 1,
-          category: newItem.category
-        });
-        createdItems.push(createdItem);
-      }
+        } else {
+          // Item doesn't exist - create new
+          console.log('🔍 Creating new pantry item:', newItem.item_name, 'user_id:', req.user.id);
+          const createdItem = await PantryItem.create({
+            user_id: req.user.id,
+            item_name: newItem.item_name,
+            quantity: newItem.quantity || 1,
+            category: newItem.category
+          });
+          createdItems.push(createdItem);
+        }
     }
 
     // Fetch and return updated list
     const allItems = await PantryItem.findAll({
-      where: { user_id: req.user.id },
+      where: getUserWhereClause(req.user.id),
       order: [['item_name', 'ASC']]
     });
 
@@ -196,7 +219,7 @@ router.post('/bulk-smart', authenticateToken, async (req, res) => {
 
     // Get existing pantry items for the user
     const existingItems = await PantryItem.findAll({
-      where: { user_id: req.user.id }
+      where: getUserWhereClause(req.user.id)
     });
 
     // Create a map of existing items for quick lookup
@@ -237,6 +260,7 @@ router.post('/bulk-smart', authenticateToken, async (req, res) => {
           });
         } else {
           // Item doesn't exist - create new
+          console.log('🔍 Creating new pantry item (bulk-smart):', newItem.item_name, 'user_id:', req.user.id);
           const createdItem = await PantryItem.create({
             user_id: req.user.id,
             item_name: newItem.item_name,
@@ -257,7 +281,7 @@ router.post('/bulk-smart', authenticateToken, async (req, res) => {
 
     // Fetch and return updated list
     const allItems = await PantryItem.findAll({
-      where: { user_id: req.user.id },
+      where: getUserWhereClause(req.user.id),
       order: [['item_name', 'ASC']]
     });
 
